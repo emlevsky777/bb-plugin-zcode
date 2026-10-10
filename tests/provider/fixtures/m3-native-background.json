@@ -1,0 +1,10 @@
+{
+  "source": "M3 LoadBaseline actual installed CLI0.16.9/runtime fad4c35c on 2026-10-06; native-tools current own stand m3-b49d09ae, row8. Relevant fields selected; scratch/HOME paths replaced. Native IDs and absence of optional workId/backgrounded retained. OSS29628c9 bash-model-content.ts:120-142 corroborates the exact explicit-background prefix.",
+  "row": {
+    "rowId": 8, "kind": "toolCall", "turnId": "msg-m3-fixture",
+    "toolCallId": "call_c5ae0fada95b46b39099bc23", "toolName": "Bash", "status": "success",
+    "input": {"command": "<host-node> background-worker.mjs baseline 180000", "description": "own bounded worker", "run_in_background": true},
+    "output": {"text": "Command running in background with ID: exec_8a5ab742-6d0f-4f31-a75a-c3c750eb3939. Output is being written to: <own-home>/call_c5ae0fada95b46b39099bc23-stdout.log. You will be notified when it completes. To check interim output, use Read on that file path."}
+  },
+  "work": {"workId":"exec_8a5ab742-6d0f-4f31-a75a-c3c750eb3939","kind":"bash","status":"running","title":"own bounded worker","anchorRowId":null}
+}

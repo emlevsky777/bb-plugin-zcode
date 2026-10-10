@@ -1,0 +1,90 @@
+{
+  "basis": "Own session/create without model/thoughtLevel, CLI0.16.9/SHA fad4c35c, 2026-10-07; jKo→UKo→sZo→zxt full list; synthetic variants in tests only",
+  "models": [
+    {
+      "ref": {
+        "providerId": "account:zai-individual-coding-plan",
+        "modelId": "GLM-5.3"
+      },
+      "label": "GLM-5.3",
+      "providerLabel": "Z.AI Individual Coding Plan",
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "reasoning": {
+        "levels": [
+          {
+            "value": "low",
+            "label": "low"
+          },
+          {
+            "value": "high",
+            "label": "high"
+          },
+          {
+            "value": "max",
+            "label": "max"
+          }
+        ],
+        "defaultLevel": "max"
+      },
+      "properties": {
+        "inputFormat": {
+          "supportsText": true,
+          "supportsImage": true,
+          "supportsVideo": true,
+          "supportsAudio": false,
+          "supportsPdf": false
+        },
+        "outputFormat": {
+          "supportsText": true
+        }
+      }
+    },
+    {
+      "ref": {
+        "providerId": "account:zai-individual-coding-plan",
+        "modelId": "GLM-5.3-Flash"
+      },
+      "label": "GLM-5.3-Flash",
+      "providerLabel": "Z.AI Individual Coding Plan",
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "reasoning": {
+        "levels": [
+          {
+            "value": "low",
+            "label": "low"
+          },
+          {
+            "value": "high",
+            "label": "high"
+          },
+          {
+            "value": "max",
+            "label": "max"
+          }
+        ],
+        "defaultLevel": "max"
+      },
+      "properties": {
+        "inputFormat": {
+          "supportsText": true,
+          "supportsImage": true,
+          "supportsVideo": true,
+          "supportsAudio": false,
+          "supportsPdf": true
+        },
+        "outputFormat": {
+          "supportsText": true
+        }
+      }
+    }
+  ],
+  "nativeDefault": {
+    "providerId": "account:zai-individual-coding-plan",
+    "modelId": "GLM-5.3",
+    "options": {
+      "reasoningLevel": "max"
+    }
+  }
+}

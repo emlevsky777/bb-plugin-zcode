@@ -1,0 +1,883 @@
+{
+  "source": "bb desktop-v0.44.0 protocol recordings, SDK0.5.29",
+  "fixtures": [
+    {
+      "provenance": {
+        "provider": "codex",
+        "scenario": "approval-allow",
+        "file": "codex/approval-allow/runtime→bridge.ndjson",
+        "line": 1,
+        "originalParamFields": [
+          "threadId",
+          "cwd",
+          "options",
+          "dynamicTools",
+          "instructionMode"
+        ],
+        "originalOptionFields": [
+          "model",
+          "serviceTier",
+          "reasoningLevel",
+          "instructions",
+          "envVars",
+          "permissionMode",
+          "permissionScope",
+          "approvalReviewer",
+          "permissionEscalation",
+          "providerOptions"
+        ],
+        "originalProviderOptionFields": [
+          "additionalWorkspaceWriteRoots",
+          "workflowsEnabled",
+          "memoryEnabled",
+          "providerSubagentsEnabled"
+        ],
+        "sanitization": "Full recursive generic envelope before normalization; all unknown fields, structures, types, presence and string equality relationships retained; values replaced with safe aliases",
+        "transformation": "Separate provider adaptation: full policy/ZCode selection; generic write roots retained; provider-specific options replaced; text/dynamicTools use explicit synthetic content"
+      },
+      "genericRequest": {
+        "jsonrpc": "2.0",
+        "method": "thread/start",
+        "params": {
+          "threadId": "/fixture/value-1",
+          "cwd": "/fixture/value-2",
+          "options": {
+            "model": "/fixture/value-3",
+            "serviceTier": "default",
+            "reasoningLevel": "/fixture/value-4",
+            "instructions": "/fixture/value-5",
+            "envVars": {
+              "PATH": "/fixture/value-6",
+              "BB_CLI": "/fixture/value-7",
+              "BB_SERVER_URL": "/fixture/value-8",
+              "BB_HOST_DAEMON_PORT": "/fixture/value-9",
+              "BB_PROJECT_ID": "/fixture/value-10",
+              "BB_THREAD_STORAGE": "/fixture/value-11",
+              "BB_THREAD_ID": "/fixture/value-1",
+              "BB_ENVIRONMENT_ID": "/fixture/value-12"
+            },
+            "permissionMode": "/fixture/value-13",
+            "permissionScope": "workspace",
+            "approvalReviewer": "user",
+            "permissionEscalation": "/fixture/value-14",
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/value-15"
+              ],
+              "workflowsEnabled": false,
+              "memoryEnabled": true,
+              "providerSubagentsEnabled": true
+            }
+          },
+          "dynamicTools": [
+            {
+              "name": "/fixture/value-16",
+              "description": "/fixture/value-17",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "/fixture/value-18"
+                  }
+                },
+                "required": [
+                  "/fixture/value-19"
+                ],
+                "additionalProperties": false
+              }
+            }
+          ],
+          "instructionMode": "append"
+        },
+        "id": 71
+      },
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "thread/start",
+        "params": {
+          "threadId": "fixture-thread",
+          "options": {
+            "model": "GLM-5.3",
+            "serviceTier": "default",
+            "reasoningLevel": "max",
+            "instructions": "BB fixture instruction: use the bb CLI for thread context.",
+            "envVars": {
+              "PATH": "/fixture/bin",
+              "BB_CLI": "/fixture/BB_CLI",
+              "BB_SERVER_URL": "/fixture/BB_SERVER_URL",
+              "BB_HOST_DAEMON_PORT": "/fixture/BB_HOST_DAEMON_PORT",
+              "BB_PROJECT_ID": "/fixture/BB_PROJECT_ID",
+              "BB_THREAD_STORAGE": "/fixture/BB_THREAD_STORAGE",
+              "BB_THREAD_ID": "fixture-thread",
+              "BB_ENVIRONMENT_ID": "/fixture/BB_ENVIRONMENT_ID"
+            },
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/write-root"
+              ]
+            }
+          },
+          "cwd": "/fixture/scratch",
+          "instructionMode": "append",
+          "dynamicTools": [
+            {
+              "name": "update_environment_directory",
+              "description": "Synthetic bb environment tool",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "provenance": {
+        "provider": "codex",
+        "scenario": "approval-allow",
+        "file": "codex/approval-allow/runtime→bridge.ndjson",
+        "line": 2,
+        "originalParamFields": [
+          "threadId",
+          "providerThreadId",
+          "input",
+          "clientRequestId",
+          "options"
+        ],
+        "originalOptionFields": [
+          "model",
+          "serviceTier",
+          "reasoningLevel",
+          "instructions",
+          "envVars",
+          "permissionMode",
+          "permissionScope",
+          "approvalReviewer",
+          "permissionEscalation",
+          "providerOptions"
+        ],
+        "originalProviderOptionFields": [
+          "additionalWorkspaceWriteRoots",
+          "workflowsEnabled",
+          "memoryEnabled",
+          "providerSubagentsEnabled"
+        ],
+        "sanitization": "Full recursive generic envelope before normalization; all unknown fields, structures, types, presence and string equality relationships retained; values replaced with safe aliases",
+        "transformation": "Separate provider adaptation: full policy/ZCode selection; generic write roots retained; provider-specific options replaced; text/dynamicTools use explicit synthetic content"
+      },
+      "genericRequest": {
+        "jsonrpc": "2.0",
+        "method": "turn/start",
+        "params": {
+          "threadId": "/fixture/value-1",
+          "providerThreadId": "/fixture/value-2",
+          "input": [
+            {
+              "type": "text",
+              "text": "/fixture/value-3",
+              "mentions": []
+            }
+          ],
+          "clientRequestId": "/fixture/value-4",
+          "options": {
+            "model": "/fixture/value-5",
+            "serviceTier": "default",
+            "reasoningLevel": "/fixture/value-6",
+            "instructions": "/fixture/value-7",
+            "envVars": {},
+            "permissionMode": "/fixture/value-8",
+            "permissionScope": "workspace",
+            "approvalReviewer": "user",
+            "permissionEscalation": "/fixture/value-9",
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/value-10"
+              ],
+              "workflowsEnabled": false,
+              "memoryEnabled": true,
+              "providerSubagentsEnabled": true
+            }
+          }
+        },
+        "id": 72
+      },
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "turn/start",
+        "params": {
+          "threadId": "fixture-thread",
+          "options": {
+            "model": "GLM-5.3",
+            "serviceTier": "default",
+            "reasoningLevel": "max",
+            "instructions": "BB fixture instruction: use the bb CLI for thread context.",
+            "envVars": {},
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/write-root"
+              ]
+            }
+          },
+          "providerThreadId": "fixture-native-session",
+          "clientRequestId": "creq_2222222222",
+          "input": [
+            {
+              "type": "text",
+              "text": "say hello",
+              "mentions": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "provenance": {
+        "provider": "codex",
+        "scenario": "archived-resume",
+        "file": "codex/archived-resume/runtime→bridge.ndjson",
+        "line": 4,
+        "originalParamFields": [
+          "threadId",
+          "cwd",
+          "providerThreadId",
+          "options",
+          "dynamicTools",
+          "instructionMode"
+        ],
+        "originalOptionFields": [
+          "model",
+          "serviceTier",
+          "reasoningLevel",
+          "instructions",
+          "envVars",
+          "permissionMode",
+          "permissionScope",
+          "approvalReviewer",
+          "permissionEscalation",
+          "providerOptions"
+        ],
+        "originalProviderOptionFields": [
+          "additionalWorkspaceWriteRoots",
+          "workflowsEnabled",
+          "memoryEnabled",
+          "providerSubagentsEnabled"
+        ],
+        "sanitization": "Full recursive generic envelope before normalization; all unknown fields, structures, types, presence and string equality relationships retained; values replaced with safe aliases",
+        "transformation": "Separate provider adaptation: full policy/ZCode selection; generic write roots retained; provider-specific options replaced; text/dynamicTools use explicit synthetic content"
+      },
+      "genericRequest": {
+        "jsonrpc": "2.0",
+        "method": "thread/resume",
+        "params": {
+          "threadId": "/fixture/value-1",
+          "cwd": "/fixture/value-2",
+          "providerThreadId": "/fixture/value-3",
+          "options": {
+            "model": "/fixture/value-4",
+            "serviceTier": "default",
+            "reasoningLevel": "/fixture/value-5",
+            "instructions": "/fixture/value-6",
+            "envVars": {
+              "PATH": "/fixture/value-7",
+              "BB_CLI": "/fixture/value-8",
+              "BB_SERVER_URL": "/fixture/value-9",
+              "BB_HOST_DAEMON_PORT": "/fixture/value-10",
+              "BB_PROJECT_ID": "/fixture/value-11",
+              "BB_THREAD_STORAGE": "/fixture/value-12",
+              "BB_THREAD_ID": "/fixture/value-1",
+              "BB_ENVIRONMENT_ID": "/fixture/value-13"
+            },
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/value-14"
+              ],
+              "workflowsEnabled": false,
+              "memoryEnabled": true,
+              "providerSubagentsEnabled": true
+            }
+          },
+          "dynamicTools": [
+            {
+              "name": "/fixture/value-15",
+              "description": "/fixture/value-16",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "/fixture/value-17"
+                  }
+                },
+                "required": [
+                  "/fixture/value-18"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "name": "/fixture/value-19",
+              "description": "/fixture/value-20",
+              "inputSchema": {
+                "$schema": "/fixture/value-21",
+                "additionalProperties": false,
+                "properties": {
+                  "questions": {
+                    "description": "/fixture/value-22",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "question": {
+                          "description": "/fixture/value-23",
+                          "type": "string"
+                        },
+                        "header": {
+                          "description": "/fixture/value-24",
+                          "type": "string"
+                        },
+                        "multiSelect": {
+                          "default": false,
+                          "description": "/fixture/value-25",
+                          "type": "boolean"
+                        },
+                        "options": {
+                          "description": "/fixture/value-26",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "label": {
+                                "description": "/fixture/value-27",
+                                "type": "string"
+                              },
+                              "description": {
+                                "description": "/fixture/value-28",
+                                "type": "string"
+                              },
+                              "preview": {
+                                "description": "/fixture/value-29",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "/fixture/value-30",
+                              "/fixture/value-31"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 4,
+                          "minItems": 2,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "/fixture/value-32",
+                        "/fixture/value-33",
+                        "/fixture/value-34",
+                        "/fixture/value-35"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "/fixture/value-36"
+                ],
+                "type": "object"
+              }
+            }
+          ],
+          "instructionMode": "append"
+        },
+        "id": 229
+      },
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "thread/resume",
+        "params": {
+          "threadId": "fixture-thread",
+          "options": {
+            "model": "GLM-5.3",
+            "serviceTier": "default",
+            "reasoningLevel": "max",
+            "instructions": "BB fixture instruction: use the bb CLI for thread context.",
+            "envVars": {
+              "PATH": "/fixture/bin",
+              "BB_CLI": "/fixture/BB_CLI",
+              "BB_SERVER_URL": "/fixture/BB_SERVER_URL",
+              "BB_HOST_DAEMON_PORT": "/fixture/BB_HOST_DAEMON_PORT",
+              "BB_PROJECT_ID": "/fixture/BB_PROJECT_ID",
+              "BB_THREAD_STORAGE": "/fixture/BB_THREAD_STORAGE",
+              "BB_THREAD_ID": "fixture-thread",
+              "BB_ENVIRONMENT_ID": "/fixture/BB_ENVIRONMENT_ID"
+            },
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/write-root"
+              ]
+            }
+          },
+          "cwd": "/fixture/scratch",
+          "providerThreadId": "fixture-native-session",
+          "instructionMode": "append",
+          "dynamicTools": [
+            {
+              "name": "update_environment_directory",
+              "description": "Synthetic bb environment tool",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            },
+            {
+              "name": "update_environment_directory",
+              "description": "Synthetic bb environment tool",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "provenance": {
+        "provider": "claude-code",
+        "scenario": "approval-allow",
+        "file": "claude-code/approval-allow/runtime→bridge.ndjson",
+        "line": 1,
+        "originalParamFields": [
+          "threadId",
+          "cwd",
+          "options",
+          "dynamicTools",
+          "instructionMode"
+        ],
+        "originalOptionFields": [
+          "model",
+          "serviceTier",
+          "reasoningLevel",
+          "instructions",
+          "envVars",
+          "permissionMode",
+          "permissionScope",
+          "approvalReviewer",
+          "permissionEscalation",
+          "providerOptions"
+        ],
+        "originalProviderOptionFields": [
+          "additionalWorkspaceWriteRoots",
+          "workflowsEnabled",
+          "memoryEnabled",
+          "providerSubagentsEnabled"
+        ],
+        "sanitization": "Full recursive generic envelope before normalization; all unknown fields, structures, types, presence and string equality relationships retained; values replaced with safe aliases",
+        "transformation": "Separate provider adaptation: full policy/ZCode selection; generic write roots retained; provider-specific options replaced; text/dynamicTools use explicit synthetic content"
+      },
+      "genericRequest": {
+        "jsonrpc": "2.0",
+        "method": "thread/start",
+        "params": {
+          "threadId": "/fixture/value-1",
+          "cwd": "/fixture/value-2",
+          "options": {
+            "model": "/fixture/value-3",
+            "serviceTier": "default",
+            "reasoningLevel": "/fixture/value-4",
+            "instructions": "/fixture/value-5",
+            "envVars": {
+              "PATH": "/fixture/value-6",
+              "BB_CLI": "/fixture/value-7",
+              "BB_SERVER_URL": "/fixture/value-8",
+              "BB_HOST_DAEMON_PORT": "/fixture/value-9",
+              "BB_PROJECT_ID": "/fixture/value-10",
+              "BB_THREAD_STORAGE": "/fixture/value-11",
+              "BB_THREAD_ID": "/fixture/value-1",
+              "BB_ENVIRONMENT_ID": "/fixture/value-12"
+            },
+            "permissionMode": "/fixture/value-13",
+            "permissionScope": "workspace",
+            "approvalReviewer": "user",
+            "permissionEscalation": "/fixture/value-14",
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/value-15"
+              ],
+              "workflowsEnabled": true,
+              "memoryEnabled": true,
+              "providerSubagentsEnabled": true
+            }
+          },
+          "dynamicTools": [
+            {
+              "name": "/fixture/value-16",
+              "description": "/fixture/value-17",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "/fixture/value-18"
+                  }
+                },
+                "required": [
+                  "/fixture/value-19"
+                ],
+                "additionalProperties": false
+              }
+            }
+          ],
+          "instructionMode": "append"
+        },
+        "id": 66
+      },
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "thread/start",
+        "params": {
+          "threadId": "fixture-thread",
+          "options": {
+            "model": "GLM-5.3",
+            "serviceTier": "default",
+            "reasoningLevel": "max",
+            "instructions": "BB fixture instruction: use the bb CLI for thread context.",
+            "envVars": {
+              "PATH": "/fixture/bin",
+              "BB_CLI": "/fixture/BB_CLI",
+              "BB_SERVER_URL": "/fixture/BB_SERVER_URL",
+              "BB_HOST_DAEMON_PORT": "/fixture/BB_HOST_DAEMON_PORT",
+              "BB_PROJECT_ID": "/fixture/BB_PROJECT_ID",
+              "BB_THREAD_STORAGE": "/fixture/BB_THREAD_STORAGE",
+              "BB_THREAD_ID": "fixture-thread",
+              "BB_ENVIRONMENT_ID": "/fixture/BB_ENVIRONMENT_ID"
+            },
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/write-root"
+              ]
+            }
+          },
+          "cwd": "/fixture/scratch",
+          "instructionMode": "append",
+          "dynamicTools": [
+            {
+              "name": "update_environment_directory",
+              "description": "Synthetic bb environment tool",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "provenance": {
+        "provider": "claude-code",
+        "scenario": "approval-allow",
+        "file": "claude-code/approval-allow/runtime→bridge.ndjson",
+        "line": 2,
+        "originalParamFields": [
+          "threadId",
+          "providerThreadId",
+          "input",
+          "clientRequestId",
+          "options"
+        ],
+        "originalOptionFields": [
+          "model",
+          "serviceTier",
+          "reasoningLevel",
+          "instructions",
+          "envVars",
+          "permissionMode",
+          "permissionScope",
+          "approvalReviewer",
+          "permissionEscalation",
+          "providerOptions"
+        ],
+        "originalProviderOptionFields": [
+          "additionalWorkspaceWriteRoots",
+          "workflowsEnabled",
+          "memoryEnabled",
+          "providerSubagentsEnabled"
+        ],
+        "sanitization": "Full recursive generic envelope before normalization; all unknown fields, structures, types, presence and string equality relationships retained; values replaced with safe aliases",
+        "transformation": "Separate provider adaptation: full policy/ZCode selection; generic write roots retained; provider-specific options replaced; text/dynamicTools use explicit synthetic content"
+      },
+      "genericRequest": {
+        "jsonrpc": "2.0",
+        "method": "turn/start",
+        "params": {
+          "threadId": "/fixture/value-1",
+          "providerThreadId": "/fixture/value-2",
+          "input": [
+            {
+              "type": "text",
+              "text": "/fixture/value-3",
+              "mentions": []
+            }
+          ],
+          "clientRequestId": "/fixture/value-4",
+          "options": {
+            "model": "/fixture/value-5",
+            "serviceTier": "default",
+            "reasoningLevel": "/fixture/value-6",
+            "instructions": "/fixture/value-7",
+            "envVars": {},
+            "permissionMode": "/fixture/value-8",
+            "permissionScope": "workspace",
+            "approvalReviewer": "user",
+            "permissionEscalation": "/fixture/value-9",
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/value-10"
+              ],
+              "workflowsEnabled": true,
+              "memoryEnabled": true,
+              "providerSubagentsEnabled": true
+            }
+          }
+        },
+        "id": 67
+      },
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "turn/start",
+        "params": {
+          "threadId": "fixture-thread",
+          "options": {
+            "model": "GLM-5.3",
+            "serviceTier": "default",
+            "reasoningLevel": "max",
+            "instructions": "BB fixture instruction: use the bb CLI for thread context.",
+            "envVars": {},
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/write-root"
+              ]
+            }
+          },
+          "providerThreadId": "fixture-native-session",
+          "clientRequestId": "creq_2222222222",
+          "input": [
+            {
+              "type": "text",
+              "text": "say hello",
+              "mentions": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "provenance": {
+        "provider": "claude-code",
+        "scenario": "resume",
+        "file": "claude-code/resume/runtime→bridge.ndjson",
+        "line": 4,
+        "originalParamFields": [
+          "threadId",
+          "cwd",
+          "providerThreadId",
+          "options",
+          "dynamicTools",
+          "instructionMode"
+        ],
+        "originalOptionFields": [
+          "model",
+          "serviceTier",
+          "reasoningLevel",
+          "instructions",
+          "envVars",
+          "permissionMode",
+          "permissionScope",
+          "approvalReviewer",
+          "permissionEscalation",
+          "providerOptions"
+        ],
+        "originalProviderOptionFields": [
+          "additionalWorkspaceWriteRoots",
+          "workflowsEnabled",
+          "memoryEnabled",
+          "providerSubagentsEnabled"
+        ],
+        "sanitization": "Full recursive generic envelope before normalization; all unknown fields, structures, types, presence and string equality relationships retained; values replaced with safe aliases",
+        "transformation": "Separate provider adaptation: full policy/ZCode selection; generic write roots retained; provider-specific options replaced; text/dynamicTools use explicit synthetic content"
+      },
+      "genericRequest": {
+        "jsonrpc": "2.0",
+        "method": "thread/resume",
+        "params": {
+          "threadId": "/fixture/value-1",
+          "cwd": "/fixture/value-2",
+          "providerThreadId": "/fixture/value-3",
+          "options": {
+            "model": "/fixture/value-4",
+            "serviceTier": "default",
+            "reasoningLevel": "/fixture/value-5",
+            "instructions": "/fixture/value-6",
+            "envVars": {
+              "PATH": "/fixture/value-7",
+              "BB_CLI": "/fixture/value-8",
+              "BB_SERVER_URL": "/fixture/value-9",
+              "BB_HOST_DAEMON_PORT": "/fixture/value-10",
+              "BB_PROJECT_ID": "/fixture/value-11",
+              "BB_THREAD_STORAGE": "/fixture/value-12",
+              "BB_THREAD_ID": "/fixture/value-1",
+              "BB_ENVIRONMENT_ID": "/fixture/value-13"
+            },
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/value-14"
+              ],
+              "workflowsEnabled": true,
+              "memoryEnabled": true,
+              "providerSubagentsEnabled": true
+            }
+          },
+          "dynamicTools": [
+            {
+              "name": "/fixture/value-15",
+              "description": "/fixture/value-16",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "/fixture/value-17"
+                  }
+                },
+                "required": [
+                  "/fixture/value-18"
+                ],
+                "additionalProperties": false
+              }
+            }
+          ],
+          "instructionMode": "append"
+        },
+        "id": 148
+      },
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "thread/resume",
+        "params": {
+          "threadId": "fixture-thread",
+          "options": {
+            "model": "GLM-5.3",
+            "serviceTier": "default",
+            "reasoningLevel": "max",
+            "instructions": "BB fixture instruction: use the bb CLI for thread context.",
+            "envVars": {
+              "PATH": "/fixture/bin",
+              "BB_CLI": "/fixture/BB_CLI",
+              "BB_SERVER_URL": "/fixture/BB_SERVER_URL",
+              "BB_HOST_DAEMON_PORT": "/fixture/BB_HOST_DAEMON_PORT",
+              "BB_PROJECT_ID": "/fixture/BB_PROJECT_ID",
+              "BB_THREAD_STORAGE": "/fixture/BB_THREAD_STORAGE",
+              "BB_THREAD_ID": "fixture-thread",
+              "BB_ENVIRONMENT_ID": "/fixture/BB_ENVIRONMENT_ID"
+            },
+            "permissionMode": "full",
+            "permissionScope": "full",
+            "approvalReviewer": null,
+            "permissionEscalation": null,
+            "providerOptions": {
+              "additionalWorkspaceWriteRoots": [
+                "/fixture/write-root"
+              ]
+            }
+          },
+          "cwd": "/fixture/scratch",
+          "providerThreadId": "fixture-native-session",
+          "instructionMode": "append",
+          "dynamicTools": [
+            {
+              "name": "update_environment_directory",
+              "description": "Synthetic bb environment tool",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

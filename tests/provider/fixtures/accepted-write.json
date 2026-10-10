@@ -1,0 +1,58 @@
+{
+  "source": "traces/sanitized/1.1/live.ndjson at accepted candidate 08fc829; exact rows selected by first Write turn, no model execution",
+  "frame": {
+    "topic": "conversation/sess_5107dd1c-01c6-47dc-90c4-f79c8996b3c9",
+    "subscriptionId": "sub-muokr98u-3up3rmhs-1",
+    "sentAt": 1790801132437,
+    "fromSeq": 0,
+    "toSeq": 53,
+    "payload": {
+      "kind": "snapshot",
+      "snapshot": {
+        "logEpoch": "muokr98u-3up3rmhs",
+        "rows": {
+          "window": [
+            {
+              "rowId": 1,
+              "turnId": "msg_muokialc_f62d5633-b183-408e-8bcf-a2990681bbaa",
+              "kind": "turnHeader",
+              "sourceCommandId": "cfe6d7a1-2ac4-4aa2-9bf7-e99f2eba260c",
+              "state": "completedSuccess",
+              "startedAt": 1790800714274,
+              "endedAt": 1790800725818
+            },
+            {
+              "rowId": 4,
+              "turnId": "msg_muokialc_f62d5633-b183-408e-8bcf-a2990681bbaa",
+              "kind": "toolCall",
+              "assistantResponseId": "msg_muokib1z_bb2fdc44-a410-43dd-8153-9b795f218df3",
+              "toolCallId": "call_843851982c8d45b0a2dda396",
+              "toolName": "Write",
+              "status": "success",
+              "inputText": "{\"file_path\":\"<experiment>/scratch/native.txt\",\"content\":\"NATIVE_OK\"}",
+              "input": {
+                "file_path": "<experiment>/scratch/native.txt",
+                "content": "NATIVE_OK"
+              },
+              "startedAt": 1790800714282,
+              "output": {
+                "text": "File created successfully at: <experiment>/scratch/native.txt (file state is current in your context — no need to Read it back)"
+              },
+              "endedAt": 1790800714283
+            },
+            {
+              "rowId": 5,
+              "turnId": "msg_muokialc_f62d5633-b183-408e-8bcf-a2990681bbaa",
+              "kind": "assistantText",
+              "assistantResponseId": "msg_muokihpf_8bae4da7-454b-420f-8700-592bee26eba0",
+              "text": "\u0413\u041e\u0422\u041e\u0412\u041e",
+              "state": "complete"
+            }
+          ],
+          "totalCount": 3,
+          "firstRowId": 1
+        }
+      }
+    }
+  }
+}

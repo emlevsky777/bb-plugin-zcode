@@ -1,0 +1,21 @@
+GOAL 2.4 technical adaptations from ZCode (https://github.com/zai-org/ZCode),
+commit 29628c9, licensed under Apache License 2.0:
+- scripts/probes/2.4/auth.mjs: credential-cipher.ts AES-256-GCM format and key
+  derivation; standalone-account-provider-runtime.ts record addressing.
+  Modified to provide only targeted read-only auth, without mutations/backups.
+The upstream Apache-2.0 license is reproduced in LICENSES/Apache-2.0.txt.
+These probes are experimental evidence, not a production provider.
+
+GOAL 3.1 technical adaptation from the same pinned ZCode commit:
+- src/crc32.ts: crc32WireBytes from
+  packages/shared/src/zcode-protocol-v4/wire-binary.ts; exported name changed.
+  Apache-2.0; LICENSES/Apache-2.0.txt remains the upstream license copy.
+The remaining foundation modules are independently written implementations of
+the wire/state semantics; no upstream agent, auth or executor is incorporated.
+The project's own code is also licensed under Apache-2.0; see root LICENSE.
+
+GOAL 3.2.1 technical adaptation from the same pinned ZCode commit:
+- src/auth.ts: credential-cipher.ts AES-256-GCM/key derivation and
+  standalone-account-provider-runtime.ts record addressing, adapted to
+  targeted fresh read-only auth without cached secret values or backups.
+  Apache-2.0; upstream license remains LICENSES/Apache-2.0.txt.

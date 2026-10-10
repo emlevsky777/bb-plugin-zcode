@@ -1,0 +1,2659 @@
+{
+  "version": 1,
+  "touchpoints": [
+    {
+      "id": "bb-git-install-build",
+      "product": "bb",
+      "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling",
+      "anchors": [
+        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "installGitDependencies", "strength": "strong", "reason": "Named native Git dependency install mechanism; behavioral install smoke required." },
+        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "buildPluginServer", "strength": "strong", "reason": "Named native server build mechanism; behavioral install smoke required." },
+        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "buildPluginHost", "strength": "strong", "reason": "Named native host build mechanism; behavioral install smoke required." },
+        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "checkPluginSdkRange", "strength": "strong", "reason": "Native SDK compatibility gate; behavioral install smoke required." }
+      ],
+      "code": ["package.json", "src/plugin.ts", "src/host.ts"],
+      "impact": "Git installation is rejected or provider bundles fail to build; SDK runtime subpaths must be production dependencies.",
+      "milestones": ["M4.9.7"],
+      "sources": ["docs/maintenance/M4.9.7-native-semantics.md", "docs/implementation/039-M4.9.7-repository.md"]
+    },
+    {
+      "id": "zcode-layout",
+      "product": "ZCode",
+      "uses": "Installed CLI and helper bundle layout",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "app-server",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "--json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/applications.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Native startup unavailable; locator reports missing installation.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.9.3",
+        "M4.9.4",
+        "M4.9.6a"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/maintenance/M4.9.6a-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-helper",
+      "product": "ZCode",
+      "uses": "Dedicated Electron-as-Node helper executable",
+      "anchors": [
+        {
+          "file": "Contents/Frameworks/ZCode Helper.app/Contents/Info.plist",
+          "text": "CFBundleExecutable",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Frameworks/ZCode Helper.app/Contents/Info.plist",
+          "text": "ZCode Helper",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/applications.ts",
+        "src/process.ts"
+      ],
+      "impact": "Cannot start native CLI; no main-GUI fallback.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.9.3"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-desktop-version",
+      "product": "ZCode",
+      "uses": "Desktop version and bundle identity",
+      "anchors": [
+        {
+          "file": "Contents/Info.plist",
+          "text": "CFBundleShortVersionString",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Info.plist",
+          "text": "dev.zcode.app",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/applications.ts",
+        "src/compatibility.ts"
+      ],
+      "impact": "Discovery/version warning unavailable.",
+      "milestones": [
+        "M4.2",
+        "M4.9.3",
+        "M4.9.4",
+        "M4.9.6a"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/maintenance/M4.9.6a-touchpoints.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "bb-version",
+      "product": "bb",
+      "uses": "Running bundle package/version",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/package.json",
+          "text": "\"version\"",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/applications.ts",
+        "src/compatibility.ts"
+      ],
+      "impact": "Unknown bb version and compatibility warning.",
+      "milestones": [
+        "M4.2",
+        "M4.9.1",
+        "M4.9.3",
+        "M4.9.4"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.1-touchpoints.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "bb-sdk-version",
+      "product": "bb",
+      "uses": "SDK carried by bb",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "PLUGIN_SDK_VERSION",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/compatibility.ts"
+      ],
+      "impact": "Unknown SDK version and compatibility warning.",
+      "milestones": [
+        "M4.2",
+        "M4.9.1",
+        "M4.9.4"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.1-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "bb-host-node",
+      "product": "bb",
+      "uses": "Node runtime selection and supported engines",
+      "anchors": [
+        {
+          "file": "Contents/Info.plist",
+          "text": "CFBundleExecutable",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        }
+      ],
+      "code": [
+        "src/node-version.ts",
+        "package.json"
+      ],
+      "impact": "Host may reject unsupported Node or fail to load TypeScript.",
+      "milestones": [
+        "M1",
+        "M4.2"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "sdk-bridge",
+      "product": "SDK",
+      "uses": "Public bridge framing/methods/protocol version",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "BRIDGE_PROTOCOL_VERSION",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "thread/start",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "thread/resume",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "turn/start",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "thread/stop",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/framing.ts"
+      ],
+      "impact": "Provider bridge cannot attach or send turns.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.9.1"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.1-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "sdk-delta",
+      "product": "SDK",
+      "uses": "Public thread delta grammar; assembler behavior requires existing offline/live tests (export is bundled away)",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "threadDeltaSchema",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "item/delegation/progress",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "turn.boundary",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/translator.ts",
+        "src/rich-tools.ts"
+      ],
+      "impact": "Thread projection or canonical item IDs break.",
+      "milestones": [
+        "M1",
+        "M3",
+        "M4.1",
+        "M4.2",
+        "M4.9.1"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.1-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/015-M3-supervisor-background-and-tools.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "sdk-host",
+      "product": "SDK",
+      "uses": "Host entry and native roots contract",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "experimental_nativeRootsHostContract",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "experimental_defineHostEntry",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/host.ts",
+        "src/native-roots.ts"
+      ],
+      "impact": "Host menu/catalogue unavailable.",
+      "milestones": [
+        "M4.2",
+        "M4.6",
+        "M4.6.1",
+        "M4.6.2",
+        "M4.6.3",
+        "M4.9.1"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.6-touchpoints.md",
+        "docs/maintenance/M4.6.1-touchpoints.md",
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.6.3-touchpoints.md",
+        "docs/maintenance/M4.9.1-touchpoints.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "sdk-roots-schema",
+      "product": "SDK",
+      "uses": "Root command basename/namePrefix and skills configuration",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "namePrefix",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "configure",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "experimental_resolvesNativeRoots",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/native-roots.ts",
+        "src/plugin-roots-config.ts"
+      ],
+      "impact": "Unrepresentable command/menu duplicates or missing roots.",
+      "milestones": [
+        "M4.4",
+        "M4.4.1",
+        "M4.6",
+        "M4.6.2",
+        "M4.7"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6-touchpoints.md",
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.7-touchpoints.md",
+        "docs/implementation/019-M4.4-desktop-coexistence.md",
+        "docs/implementation/020-M4.4.1-model-catalogue.md"
+      ]
+    },
+    {
+      "id": "bb-roots-cache",
+      "product": "bb",
+      "uses": "Composer native roots RPC cache TTL",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "createProviderNativeRootsCache",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "PROVIDER_NATIVE_ROOTS_CACHE_TTL_MS",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "scanProviderNativeRoots",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "composerActions",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/host.ts",
+        "src/native-roots.ts"
+      ],
+      "impact": "Stale skill/command menu until next host RPC.",
+      "milestones": [
+        "M4.6.1",
+        "M4.9.6a"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.1-touchpoints.md",
+        "docs/maintenance/M4.9.6a-touchpoints.md"
+      ]
+    },
+    {
+      "id": "bb-artifact",
+      "product": "bb",
+      "uses": "Plugin build metadata/host registration",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "sdkVersion",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "server.meta.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "host.meta.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "package.json",
+        "src/plugin.ts",
+        "src/host.ts"
+      ],
+      "impact": "Plugin install/load fails.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.9.1"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.1-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "bb-persistent-data",
+      "product": "SDK",
+      "uses": "Bridge/host dataDir and plugin identity",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "bridge-data",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "dataDir",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "pluginId",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/host.ts",
+        "src/runtime.ts",
+        "src/data-maintenance.ts"
+      ],
+      "impact": "Lost persistent binding/checkpoints or repeated discovery/notices.",
+      "milestones": [
+        "M1",
+        "M4.1",
+        "M4.9.4",
+        "M4.9.5"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/maintenance/M4.9.5-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md"
+      ]
+    },
+    {
+      "id": "bb-secrets",
+      "product": "SDK",
+      "uses": "Protected settings secret root",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "secrets",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        }
+      ],
+      "code": [
+        "src/host.ts",
+        "src/auth.ts"
+      ],
+      "impact": "Explicit Coding Plan key unavailable; no CLI fallback.",
+      "milestones": [
+        "M4.3",
+        "M4.9.6a"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.6a-touchpoints.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "sdk-health",
+      "product": "SDK",
+      "uses": "Health/login hint and recovery transport",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "providerHealthResultSchema",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "loginCommand",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "statusMessage",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "providerRecoveryNotificationSchema",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "authRequired",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/plugin.ts",
+        "src/lifecycle.ts"
+      ],
+      "impact": "Missing sign-in command or actionable recovery hint.",
+      "milestones": [
+        "M4.3",
+        "M4.9.2",
+        "M4.9.3",
+        "M4.9.4"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.2-touchpoints.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "sdk-warning",
+      "product": "SDK",
+      "uses": "Thread warning transport",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "provider.warning",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "general",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/messages.ts"
+      ],
+      "impact": "Missing actionable warning or repeated thread noise.",
+      "milestones": [
+        "M4.6",
+        "M4.7.1",
+        "M4.9.4"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6-touchpoints.md",
+        "docs/maintenance/M4.7.1-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md"
+      ]
+    },
+    {
+      "id": "bb-settings",
+      "product": "SDK",
+      "uses": "Settings registration and CLI command registration",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "settings",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "description",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "experimental_dataDir",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "cli",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/problem-report.ts"
+      ],
+      "impact": "Settings synchronization or local problem report unavailable.",
+      "milestones": [
+        "M4.6.1",
+        "M4.6.2",
+        "M4.9.4",
+        "M4.9.5"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.1-touchpoints.md",
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/maintenance/M4.9.5-touchpoints.md"
+      ]
+    },
+    {
+      "id": "sdk-mentions",
+      "product": "SDK",
+      "uses": "Selected text mention offsets and command resources",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "mentions",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "argumentHint",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "localFile",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/mentions.ts",
+        "src/attachments.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Selected mention or attachment rejected locally; ordinary text remains available.",
+      "milestones": [
+        "M4.4.2",
+        "M4.5",
+        "M4.7"
+      ],
+      "sources": [
+        "docs/maintenance/M4.5-touchpoints.md",
+        "docs/maintenance/M4.7-touchpoints.md",
+        "docs/implementation/021-M4.4.2-attachments.md"
+      ]
+    },
+    {
+      "id": "sdk-steer",
+      "product": "SDK",
+      "uses": "Inject/turn steer expectedTurnId semantics",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "handleTurnSteer",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "expectedTurnId",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "turn/steer",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/options.ts"
+      ],
+      "impact": "Steer unavailable; ordinary turn remains available.",
+      "milestones": [
+        "M4.6.4",
+        "M4.7",
+        "M4.7.1"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.4-touchpoints.md",
+        "docs/maintenance/M4.6.4-continuation-touchpoints.md",
+        "docs/maintenance/M4.7-touchpoints.md",
+        "docs/maintenance/M4.7.1-touchpoints.md"
+      ]
+    },
+    {
+      "id": "sdk-compact",
+      "product": "SDK",
+      "uses": "Standalone compact and extension projection",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "thread/compact/start",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "thread/compacted",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "extension",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/compaction.ts",
+        "src/bridge.ts",
+        "src/plugin.ts"
+      ],
+      "impact": "Compaction command/projection unavailable or false terminal outcome.",
+      "milestones": [
+        "M4.7.1"
+      ],
+      "sources": [
+        "docs/maintenance/M4.7.1-touchpoints.md"
+      ]
+    },
+    {
+      "id": "sdk-delegation",
+      "product": "SDK",
+      "uses": "Delegation schema and lifecycle assembly",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "delegation",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "item/delegation/progress",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/subagents.ts",
+        "src/lifecycle.ts"
+      ],
+      "impact": "Subagent projection fails; ordinary tools remain.",
+      "milestones": [
+        "M4.8"
+      ],
+      "sources": [
+        "docs/maintenance/M4.8-touchpoints.md"
+      ]
+    },
+    {
+      "id": "bb-subagents-setting",
+      "product": "bb",
+      "uses": "Subagent disabled provider option",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/server.js",
+          "text": "subagentsDisabled",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/server.js",
+          "text": "providerSubagentsEnabled",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/options.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Subagent setting no longer reaches native config.",
+      "milestones": [
+        "M4.8"
+      ],
+      "sources": [
+        "docs/maintenance/M4.8-touchpoints.md"
+      ]
+    },
+    {
+      "id": "sdk-reasoning",
+      "product": "SDK",
+      "uses": "Reasoning enum/default model effort",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "reasoningLevelValues",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "reasoningLevelSchema",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts"
+      ],
+      "impact": "Optional effort hidden or only unsupported model excluded.",
+      "milestones": [
+        "M1",
+        "M4.9.6a"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.6a-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md"
+      ]
+    },
+    {
+      "id": "bb-retry",
+      "product": "bb",
+      "uses": "Native versus host retry ownership",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-retry/dist/server.js",
+          "text": "Provider overloaded",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-retry/dist/server.js",
+          "text": "decideRetry",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/service-errors.ts",
+        "src/lifecycle.ts"
+      ],
+      "impact": "Missing or excessive host queued retries.",
+      "milestones": [
+        "M4.9.2"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.2-touchpoints.md"
+      ]
+    },
+    {
+      "id": "bb-shutdown",
+      "product": "bb",
+      "uses": "Host process shutdown/output gate and Stop",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "shutdown",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "thread/stop",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        }
+      ],
+      "code": [
+        "src/process.ts",
+        "src/lifecycle.ts",
+        "src/owned-descendants.ts"
+      ],
+      "impact": "Stop/farewell settlement may lose final deltas.",
+      "milestones": [
+        "M1",
+        "M2",
+        "M3",
+        "M4.1",
+        "M4.2"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/015-M3-supervisor-background-and-tools.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-v4",
+      "product": "ZCode",
+      "uses": "Native V4 commands/subscription and handshake",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/create",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "v4/conversation/subscribe",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "sendText",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "v4/controller",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "independentPlanState",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/native.ts",
+        "src/process.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "All conversations fail to start/continue.",
+      "milestones": [
+        "M1",
+        "M2",
+        "M4.2"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-framing",
+      "product": "ZCode",
+      "uses": "Binary V4 wire frame CRC",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "crc32",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "wireVersion",
+          "strength": "strong",
+          "reason": "V4 wire schema key."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "logicalFrameId",
+          "strength": "strong",
+          "reason": "V4 wire schema key."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "fragmentCount",
+          "strength": "strong",
+          "reason": "V4 wire schema key."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "dataBase64",
+          "strength": "strong",
+          "reason": "V4 wire schema key."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "deliveryKind",
+          "strength": "strong",
+          "reason": "V4 wire schema key."
+        }
+      ],
+      "code": [
+        "src/framing.ts",
+        "src/crc32.ts"
+      ],
+      "impact": "Protocol decode/transport fails.",
+      "milestones": [
+        "M1",
+        "M4.2"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-rows",
+      "product": "ZCode",
+      "uses": "Native control/turn/row projection",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "turnHeader",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "userInput",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "timelineMarker",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "tool_call",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "tool_result",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/native.ts",
+        "src/translator.ts",
+        "src/execution.ts",
+        "src/correlation.ts"
+      ],
+      "impact": "Projection/correlation/terminal ordering breaks.",
+      "milestones": [
+        "M1",
+        "M2",
+        "M3",
+        "M4.1",
+        "M4.2"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/015-M3-supervisor-background-and-tools.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-hydration",
+      "product": "ZCode",
+      "uses": "Cold transcript and native session identity",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "sessionId",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "anchorRowId",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/retention.ts",
+        "src/state.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Resume history or tool payload projection fails; never create fallback.",
+      "milestones": [
+        "M1",
+        "M2",
+        "M4.1",
+        "M4.6.2",
+        "M4.9.5"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.9.5-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md"
+      ]
+    },
+    {
+      "id": "zcode-env",
+      "product": "ZCode",
+      "uses": "Data/log/session database environment precedence",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_STORAGE_DIR",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_DATA_BASE_DIR",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "SESSION_DB_PATH",
+          "strength": "strong",
+          "reason": "CLI config env resolver combines the ZCODE prefix with SESSION_DB_PATH."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_LOG_DIR",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/process.ts"
+      ],
+      "impact": "Mandatory storage/DB isolation cannot be established.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.6",
+        "M4.6.3"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.6-touchpoints.md",
+        "docs/maintenance/M4.6.3-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-builtin",
+      "product": "ZCode",
+      "uses": "Builtin account providers/models and configuration revision",
+      "anchors": [
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "schemaVersion",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "providerConfigRules",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "account:zai-individual-coding-plan",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/auth.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Entitlement/catalogue/auth headers unavailable.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.3",
+        "M4.9.3"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-config-env",
+      "product": "ZCode",
+      "uses": "Explicit builtin/personal provider paths",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_BUILTIN_PROVIDER_CONFIG_FILE",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/auth.ts"
+      ],
+      "impact": "Native configuration/account overlay fails.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.3"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-runtime-headers",
+      "product": "ZCode",
+      "uses": "Account signing/entitlement runtime headers",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "interaction/requestProviderRuntimeHeaders",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "provider/updateAccountConfig",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "runtime/capabilities",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/auth.ts",
+        "src/runtime.ts",
+        "src/interactions.ts"
+      ],
+      "impact": "Account model send or entitlement fails; no auth fallback.",
+      "milestones": [
+        "M1",
+        "M4.2",
+        "M4.3",
+        "M4.8"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.8-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/017-M4.2-compatibility.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-credentials",
+      "product": "ZCode",
+      "uses": "Shared CLI credential format and identity",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "credentials.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "account-provider:",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "account:zai-individual-coding-plan",
+          "strength": "strong",
+          "reason": "Credential key is assembled dynamically from the account provider identity."
+        }
+      ],
+      "code": [
+        "src/auth.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Sign-in unavailable/stale catalogue scope; no credential migration.",
+      "milestones": [
+        "M1",
+        "M4.3",
+        "M4.9.3"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-login",
+      "product": "ZCode",
+      "uses": "CLI terminal login flags",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ELECTRON_RUN_AS_NODE",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "zai",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/applications.ts",
+        "src/auth.ts"
+      ],
+      "impact": "Provided sign-in command fails.",
+      "milestones": [
+        "M4.3",
+        "M4.9.3"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-unsupported-plans",
+      "product": "ZCode",
+      "uses": "Unsupported account-plan enum",
+      "anchors": [
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "account:zai-start-plan",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "account:zai-team-coding-plan",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/config/provider/zcode-builtin.json",
+          "text": "account:bigmodel-individual-coding-plan",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/auth.ts"
+      ],
+      "impact": "Unsupported account misidentified; explicit refusal required.",
+      "milestones": [
+        "M4.3",
+        "M4.9.3"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.3-touchpoints.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-personal-config",
+      "product": "ZCode",
+      "uses": "Native config/skills layering and path overrides",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "createConfig",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "skills",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "roots",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "zcode.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/personal-settings.ts",
+        "src/native-roots.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Optional personal settings unavailable; disable with warning.",
+      "milestones": [
+        "M4.4",
+        "M4.6",
+        "M4.6.1"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6-touchpoints.md",
+        "docs/maintenance/M4.6.1-touchpoints.md",
+        "docs/implementation/019-M4.4-desktop-coexistence.md"
+      ]
+    },
+    {
+      "id": "zcode-catalogue",
+      "product": "ZCode",
+      "uses": "CLI skills/commands canonical metadata",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "qualifiedName",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "rootPath",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "scope",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "skills",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "commands",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/native-roots.ts",
+        "src/runtime.ts",
+        "src/mentions.ts"
+      ],
+      "impact": "Menu or selected mention unavailable; ordinary thread continues.",
+      "milestones": [
+        "M4.4",
+        "M4.4.1",
+        "M4.6",
+        "M4.6.1",
+        "M4.7",
+        "M4.9.6a"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6-touchpoints.md",
+        "docs/maintenance/M4.6.1-touchpoints.md",
+        "docs/maintenance/M4.7-touchpoints.md",
+        "docs/maintenance/M4.9.6a-touchpoints.md",
+        "docs/implementation/019-M4.4-desktop-coexistence.md",
+        "docs/implementation/020-M4.4.1-model-catalogue.md"
+      ]
+    },
+    {
+      "id": "zcode-resident-skills",
+      "product": "ZCode",
+      "uses": "Resident authoritative skill catalogue",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "skills/referenceCatalog",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "authority:\"session\"",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/mentions.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Mention rejected rather than resolving a foreign/stale skill.",
+      "milestones": [
+        "M4.7",
+        "M4.9.6a",
+        "M4.9.6b"
+      ],
+      "sources": [
+        "docs/maintenance/M4.7-touchpoints.md",
+        "docs/maintenance/M4.9.6a-touchpoints.md",
+        "docs/maintenance/M4.9.6b-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-skill-tool",
+      "product": "ZCode",
+      "uses": "Native Skill and Markdown path reference",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "Skill",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "Skill tool",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/mentions.ts"
+      ],
+      "impact": "Selected skill not invoked; commands/plain text remain.",
+      "milestones": [
+        "M4.7"
+      ],
+      "sources": [
+        "docs/maintenance/M4.7-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-custom-command",
+      "product": "ZCode",
+      "uses": "Custom command initial slash name and arguments",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "customCommandPromptResolver",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "prepareRuntimePrompt",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/mentions.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Custom command selection fails locally.",
+      "milestones": [
+        "M4.7"
+      ],
+      "sources": [
+        "docs/maintenance/M4.7-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-attachment",
+      "product": "ZCode",
+      "uses": "V4 local attachment refs",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "fileName",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "mime",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "bytes",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "attachments",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/attachments.ts"
+      ],
+      "impact": "Local attachment unavailable; ordinary text remains.",
+      "milestones": [
+        "M4.4.2",
+        "M4.5"
+      ],
+      "sources": [
+        "docs/maintenance/M4.5-touchpoints.md",
+        "docs/implementation/021-M4.4.2-attachments.md"
+      ]
+    },
+    {
+      "id": "zcode-plugin-discovery",
+      "product": "ZCode",
+      "uses": "CLI plugin list native enabled/precedence metadata",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "discoverPluginsSync",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "enabledPlugins",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "declaredMcpServerNames",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "getPluginsOverview",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/user-plugins.ts",
+        "src/native-roots.ts",
+        "src/discovery-view.ts"
+      ],
+      "impact": "Optional user/project plugin layer disabled with warning.",
+      "milestones": [
+        "M4.6.2",
+        "M4.6.3",
+        "M4.9.6b"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.6.3-touchpoints.md",
+        "docs/maintenance/M4.9.6b-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-plugin-registry",
+      "product": "ZCode",
+      "uses": "Installed registry/transactions and mutable plugin store",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "installed_plugins.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": ".transaction.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "getPluginStorageRoot",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "generated-commands",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/user-plugins.ts",
+        "src/plugin-isolation.ts",
+        "src/discovery-view.ts"
+      ],
+      "impact": "Plugin activation/state isolation breaks; never write owner store.",
+      "milestones": [
+        "M4.6.2",
+        "M4.6.3"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.6.3-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-project-view",
+      "product": "ZCode",
+      "uses": "Sync project config loader and OFF projection",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "loadConfigFile",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "readFileSync",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "zcode.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "mergeRuntimeHooks",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/project-config-view.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "OFF/project isolation unconfirmed: thread stops before input.",
+      "milestones": [
+        "M4.6.2",
+        "M4.6.3",
+        "M4.9.6b"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.2-touchpoints.md",
+        "docs/maintenance/M4.6.3-touchpoints.md",
+        "docs/maintenance/M4.9.6b-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-official-manifest",
+      "product": "ZCode",
+      "uses": "Official manifests copy-on-read and private MCP launch args",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "writeOfficialPluginRuntimeManifest",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "writeTextFileAtomicallyWithRetry",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "process.execArgv",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": ".zcode-plugin",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "plugin.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/project-config-view.ts",
+        "src/plugin-isolation.ts",
+        "src/user-plugins.ts"
+      ],
+      "impact": "Unconfirmed official launch isolation stops thread before input.",
+      "milestones": [
+        "M4.6.3",
+        "M4.9.6b"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.3-touchpoints.md",
+        "docs/maintenance/M4.9.6b-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-plugin-guard",
+      "product": "ZCode",
+      "uses": "Session-authority plugin state and startup oracle",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "plugins/referenceCatalog",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "bootstrap.app.startup.plugins.completed",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "pluginStorageRoot",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "hookCount",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/plugin-isolation.ts"
+      ],
+      "impact": "Unknown/bypassed OFF state stops thread before input.",
+      "milestones": [
+        "M4.6.3",
+        "M4.6.4",
+        "M4.9.6b"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.3-touchpoints.md",
+        "docs/maintenance/M4.6.4-touchpoints.md",
+        "docs/maintenance/M4.9.6b-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-trust",
+      "product": "ZCode",
+      "uses": "Direct hook trust from own user config/storage",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveWorkspaceHookTrustStorePath",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "workspace-hook-trust-v1.json",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "pending_trust",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/plugin-isolation.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Unknown/granted own trust stops thread; no grants issued.",
+      "milestones": [
+        "M4.6.3"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.3-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-steer",
+      "product": "ZCode",
+      "uses": "Guide queue ACK and source command identity",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "guide",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "sourceCommandId",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "requestedDelivery",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/correlation.ts",
+        "src/lifecycle.ts"
+      ],
+      "impact": "Steer acceptance/correlation fails; no preemption guarantee.",
+      "milestones": [
+        "M4.6.4",
+        "M4.7"
+      ],
+      "sources": [
+        "docs/maintenance/M4.6.4-touchpoints.md",
+        "docs/maintenance/M4.6.4-continuation-touchpoints.md",
+        "docs/maintenance/M4.7-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-compact",
+      "product": "ZCode",
+      "uses": "Native compact queue/outcomes",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "compact",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "timelineMarker",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/compaction.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Compaction unavailable or outcome unprojectable; no false success.",
+      "milestones": [
+        "M4.7.1"
+      ],
+      "sources": [
+        "docs/maintenance/M4.7.1-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-subagents",
+      "product": "ZCode",
+      "uses": "Subagent feature/runtime config/native Agent rows",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "subagent",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "Agent",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "workId",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/project-config-view.ts",
+        "src/subagents.ts",
+        "src/execution.ts"
+      ],
+      "impact": "Subagent selection/projection fails; ordinary tools independent.",
+      "milestones": [
+        "M4.8"
+      ],
+      "sources": [
+        "docs/maintenance/M4.8-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-child-model",
+      "product": "ZCode",
+      "uses": "Subagent model profiles and entitled model selection",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "builtInModelSelectionOverrides",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "modelSelection",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/auth.ts"
+      ],
+      "impact": "Child model rejected; main model not silently substituted.",
+      "milestones": [
+        "M4.8"
+      ],
+      "sources": [
+        "docs/maintenance/M4.8-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-background",
+      "product": "ZCode",
+      "uses": "Native background cancellation/continuation/tool fields",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "cancelBackgroundWork",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "stopTask",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "askUserQuestionAutoResolutionEnabled",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "embeddedSearchBackend",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/background-tasks.ts",
+        "src/process.ts",
+        "src/lifecycle.ts",
+        "src/owned-descendants.ts"
+      ],
+      "impact": "Background Stop/settlement or rich search projection fails.",
+      "milestones": [
+        "M2",
+        "M3",
+        "M4.1",
+        "M4.2",
+        "M4.8"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.8-touchpoints.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/015-M3-supervisor-background-and-tools.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-interactions",
+      "product": "ZCode",
+      "uses": "Native questions and permission request/reply",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "interaction",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "requestId",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "permission",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "questions",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        }
+      ],
+      "code": [
+        "src/questions.ts",
+        "src/interactions.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Approval/question cannot be answered; Stop remains explicit.",
+      "milestones": [
+        "M1",
+        "M2",
+        "M4.2"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/017-M4.2-compatibility.md"
+      ]
+    },
+    {
+      "id": "zcode-service-error",
+      "product": "ZCode",
+      "uses": "Structured native lastError and retry terminal state",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "lastError",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "fault.runtime.unknown",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "providerErrorCode",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "statusCode",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "apiRetry",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/execution.ts",
+        "src/translator.ts",
+        "src/service-errors.ts"
+      ],
+      "impact": "Premature terminal or generic/duplicate failure.",
+      "milestones": [
+        "M4.9.2"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.2-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-error-codes",
+      "product": "ZCode",
+      "uses": "Native error categories/reasons",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "model_rate_limited",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "model_context_exceeded",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "model_request_failed",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "provider_overloaded",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "rate_limited",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "context_exceeded",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "server_error",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/service-errors.ts"
+      ],
+      "impact": "Wrong error category or missing recovery hint.",
+      "milestones": [
+        "M4.9.2"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.2-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-business-errors",
+      "product": "ZCode",
+      "uses": "Provider business code mapping",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "getProviderBusinessCodeMapping",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "\"1302\"",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "\"1312\"",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "\"1261\"",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/service-errors.ts"
+      ],
+      "impact": "New business code incorrectly classified instead of unknown.",
+      "milestones": [
+        "M4.9.2"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.2-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-production",
+      "product": "ZCode",
+      "uses": "Production logging/model IO retention",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_RUNTIME_ENV",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "normalizeRuntimeEnv",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "rotateModelIOFiles",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "modelIoFullRetentionEnabled",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/process.ts",
+        "src/data-maintenance.ts"
+      ],
+      "impact": "Development recording growth or unbounded native journal.",
+      "milestones": [
+        "M4.9.5"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.5-touchpoints.md"
+      ]
+    },
+    {
+      "id": "zcode-observer",
+      "product": "ZCode",
+      "uses": "Explicit proxy and CA for own live stand",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_HTTP_PROXY",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_AGENT_CA_CERT",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/observer.ts"
+      ],
+      "impact": "Stand accounting unavailable or unintended proxy.",
+      "milestones": [
+        "M1",
+        "M4.9.5"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.5-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md"
+      ]
+    },
+    {
+      "id": "zcode-cua",
+      "product": "ZCode",
+      "uses": "Native Computer/Browser Use permission broker",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "computer-use",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "browser-use",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_CUA_PERMISSION_BROKER",
+          "strength": "strong",
+          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        }
+      ],
+      "code": [
+        "src/runtime.ts"
+      ],
+      "impact": "Native tools unavailable or permission broker missing.",
+      "milestones": [
+        "M4.9.5"
+      ],
+      "sources": [
+        "docs/maintenance/M4.9.5-touchpoints.md"
+      ]
+    },
+    {
+      "id": "plugin-checkpoints",
+      "product": "SDK",
+      "uses": "Bridge data lifetime for binding/background/translator records",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "bridge-data",
+          "strength": "weak",
+          "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        }
+      ],
+      "code": [
+        "src/state.ts",
+        "src/background-tasks.ts",
+        "src/data-maintenance.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Persistent checkpoint versions/binding may no longer survive provider replacement.",
+      "milestones": [
+        "M1",
+        "M2",
+        "M4.1",
+        "M4.9.4",
+        "M4.9.5",
+        "M4.9.6b"
+      ],
+      "sources": [
+        "docs/KNOWLEDGE.md",
+        "docs/maintenance/M4.9.4-touchpoints.md",
+        "docs/maintenance/M4.9.5-touchpoints.md",
+        "docs/maintenance/M4.9.6b-touchpoints.md",
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/014-M2-continuity-stop-and-questions.md",
+        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md"
+      ]
+    },
+    {
+      "id": "zcode-model-bootstrap",
+      "product": "ZCode",
+      "uses": "Deferred full model catalogue versus current-only session read",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/create",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/read",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "modelAvailability",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "disabledReason",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "defaultLevel",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/catalogue-supervisor.ts"
+      ],
+      "impact": "Model catalogue unavailable or incorrect defaults; do not invent a model.",
+      "milestones": [
+        "M1",
+        "M4.4.1"
+      ],
+      "sources": [
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/020-M4.4.1-model-catalogue.md"
+      ]
+    },
+    {
+      "id": "zcode-credential-cipher",
+      "product": "ZCode",
+      "uses": "Read-only CLI cipher format and environment secret derivation",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_CREDENTIAL_SECRET",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "zcode-credential-fallback:",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "enc:v1:",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "aes-256-gcm",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        }
+      ],
+      "code": [
+        "src/auth.ts"
+      ],
+      "impact": "CLI credentials cannot be decoded; no fallback or store mutation.",
+      "milestones": [
+        "M1",
+        "M4.3"
+      ],
+      "sources": [
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/implementation/018-M4.3-auth-and-keys.md"
+      ]
+    },
+    {
+      "id": "zcode-mcp-ready",
+      "product": "ZCode",
+      "uses": "Native startup readiness log shape",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "mcp.startup.failed",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "mcp.startup.completed",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "statusCounts",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "serverCount",
+          "strength": "strong",
+          "reason": "Descriptive native protocol/config/schema string; requires behavioral tests after textual review."
+        }
+      ],
+      "code": [
+        "src/runtime.ts"
+      ],
+      "impact": "Native MCP readiness unconfirmed: thread stops; keep original native history.",
+      "milestones": [
+        "M1",
+        "M4.5",
+        "M4.6.2"
+      ],
+      "sources": [
+        "docs/implementation/012-M1-catalogue-simplification.md",
+        "docs/maintenance/M4.5-touchpoints.md",
+        "docs/maintenance/M4.6.2-touchpoints.md"
+      ]
+    }
+  ]
+}

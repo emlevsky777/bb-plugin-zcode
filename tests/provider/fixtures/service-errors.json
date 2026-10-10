@@ -1,0 +1,171 @@
+{
+  "source": "ZCode Desktop 3.14.4 / CLI 0.16.9 glm/zcode.cjs",
+  "sha256": "fad4c35c4c36ec210d8a06d3fa0e77de23c8545e2eb6ff90aea1eb38d1e6275f",
+  "provenance": "Native code/reason literals and provider mapping inspected 2026-10-09; projected control shapes with synthetic safe messages. Unknown code is a forward-compatibility mutation. Unknown case updated from actual M4.9.2 Anthropic live control: code 999999, reason invalid_request; synthetic safe message retained.",
+  "fixtures": [
+    {
+      "category": "rate-limit",
+      "lastError": {
+        "code": "model_rate_limited",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "rate_limited",
+          "providerErrorCode": "1308",
+          "statusCode": 400
+        }
+      }
+    },
+    {
+      "category": "overloaded",
+      "lastError": {
+        "code": "model_request_failed",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "provider_overloaded",
+          "providerErrorCode": "1312",
+          "statusCode": 400
+        }
+      }
+    },
+    {
+      "category": "context-window-exceeded",
+      "lastError": {
+        "code": "model_context_exceeded",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "context_exceeded",
+          "providerErrorCode": "1261",
+          "statusCode": 400
+        }
+      }
+    },
+    {
+      "category": "billing",
+      "lastError": {
+        "code": "model_request_failed",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "unknown",
+          "providerErrorCode": "1113",
+          "statusCode": 400
+        }
+      }
+    },
+    {
+      "category": "budget-exceeded",
+      "lastError": {
+        "code": "model_rate_limited",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "rate_limited",
+          "providerErrorCode": "organization_spend_limit_exceeded",
+          "statusCode": 429
+        }
+      }
+    },
+    {
+      "category": "unauthorized",
+      "lastError": {
+        "code": "invalid_model_request",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "auth_failed",
+          "providerErrorCode": "3007",
+          "statusCode": 401
+        }
+      }
+    },
+    {
+      "category": "connection-failed",
+      "lastError": {
+        "code": "model_request_failed",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "network_error",
+          "providerErrorCode": "1234",
+          "statusCode": 400
+        }
+      }
+    },
+    {
+      "category": "stream-disconnected",
+      "lastError": {
+        "code": "model_request_failed",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "stream_idle_timeout"
+        }
+      }
+    },
+    {
+      "category": "internal",
+      "lastError": {
+        "code": "model_request_failed",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "server_error",
+          "providerErrorCode": "1120",
+          "statusCode": 500
+        }
+      }
+    },
+    {
+      "category": "bad-request",
+      "lastError": {
+        "code": "invalid_model_request",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "invalid_request",
+          "providerErrorCode": "3001",
+          "statusCode": 400
+        }
+      }
+    },
+    {
+      "category": "unknown",
+      "lastError": {
+        "code": "999999",
+        "message": "Synthetic safe message",
+        "recoverable": false,
+        "at": 1,
+        "source": "provider",
+        "attribution": {
+          "reason": "invalid_request",
+          "providerErrorCode": "999999",
+          "statusCode": 400,
+          "exceptionKind": "provider_business"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "source": "traces/sanitized/1.1/native-turn.ndjson",
+    "line": 14,
+    "scenario": "draft",
+    "fields": {
+      "control": {
+        "phase": "draft",
+        "canStop": false,
+        "stopState": "idle",
+        "activeWorks": [],
+        "lastError": null
+      },
+      "backgroundWorks": [],
+      "pendingInteractions": []
+    }
+  },
+  {
+    "source": "traces/sanitized/1.1/native-turn.ndjson",
+    "line": 24,
+    "scenario": "running",
+    "fields": {
+      "control": {
+        "phase": "running",
+        "canStop": true,
+        "stopState": "stoppable",
+        "activeWorks": [
+          {
+            "kind": "primaryTurn",
+            "foregroundExecutionId": "runtime_command_1",
+            "startedAt": 1790800714272
+          }
+        ],
+        "lastError": null
+      }
+    }
+  },
+  {
+    "source": "traces/sanitized/1.1/native-turn.ndjson",
+    "line": 276,
+    "scenario": "completedSuccess",
+    "fields": {
+      "control": {
+        "phase": "completedSuccess",
+        "canStop": false,
+        "stopState": "idle",
+        "activeWorks": [],
+        "lastError": null
+      }
+    }
+  },
+  {
+    "source": "traces/sanitized/1.1/live.ndjson",
+    "line": 16,
+    "scenario": "completedInterrupted",
+    "fields": {
+      "control": {
+        "phase": "completedInterrupted",
+        "canStop": false,
+        "stopState": "idle",
+        "activeWorks": [],
+        "lastError": null
+      },
+      "backgroundWorks": [],
+      "pendingInteractions": []
+    }
+  }
+]
