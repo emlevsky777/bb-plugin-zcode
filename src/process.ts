@@ -126,7 +126,13 @@ export class NativeProcess {
           else if (e.event === 'native-exit') this.rejectPending(new Error('Native child exited'));
           else if (e.event === 'stdin-error') this.fail(new Error('Native stdin failed'));
           else if (e.event === 'signal-error') this.rememberCleanup(new ProcessCleanupError(String(e.stage), String(e.code), 'unknown'));
-          else if (e.event === 'descendant-owned' && Number.isSafeInteger(e.pid) && Number(e.pid) > 1 && this.ownedDescendantPids.size < 4096) this.ownedDescendantPids.add(Number(e.pid));
+          else if (e.event === 'descendant-owned' && Number.isSafeInteger(e.pid) && Number(e.pid) > 1) {
+            // This is bounded diagnostic history, not the supervisor's live
+            // ownership registry. A long command can report more than 4096
+            // successive descendants without having 4096 live processes.
+            // Keep receiving valid control events after the history fills.
+            if (this.ownedDescendantPids.size < 4096) this.ownedDescendantPids.add(Number(e.pid));
+          }
           else if (e.event === 'descendant-error') { this.descendantCleanupFailed = true; this.rememberCleanup(new ProcessCleanupError('descendants', 'SETTLEMENT_UNCONFIRMED', 'unknown')); }
           else if (e.event === 'escaped-settled') { this.escapedSettled = true; this.signalEscapedSettled(); }
           else throw new Error('Unknown supervisor event');

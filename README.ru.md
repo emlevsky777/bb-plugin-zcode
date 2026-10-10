@@ -14,9 +14,15 @@ macOS на Apple silicon, bb 0.45.0 или новее, установленны�
 и вход с индивидуальным Coding Plan (проверен Lite). Node и сборщик предоставляет
 bb; Python, Homebrew и глобальный npm не нужны.
 
-```sh
-bb plugin install 'git:https://github.com/emlevsky777/bb-plugin-zcode.git@v0.1.0-rc.1' --yes
+В bb откройте **Settings → Installed plugins** (Plugins), затем
+**New plugin options → Install from source** и вставьте:
+
+```text
+https://github.com/emlevsky777/bb-plugin-zcode.git
 ```
+
+Просмотрите и подтвердите установку. Ссылка отслеживает стандартную ветку,
+сейчас `main`; тег `v0.1.0-rc.1` она не закрепляет.
 
 bb собирает server и host. ID плагина — `zcode`. Откройте тред, выберите
 **ZCode**, модель (GLM-5.3, если доступна), разрешения **Full**, отправьте сообщение.
@@ -28,15 +34,19 @@ bb собирает server и host. ID плагина — `zcode`. Открой�
 Spotlight; резервный поиск — `/Applications` и `~/Applications`. При нескольких
 копиях предпочтение отдаётся системному Applications.
 
-Проверка обновлений — `bb plugin outdated`. Тег закреплён: смена тега требует
-удаления и новой установки. Удаление сбрасывает настройки, secrets и расписания,
-но в bb 0.45.0 файлы и данные плагина остаются; смена тега не сбрасывает эти
-сохранённые данные. Для отслеживаемой ветки
-или диапазона используйте `bb plugin update zcode --yes`, просмотрев доступную
-версию. Перед обновлением или удалением остановите все треды ZCode:
+Перед обновлением или удалением остановите каждый тред ZCode кнопкой **Stop**.
+Откройте **Settings → Installed plugins → ZCode**, просмотрите и примените
+предлагаемое обновление. Удаление — **ZCode actions → Remove from bb**.
+Обновления следуют источнику установки. Теги и commits закреплены; смена
+источника требует удаления и новой установки. В bb 0.45.0 удаление сбрасывает
+настройки, secrets и расписания, а файлы и данные сессий остаются.
+
+Вариант через CLI: в правой панели треда bb выберите **Open new tab → Start terminal**.
+В нём bb предоставляет CLI; команда `bb` в системном Terminal не нужна:
 
 ```sh
-bb thread stop <thread-id>
+bb plugin outdated
+bb plugin update zcode --yes
 bb plugin remove zcode
 ```
 
@@ -47,17 +57,19 @@ bb 0.45.0 сохраняет Git checkout и данные Git-плагинов. 
 - `~/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>/`
   — checkout и собранные бандлы установленного commit.
 - `~/.bb/plugins/zcode/` — данные плагина, включая `host-data/` и `bridge-data/`.
+- `~/.bb/plugin-host-artifacts/zcode/` — загруженные host-бандлы.
 
-Для необязательной полной очистки запишите `rootDir` установки из
-`bb plugin list --json` **до** удаления. `bb status --json` показывает `dataDir`;
+Для необязательной полной очистки скопируйте точный путь **Source** со страницы
+плагина **до** удаления. В терминале bb `bb status --json` показывает `dataDir`;
 если это не `~/.bb`, замените каталог в путях ниже. Остановите все треды ZCode,
-включая фоновую работу, затем выполните `bb plugin remove zcode`.
+включая фоновую работу, затем выберите **Remove from bb**.
 Только после этого вручную удалите точные оставшиеся каталоги:
 
 ```sh
 # Замените <commit> на ID checkout, записанный до удаления.
 rm -r -- "$HOME/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>"
 rm -r -- "$HOME/.bb/plugins/zcode"
+rm -r -- "$HOME/.bb/plugin-host-artifacts/zcode"
 ```
 
 Удаляйте checkout, только если его не использует другой установленный плагин;
@@ -132,7 +144,10 @@ Observer неактивен без явной настройки собстве�
 
 ## Сообщить о проблеме
 
-Выполните `bb zcode-report` и приложите просмотренный вывод к
+В правой панели треда bb выберите **Open new tab → Start terminal** и выполните
+`bb zcode-report`.
+В этом терминале bb предоставляет CLI; системный PATH настраивать не нужно.
+Приложите просмотренный вывод к
 [GitHub issue](https://github.com/emlevsky777/bb-plugin-zcode/issues), указав шаги,
 время/часовой пояс и точную ошибку. Команда ничего не загружает. При нескольких
 установках используйте `bb plugin run zcode`. Журналы: `bb plugin logs zcode`.

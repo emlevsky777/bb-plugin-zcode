@@ -36,6 +36,39 @@ const base = resolve(process.env.ZCODE_CONNECTION_TEST_ROOT ?? '.local/M2/offlin
 const fake = resolve('tests/provider/fake-v4.mjs');
 const wait = async predicate => { for(let i=0;i<800;i++){if(predicate())return;await delay(10);}throw Error('own process fixture timeout'); };
 const absent = pid => {try{process.kill(pid,0);return false;}catch(e){if(e.code==='ESRCH')return true;throw e;}};
+test('coalesced supervisor activity commands do not stop native protocol',async()=>{
+  const cwd=mkdtempSync(base+'/control-chunk-'),deaths=[];
+  const native=new api.NativeProcess({executable:process.execPath,args:[fake,'v4',cwd+'/sessions.json'],cwd,
+    env:api.childEnvironment(process.env,{ELECTRON_RUN_AS_NODE:process.env.ELECTRON_RUN_AS_NODE})},1,null,()=>{},e=>deaths.push(e.message));
+  try{
+    await native.request('runtime/capabilities',{});
+    native.control.write('active\n'.repeat(1000));
+    await delay(200);
+    assert.deepEqual(await native.request('runtime/capabilities',{}),{});
+    assert.deepEqual(deaths,[]);
+    assert.equal(await native.close(),0);
+  }finally{await native.close().catch(()=>{});rmSync(cwd,{recursive:true});}
+});
+test('full descendant diagnostic history does not turn a valid supervisor report into native death',async()=>{
+  const cwd=mkdtempSync(base+'/full-history-'),file=cwd+'/owned.json',deaths=[];
+  const native=new api.NativeProcess({executable:process.execPath,args:[fake,'detached-descendant',file],cwd,
+    env:api.childEnvironment(process.env,{ELECTRON_RUN_AS_NODE:process.env.ELECTRON_RUN_AS_NODE})},1,null,()=>{},e=>deaths.push(e.message));
+  // Fill diagnostic history before the first real escaped descendant report.
+  for(let i=0;i<4096;i++)native.ownedDescendantPids.add(10000000+i);
+  let pid;
+  try{
+    await wait(()=>existsSync(file));pid=JSON.parse(readFileSync(file,'utf8')).pid;
+    await delay(350);
+    assert.deepEqual(deaths,[]);assert.equal(absent(native.nativePid),false);
+    assert.equal(native.ownedDescendantPids.size,4096);
+    assert.equal(await native.close(),0);await wait(()=>absent(pid));
+  }finally{
+    await native.close().catch(()=>{});
+    if(!pid&&existsSync(file))pid=JSON.parse(readFileSync(file,'utf8')).pid;
+    if(pid&&!absent(pid))process.kill(pid,'SIGKILL');
+    rmSync(cwd,{recursive:true});
+  }
+});
 for(const fault of ['release','native-crash']) test('supervisor settles registered detached TERM-ignore process: '+fault+'; unrelated neighbor survives',async()=>{
   const cwd=mkdtempSync(base+'/descendants-'),file=cwd+'/owned.json';
   const neighbor=spawn(process.execPath,[fake,'hang',cwd+'/foreign'],{detached:true,stdio:'ignore',env:process.env});

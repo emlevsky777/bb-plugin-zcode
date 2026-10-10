@@ -22,7 +22,6 @@ if (launch.control) {
   control = new Socket({ fd: 3, readable: true, writable: true });
   control.on('data', chunk => {
     controlText += chunk.toString('utf8');
-    if (controlText.length > 4096) { shutdown(); force(); return; }
     let newline;
     while ((newline = controlText.indexOf('\n')) >= 0) {
       const line = controlText.slice(0, newline); controlText = controlText.slice(newline + 1);
@@ -32,6 +31,9 @@ if (launch.control) {
         if (changed && !shutting) { clearTimeout(watchTimer); watch(); }
       } else { shutdown(); force(); }
     }
+    // Bound an incomplete line after consuming complete commands. Coalesced
+    // activity updates are valid even when one pipe chunk exceeds 4096 bytes.
+    if (controlText.length > 4096) { shutdown(); force(); return; }
   });
   control.on('end', shutdown); control.on('error', shutdown);
 }

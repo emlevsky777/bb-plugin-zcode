@@ -15,9 +15,15 @@ Requires macOS on Apple silicon, bb 0.45.0 or newer, installed ZCode Desktop,
 Git and an individual Coding Plan login (Lite checked). bb supplies Node and
 build tools; Python, Homebrew and global npm are unnecessary.
 
-```sh
-bb plugin install 'git:https://github.com/emlevsky777/bb-plugin-zcode.git@v0.1.0-rc.1' --yes
+In bb, open **Settings → Installed plugins** (Plugins), then **New plugin
+options → Install from source**, and paste:
+
+```text
+https://github.com/emlevsky777/bb-plugin-zcode.git
 ```
+
+Review and confirm. This URL tracks the default branch, currently `main`;
+it does not pin the `v0.1.0-rc.1` tag.
 
 bb builds both server and host bundles. Plugin ID: `zcode`. Open a thread, select
 **ZCode**, a model (GLM-5.3 when available), permissions **Full**, and send a
@@ -29,15 +35,20 @@ detects login changes without restarting bb. Spotlight locates renamed bundles;
 fallback search uses `/Applications` and `~/Applications`. System Applications
 is preferred when multiple copies exist.
 
-Check updates with `bb plugin outdated`. This exact tag is pinned: switching
-tags requires removal and fresh installation. Removal clears settings, secrets
-and schedules, but retains plugin files/data in bb 0.45.0; switching tags is not
-a reset of that retained data. Tracking
-branch/range installations use `bb plugin update zcode --yes` after reviewing the
-available version. Stop all ZCode threads before updating or removing:
+Stop every ZCode thread with its **Stop** button before updating or removing.
+Open **Settings → Installed plugins → ZCode** to review and apply an offered
+update. To remove it, choose **ZCode actions → Remove from bb**. Updates follow
+the recorded source; tags and commits are pinned and require removal and fresh
+installation to change source. Removal clears settings, secrets and schedules,
+while bb 0.45.0 retains files and session data.
+
+Optional CLI route: in the bb thread's right panel, choose **Open new tab →
+Start terminal**. bb provides
+its CLI there; your system Terminal does not need a `bb` command:
 
 ```sh
-bb thread stop <thread-id>
+bb plugin outdated
+bb plugin update zcode --yes
 bb plugin remove zcode
 ```
 
@@ -48,17 +59,19 @@ bb data directory, these are:
 - `~/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>/`
   — the checkout and built bundles for the installed commit.
 - `~/.bb/plugins/zcode/` — plugin data, including `host-data/` and `bridge-data/`.
+- `~/.bb/plugin-host-artifacts/zcode/` — downloaded host bundles.
 
-For optional complete disk cleanup, record the installation's `rootDir` from
-`bb plugin list --json` **before** removal. `bb status --json` reports `dataDir`;
+For optional complete disk cleanup, copy the exact **Source** path from plugin
+details **before** removal. In bb's terminal, `bb status --json` reports `dataDir`;
 if it differs from `~/.bb`, use that directory in the paths below. Stop every
-ZCode thread, including background work, then run `bb plugin remove zcode`.
+ZCode thread, including background work, then choose **Remove from bb**.
 Only after that, remove the exact retained directories manually:
 
 ```sh
 # Replace <commit> with the checkout ID recorded before removal.
 rm -r -- "$HOME/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>"
 rm -r -- "$HOME/.bb/plugins/zcode"
+rm -r -- "$HOME/.bb/plugin-host-artifacts/zcode"
 ```
 
 Remove a checkout only when no other installed plugin uses it; do not delete the
@@ -132,7 +145,10 @@ logs, credentials or authorization links.
 
 ## Reporting a problem
 
-Run `bb zcode-report` and attach its reviewed output to a
+In a bb thread's right panel, choose **Open new tab → Start terminal** and run
+`bb zcode-report`.
+bb supplies the CLI in this terminal; no system PATH setup is needed.
+Attach its reviewed output to a
 [GitHub issue](https://github.com/emlevsky777/bb-plugin-zcode/issues), with steps,
 time/timezone and exact error. It uploads nothing. With multiple installations,
 use `bb plugin run zcode` explicitly. Server logs: `bb plugin logs zcode`.

@@ -2,6 +2,32 @@
   "version": 1,
   "touchpoints": [
     {
+      "id": "zcode-tool-environment",
+      "product": "ZCode",
+      "uses": "Native tool environment inheritance and filtered network passthrough; HOME is not accepted by passthrough",
+      "anchors": [
+        { "file": "Contents/Resources/glm/zcode.cjs", "text": "ZCODE_TOOL_ENV_PASSTHROUGH_JSON", "strength": "strong", "reason": "Native filtered tool-environment channel; presence does not imply HOME support." },
+        { "file": "Contents/Resources/glm/zcode.cjs", "text": "shouldCaptureZCodeToolEnvPassthroughKey", "strength": "strong", "reason": "Native key filter must be checked before changing isolated process HOME." },
+        { "file": "Contents/Resources/glm/zcode.cjs", "text": "getDefaultConfigPath", "strength": "strong", "reason": "User config remains HOME-relative; storage overrides alone cannot isolate it." }
+      ],
+      "code": ["src/process.ts", "src/runtime.ts"],
+      "impact": "Tool HOME differs from the user HOME, or real HOME weakens internal config isolation.",
+      "milestones": ["M4.9.8"],
+      "sources": ["docs/maintenance/M4.9.8-fix-native-semantics.md"]
+    },
+    {
+      "id": "bb-user-cli-path",
+      "product": "bb",
+      "uses": "Embedded terminal provides bundled bb CLI for the local problem report",
+      "anchors": [
+        { "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/bb", "text": "BB_CLI", "strength": "weak", "reason": "Bundled entrypoint; embedded-terminal live execution is the behavioral proof." }
+      ],
+      "code": ["README.md", "README.ru.md", "src/plugin.ts"],
+      "impact": "Users cannot produce a problem report without system CLI installation if embedded-terminal injection changes.",
+      "milestones": ["M4.9.8"],
+      "sources": ["docs/maintenance/M4.9.8-fix-native-semantics.md"]
+    },
+    {
       "id": "bb-git-install-build",
       "product": "bb",
       "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling",
@@ -1986,7 +2012,7 @@
     {
       "id": "zcode-steer",
       "product": "ZCode",
-      "uses": "Guide queue ACK and source command identity",
+      "uses": "Guide queue ACK and source command identity; native queue promotion and shutdown behavior",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2010,17 +2036,21 @@
       "code": [
         "src/bridge.ts",
         "src/correlation.ts",
-        "src/lifecycle.ts"
+        "src/lifecycle.ts",
+        "src/process.ts",
+        "src/catalogue-supervisor.ts"
       ],
       "impact": "Steer acceptance/correlation fails; no preemption guarantee.",
       "milestones": [
         "M4.6.4",
-        "M4.7"
+        "M4.7",
+        "M4.9.8"
       ],
       "sources": [
         "docs/maintenance/M4.6.4-touchpoints.md",
         "docs/maintenance/M4.6.4-continuation-touchpoints.md",
-        "docs/maintenance/M4.7-touchpoints.md"
+        "docs/maintenance/M4.7-touchpoints.md",
+        "docs/maintenance/M4.9.8-fix-native-semantics.md"
       ]
     },
     {
