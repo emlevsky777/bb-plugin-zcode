@@ -30,7 +30,9 @@ fallback search uses `/Applications` and `~/Applications`. System Applications
 is preferred when multiple copies exist.
 
 Check updates with `bb plugin outdated`. This exact tag is pinned: switching
-tags requires removal and fresh installation, which resets plugin data. Tracking
+tags requires removal and fresh installation. Removal clears settings, secrets
+and schedules, but retains plugin files/data in bb 0.45.0; switching tags is not
+a reset of that retained data. Tracking
 branch/range installations use `bb plugin update zcode --yes` after reviewing the
 available version. Stop all ZCode threads before updating or removing:
 
@@ -39,8 +41,30 @@ bb thread stop <thread-id>
 bb plugin remove zcode
 ```
 
-Removal deletes the managed installation and plugin settings/data. bb thread
-history and your original ZCode Desktop login, files and history remain.
+Removal unregisters the plugin and deletes its settings, secrets and schedules.
+bb 0.45.0 retains Git checkouts and plugin data for Git plugins. With the default
+bb data directory, these are:
+
+- `~/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>/`
+  — the checkout and built bundles for the installed commit.
+- `~/.bb/plugins/zcode/` — plugin data, including `host-data/` and `bridge-data/`.
+
+For optional complete disk cleanup, record the installation's `rootDir` from
+`bb plugin list --json` **before** removal. `bb status --json` reports `dataDir`;
+if it differs from `~/.bb`, use that directory in the paths below. Stop every
+ZCode thread, including background work, then run `bb plugin remove zcode`.
+Only after that, remove the exact retained directories manually:
+
+```sh
+# Replace <commit> with the checkout ID recorded before removal.
+rm -r -- "$HOME/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>"
+rm -r -- "$HOME/.bb/plugins/zcode"
+```
+
+Remove a checkout only when no other installed plugin uses it; do not delete the
+whole bb Git cache. Manual data removal discards plugin-local session data and
+caches, so those native sessions can no longer be resumed. Neither plugin removal
+nor this cleanup touches your ZCode Desktop login/history or bb thread history.
 Save needed settings first; never put secret values in a chat or issue.
 
 ## Capabilities and limits
