@@ -5,12 +5,12 @@ import {join,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {api,plugin} from './helpers.mjs';
 const options={permissionMode:'full',permissionScope:'full',approvalReviewer:null,permissionEscalation:null,model:'GLM-5.3',reasoningLevel:'high'};
-test('M498b2a one registration: per-command source/refresh/subagents; secret never in options',async()=>{
+test('M498b2a one registration: per-command source/subagents; secret never in options',async()=>{
   let registration,count=0,disposed=0,changed;
-  await plugin({settings:{define:()=>({get:async()=>({authMode:'cli',backupKey:'PRIVATE'}),onChange:cb=>{changed=cb;}})},providers:{register:r=>{count++;registration=r;return{dispose:()=>disposed++};}}});
+  await plugin({settings:{define:()=>({get:async()=>({authMode:'desktop',backupKey:'PRIVATE'}),onChange:cb=>{changed=cb;}})},providers:{register:r=>{count++;registration=r;return{dispose:()=>disposed++};}}});
   assert.equal(registration.experimental_bridgeOptions,undefined);
-  assert.deepEqual(registration.deriveProviderOptions({settings:{authMode:'coding-plan-key',catalogueRefresh:2,subagentsDisabled:true,backupKey:'PRIVATE'}}),{authMode:'coding-plan-key',catalogueRefresh:2,providerSubagentsEnabled:false,memoryEnabled:true});
-  if(changed)await changed({authMode:'cli',subagentsDisabled:false});
+  assert.deepEqual(registration.deriveProviderOptions({settings:{authMode:'coding-plan-key',subagentsDisabled:true,backupKey:'PRIVATE'}}),{authMode:'coding-plan-key',providerSubagentsEnabled:false,memoryEnabled:true});
+  if(changed)await changed({authMode:'desktop',subagentsDisabled:false});
   assert.equal(count,1);assert.equal(disposed,0);
 });
 test('M498b2a session tools create/cold resume/model change/toggle/steer keep same native history',async()=>{

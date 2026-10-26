@@ -80,9 +80,7 @@ test('M496a mention CLI once per native session; resume/config replacement reloa
     const resumed = await rpc('thread/resume', { ...start, providerThreadId: native }); assert.ok(resumed.result, JSON.stringify(resumed));
     assert.ok((await send()).result); assert.equal(count(), 2);
     assert.ok((await send({ ...options, providerOptions: { providerSubagentsEnabled: false } })).result); assert.equal(count(), 3);
-    const refreshed = { ...options, providerOptions: { providerSubagentsEnabled: false, catalogueRefresh: 1 } };
-    assert.ok((await send(refreshed)).result); assert.equal(count(), 4);
-    unlinkSync(path); assert.match((await send(refreshed)).error.message, /unavailable/); assert.equal(count(), 4);
-    assert.deepEqual(observations.filter(e => e.event === 'mention-catalogue').map(e => e.hit), [false, true, false, false, false, true]);
+    unlinkSync(path); assert.match((await send({ ...options, providerOptions: { providerSubagentsEnabled: false } })).error.message, /unavailable/); assert.equal(count(), 3);
+    assert.deepEqual(observations.filter(e => e.event === 'mention-catalogue').map(e => e.hit), [false, true, false, false, true]);
   } finally { await bridge.close(); rmSync(cwd, { recursive: true }); }
 });

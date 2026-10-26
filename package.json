@@ -33,7 +33,7 @@
   },
   "bb": {
     "name": "ZCode",
-    "description": "Runs your installed ZCode agent with a Z.ai GLM Coding Plan inside bb. macOS only.",
+    "description": "Use your Z.ai GLM Coding Plan in bb through your installed ZCode agent. macOS only.",
     "branding": {
       "icon": "./assets/zcode.svg"
     },

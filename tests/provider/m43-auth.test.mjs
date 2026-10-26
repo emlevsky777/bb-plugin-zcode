@@ -9,10 +9,10 @@ function store(identity,key){return JSON.stringify({['account-provider:'+provide
  ['account-provider:coding-plan:'+provider+':account:'+encodeURIComponent(identity)+':api-key']:key});}
 const params={providerId:provider,accountAccess:{type:'zhipu-account',mode:'individual-coding-plan',accountType:'zai',entitled:true},
  modelSelection:{providerId:provider,modelId:'GLM-5.3'},sessionId:'own',reason:'model-request',requestId:'req1',workspace:{workspacePath:'/own',workspaceKey:'/own'}};
-test('CLI rotation and explicit native secret source are fresh, isolated, read-only, without fallback',()=>{
+test('Desktop rotation and explicit native secret source are fresh, isolated, read-only, without fallback',()=>{
  const root=mkdtempSync(join(tmpdir(),'m43-auth-')),cli=join(root,'credentials.json'),key=join(root,'backupKey');
  writeFileSync(cli,store('first','SYNTHETIC_M43_OLD'));writeFileSync(key,'SYNTHETIC_M43_EXPLICIT',{mode:0o600});
- const auth=new api.ReadOnlyAuth(cli).fork('cli',key);
+ const auth=new api.ReadOnlyAuth(cli).fork('desktop',key);
  try{
   const old=readFileSync(cli);assert.equal(auth.headers(params,'own','/own','GLM-5.3').requestAuth.apiKey,'SYNTHETIC_M43_OLD');assert.deepEqual(readFileSync(cli),old);
   writeFileSync(cli,store('other','SYNTHETIC_M43_NEW'));const fresh=readFileSync(cli);
@@ -22,19 +22,21 @@ test('CLI rotation and explicit native secret source are fresh, isolated, read-o
   chmodSync(key,0o644);assert.throws(()=>auth.read(),e=>e instanceof api.AuthError&&e.kind==='invalid-store');chmodSync(key,0o600);
   unlinkSync(key);assert.throws(()=>auth.read(),e=>e.kind==='missing-key');
   writeFileSync(cli,fresh);symlinkSync(cli,key);assert.throws(()=>auth.read(),e=>e.kind==='invalid-store');unlinkSync(key);
-  auth.setMode('cli');assert.equal(auth.headers(params,'own','/own','GLM-5.3').requestAuth.apiKey,'SYNTHETIC_M43_NEW');
+  auth.setMode('desktop');assert.equal(auth.headers(params,'own','/own','GLM-5.3').requestAuth.apiKey,'SYNTHETIC_M43_NEW');
   assert.deepEqual(readFileSync(cli),fresh);
   writeFileSync(cli,'{ broken');assert.throws(()=>auth.read(),e=>e.kind==='invalid-store');
   assert.throws(()=>auth.headers({...params,providerId:'zai-api'},'own','/own','GLM-5.3'),e=>e.kind==='unsupported-mode');
  }finally{rmSync(root,{recursive:true});}
 });
-test('declared native settings forward per-command source/refresh without registration or secret',async()=>{
- const calls=[];let change;const values={authMode:'cli',catalogueRefresh:0,backupKey:'SYNTHETIC_M43_SECRET'};
+test('declared native settings forward per-command source without registration or secret',async()=>{
+ assert.equal(api.authMode(undefined),'desktop');
+ assert.throws(()=>api.authMode('cli'),e=>e.kind==='unsupported-mode'); // No legacy alias.
+ const calls=[];let change;const values={authMode:'desktop',backupKey:'SYNTHETIC_M43_SECRET'};
  await plugin({settings:{define:descriptors=>{assert.equal(descriptors.backupKey.secret,true);return{get:async()=>values,onChange:fn=>change=fn};}},providers:{register:v=>calls.push(v)}});
  assert.equal(JSON.stringify(calls).includes(values.backupKey),false);
- assert.deepEqual(calls[0].deriveProviderOptions({settings:values}),{authMode:'cli',catalogueRefresh:0,providerSubagentsEnabled:true,memoryEnabled:true});
+ assert.deepEqual(calls[0].deriveProviderOptions({settings:values}),{authMode:'desktop',providerSubagentsEnabled:true,memoryEnabled:true});
  assert.equal(change,undefined);
- assert.deepEqual(calls[0].deriveProviderOptions({settings:{...values,authMode:'coding-plan-key',catalogueRefresh:1}}),{authMode:'coding-plan-key',catalogueRefresh:1,providerSubagentsEnabled:true,memoryEnabled:true});
+ assert.deepEqual(calls[0].deriveProviderOptions({settings:{...values,authMode:'coding-plan-key'}}),{authMode:'coding-plan-key',providerSubagentsEnabled:true,memoryEnabled:true});
  assert.equal(calls.length,1); assert.equal(calls[0].experimental_bridgeOptions,undefined);
  assert.equal(JSON.stringify(calls).includes(values.backupKey),false);
 });

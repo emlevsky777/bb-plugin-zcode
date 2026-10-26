@@ -44,7 +44,7 @@ export function reportEvents(root: string): string[] {
 
 export function settingsReport(settings: Record<string, unknown>) {
   return {
-    authMode: settings.authMode === 'coding-plan-key' ? 'coding-plan-key' : 'cli',
+    authMode: settings.authMode === 'coding-plan-key' ? 'coding-plan-key' : 'desktop',
     backupKey: typeof settings.backupKey === 'string' && !!settings.backupKey ? 'set' : 'not set',
     subagentsDisabled: settings.subagentsDisabled === true,
     memoryEnabled: settings.memoryEnabled !== false,

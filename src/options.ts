@@ -10,13 +10,12 @@ export function executionOptions(value: unknown, instructionMode = 'append', dis
   if (o.promptMode !== undefined) throw new Error('ZCode plan mode is not supported');
   if (o.serviceTier !== undefined && o.serviceTier !== 'default') throw new Error('ZCode fast service tier is not supported');
   const providerOptions = record(o.providerOptions ?? {});
-  if (Object.keys(providerOptions).some(key => !['additionalWorkspaceWriteRoots', 'authMode', 'catalogueRefresh', 'providerSubagentsEnabled', 'memoryEnabled'].includes(key))) throw new Error('ZCode providerOptions are not supported');
+  if (Object.keys(providerOptions).some(key => !['additionalWorkspaceWriteRoots', 'authMode', 'providerSubagentsEnabled', 'memoryEnabled'].includes(key))) throw new Error('ZCode providerOptions are not supported');
   if (providerOptions.providerSubagentsEnabled !== undefined && typeof providerOptions.providerSubagentsEnabled !== 'boolean') throw Error('Invalid subagent setting');
   const providerSubagentsEnabled = providerOptions.providerSubagentsEnabled !== false;
   if (providerOptions.memoryEnabled !== undefined && typeof providerOptions.memoryEnabled !== 'boolean') throw Error('Invalid memory setting');
   const memoryEnabled = providerOptions.memoryEnabled !== false;
   const selectedAuthMode = authMode(providerOptions.authMode);
-  if (providerOptions.catalogueRefresh !== undefined && (!Number.isSafeInteger(providerOptions.catalogueRefresh) || Number(providerOptions.catalogueRefresh) < 0)) throw new Error('Invalid catalogue refresh');
   // bb supplies these roots even for full. Native yolo already permits them;
   // accepting valid roots neither creates mounts nor grants a new permission.
   const roots = providerOptions.additionalWorkspaceWriteRoots;
@@ -36,6 +35,6 @@ export function executionOptions(value: unknown, instructionMode = 'append', dis
   const model = typeof o.model === 'string' ? o.model : '';
   if (o.reasoningLevel !== undefined && (typeof o.reasoningLevel !== 'string' || !o.reasoningLevel.trim())) throw new Error('Invalid explicit reasoning');
   const reasoning = typeof o.reasoningLevel === 'string' ? o.reasoningLevel : ''; // native default sentinel
-  return { model, reasoning, instructions, envVars, authMode: selectedAuthMode, catalogueRefresh: Number(providerOptions.catalogueRefresh ?? 0), providerSubagentsEnabled, memoryEnabled,
+  return { model, reasoning, instructions, envVars, authMode: selectedAuthMode, providerSubagentsEnabled, memoryEnabled,
     toolDenylist, signature: JSON.stringify([instructions, Object.entries(envVars).sort(), toolDenylist, memoryEnabled]) };
 }

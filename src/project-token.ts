@@ -19,12 +19,8 @@ export function tokenRequest(env: NodeJS.ProcessEnv): TokenRequest {
     const agent = new Agent({ proxyEnv: { ...env, ...(env.ZCODE_HTTP_PROXY ? { HTTPS_PROXY: env.ZCODE_HTTP_PROXY, https_proxy: env.ZCODE_HTTP_PROXY } : {}) },
       ...(ca ? { ca: [...rootCertificates, readFileSync(ca, 'utf8')] } : {}) });
     const req = request(new URL(path, 'https://api.z.ai'), { agent, method, headers, signal: AbortSignal.timeout(15000) }, response => {
-      const chunks: Buffer[] = []; let size = 0;
-      response.on('data', (chunk: Buffer) => {
-        size += chunk.length;
-        if (size > 65536) req.destroy(new ProjectTokenError('project_token_invalid_response'));
-        else chunks.push(chunk);
-      });
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => { chunks.push(chunk); });
       response.on('error', reject);
       response.on('end', () => {
         const status = response.statusCode ?? 0;
@@ -56,6 +52,7 @@ export class ProjectTokenResolver {
   constructor(send: TokenRequest, now = Date.now, random = Math.random, clientVersion = 'unknown') { this.send = send; this.now = now; this.random = random; this.clientVersion = clientVersion; }
   clear() { this.state = undefined; }
   async resolve(identity: string, oauth: string, params: Record<string, unknown>, stillCurrent: () => boolean): Promise<ProjectTokenMaterial> {
+    oauth = oauth.trim().replace(/^Bearer\s+/i, '');
     const scope = sha(JSON.stringify(['account:zai-individual-coding-plan', 'zai', identity, oauth]));
     if ((params.expectedAccountScope && params.expectedAccountScope !== scope) || (params.rejectedProjectTokenFingerprint && !params.expectedAccountScope))
       throw new ProjectTokenError('project_token_scope_invalidated');

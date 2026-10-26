@@ -12,9 +12,9 @@ import { ProjectTokenResolver, ProjectTokenError, tokenRequest } from './project
 import type { TokenRequest } from './project-token.ts';
 
 export const accountProviderId = 'account:zai-individual-coding-plan';
-export type AuthMode = 'cli' | 'coding-plan-key';
+export type AuthMode = 'desktop' | 'coding-plan-key';
 export function authMode(value: unknown): AuthMode {
-  if (value === undefined || value === 'cli') return 'cli';
+  if (value === undefined || value === 'desktop') return 'desktop';
   if (value === 'coding-plan-key') return value;
   throw new AuthError('unsupported-mode');
 }
@@ -45,7 +45,7 @@ export function authRecovery(): experimental_BridgeRecoveryError {
     recovery: { kind: 'authRequired', message: signInHint(), retryable: false } });
 }
 export function credentialCipherKey(env = process.env, home = homedir()): Buffer {
-  return createHash('sha256').update(env.ZCODE_CREDENTIAL_SECRET?.trim() ||
+  return createHash('sha256').update(env.ZCODE_CREDENTIAL_SECRET ||
     `zcode-credential-fallback:${platform()}:${home}:${userInfo().username}`).digest();
 }
 function decrypt(value: unknown, key: Buffer): string {
@@ -67,7 +67,7 @@ export class ReadOnlyAuth {
   readonly path: string;
   private key: Buffer;
   private onFresh: (purpose: string, generation: number) => void;
-  private mode: AuthMode = 'cli';
+  private mode: AuthMode = 'desktop';
   private explicitKeyPath: string | undefined;
   private projectTokens: ProjectTokenResolver | undefined;
   private network: TokenRequest = tokenRequest(process.env);

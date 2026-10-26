@@ -10,7 +10,7 @@ Use Full permissions. Models and reasoning levels come from the installed
 native catalogue; unavailable selections have no automatic fallback.
 
 Use `bb plugin list --json` to find this plugin's installed ID, then
-`bb plugin config <id>` to inspect settings. `authMode=cli` reads existing
+`bb plugin config <id>` to inspect settings. `authMode=desktop` (default) reads existing
 Desktop sign-in in the real HOME. `coding-plan-key` uses `backupKey` from
 bb's secret setting for the Coding Plan gateway. Never print or commit keys,
 tokens, session stores or raw recordings. Native ZCode may refresh its shared

@@ -37,9 +37,9 @@ test('M493 complete command quotes all paths; no PATH zcode; all login surfaces 
     const out = execFileSync('/bin/zsh', ['-f', '-c', api.loginCommand(paths)], { encoding: 'utf8', env: { PATH: '/usr/bin:/bin' } }).trim().split('\n');
     assert.equal(JSON.stringify(out), expected);
     let descriptors, registration;
-    await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'cli', catalogueRefresh: 87 }), onChange() {} }; } }, providers: { register: r => { registration = r; } } });
-    assert.equal(descriptors.catalogueRefresh, undefined); assert.equal(registration.experimental_bridgeOptions, undefined);
-    assert.equal(registration.deriveProviderOptions({ settings: { catalogueRefresh: 87 } }).catalogueRefresh, 87);
+    await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'desktop' }), onChange() {} }; } }, providers: { register: r => { registration = r; } } });
+    assert.equal(registration.experimental_bridgeOptions, undefined);
+    assert.equal(registration.deriveProviderOptions({ settings: {} }).authMode, 'desktop');
     assert.equal(registration.strings.signInHint, api.signInHint()); assert.match(descriptors.authMode.description, /existing Desktop sign-in/);
     assert.ok(registration.strings.expiredHint.includes(api.signInHint()));
     assert.equal(api.authRecovery().recovery.message, api.signInHint());
@@ -57,13 +57,13 @@ for (const persistent of [false, true]) test(`M493 login file appears, changes, 
     [`account-provider:coding-plan:${api.accountProviderId}:account:${identity}:api-key`]: 'SYNTHETIC_M493_KEY' }));
   try {
     assert.equal((await runtime.services.health()).health.status, 'unauthenticated');
-    await assert.rejects(runtime.services.models(undefined, 'cli', 87), e => e.kind === 'unauthenticated'); assert.equal(launches, 0);
-    put('first'); const before = readFileSync(auth.path); const first = await runtime.services.models(undefined, 'cli', 87);
+    await assert.rejects(runtime.services.models(undefined, 'desktop'), e => e.kind === 'unauthenticated'); assert.equal(launches, 0);
+    put('first'); const before = readFileSync(auth.path); const first = await runtime.services.models(undefined, 'desktop');
     assert.ok(first.models.length); assert.equal(launches, 1); assert.deepEqual(readFileSync(auth.path), before);
-    await runtime.services.models(undefined, 'cli', 87); assert.equal(launches, 1);
-    put('changed'); await runtime.services.models(undefined, 'cli', 87); assert.equal(launches, 2);
-    unlinkSync(auth.path); await assert.rejects(runtime.services.models(undefined, 'cli', 87), e => e.kind === 'unauthenticated');
-    put('return'); await runtime.services.models(undefined, 'cli', 87); assert.equal(launches, 3);
+    await runtime.services.models(undefined, 'desktop'); assert.equal(launches, 1);
+    put('changed'); await runtime.services.models(undefined, 'desktop'); assert.equal(launches, 2);
+    unlinkSync(auth.path); await assert.rejects(runtime.services.models(undefined, 'desktop'), e => e.kind === 'unauthenticated');
+    put('return'); await runtime.services.models(undefined, 'desktop'); assert.equal(launches, 3);
   } finally { await runtime.close(); rmSync(root, { recursive: true }); }
 });
 

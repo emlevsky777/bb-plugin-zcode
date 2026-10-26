@@ -59,9 +59,8 @@ test('actual loader uses single unselected create, defaults distinguish explicit
   await assert.rejects(runtime.services.validateSelection('GLM-Future','medium'),/unavailable/);assert.equal(inferences,0);
   await assert.rejects(runtime.services.validateSelection('GLM-Future','max'),/unavailable/);
   writeFileSync(builtin,'{"nativeChange":true}');await runtime.services.models();assert.equal(creates,3);
-  await runtime.services.models(undefined,'cli',1);assert.equal(creates,4);
   const key=join(root,'secrets');mkdirSync(key);writeFileSync(join(key,'backupKey'),'SYNTHETIC_ONLY',{mode:0o600});runtime.setSecretRoot(key);
-  await runtime.services.models(undefined,'coding-plan-key',1);assert.equal(creates,5);
+  await runtime.services.models(undefined,'coding-plan-key');assert.equal(creates,4);
  }finally{await runtime.close();rmSync(root,{recursive:true});}
 });
 test('fresh native header binding accepts catalogue-selected future model and rejects mismatched model/reasoning before credential read',()=>{

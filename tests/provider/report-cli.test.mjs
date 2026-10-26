@@ -51,7 +51,7 @@ test('report failures, hostile fields and missing data cannot leak content or be
     CLI: sentinel, plugin: sentinel, state: sentinel, cliLogin: sentinel, events: Array(30000).fill(sentinel) }, settings: { authMode: sentinel } }));
   const result = await cli.run(['--json'], {}); safe(result);
   const report = JSON.parse(result.stdout); assert.equal(report.bb, null); assert.deepEqual(report.events, []);
-  assert.equal(report.desktopCredentialFile, 'absent'); assert.equal(report.settings.authMode, 'cli');
+  assert.equal(report.desktopCredentialFile, 'absent'); assert.equal(report.settings.authMode, 'desktop');
 });
 test('report projects fixed events from logs without writing session/config files', () => {
   const root = mkdtempSync(join(tmpdir(), 'report-'));

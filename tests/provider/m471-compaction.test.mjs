@@ -11,7 +11,7 @@ const input = (suffix='') => [{type:'text',text:'/compact'+suffix,mentions:[{sta
 const options = { permissionMode:'full',permissionScope:'full',approvalReviewer:null,permissionEscalation:null,model:'GLM-5.3',reasoningLevel:'max',envVars:{} };
 test('M471 bb advertises manual compaction to enable its structured command',async()=>{
   let registration;
-  await plugin({settings:{define:()=>({get:async()=>({authMode:'cli',catalogueRefresh:0}),onChange:()=>{}})},providers:{register:value=>{registration=value;return{};}}});
+  await plugin({settings:{define:()=>({get:async()=>({authMode:'desktop'}),onChange:()=>{}})},providers:{register:value=>{registration=value;return{};}}});
   assert.equal(registration.capabilities.supportsManualCompaction,true);
   assert.ok(registration.extensionKinds.compaction.item['~standard'].validate({outcome:'noop'}).value);
   assert.ok(registration.extensionKinds.compaction.item['~standard'].validate({outcome:'unknown'}).issues);

@@ -14,7 +14,7 @@ test('M48 strict providerOptions, enabled default/signature and real bb derive',
   assert.equal(enabled.providerSubagentsEnabled,true);assert.equal(off.providerSubagentsEnabled,false);assert.notEqual(enabled.signature,off.signature);
   for(const v of [null,0,'false',{},[]])assert.throws(()=>api.executionOptions({...options,providerOptions:{providerSubagentsEnabled:v}}),/Invalid subagent/);
   let registration,definition;
-  await plugin({settings:{define:d=>{definition=d;return{get:async()=>({authMode:'cli',catalogueRefresh:0}),onChange:()=>{}};}},providers:{register:r=>{registration=r;return{};}}});
+  await plugin({settings:{define:d=>{definition=d;return{get:async()=>({authMode:'desktop'}),onChange:()=>{}};}},providers:{register:r=>{registration=r;return{};}}});
   assert.equal(definition.subagentsDisabled.default,false);
   assert.equal(registration.deriveProviderOptions({settings:{subagentsDisabled:true}}).providerSubagentsEnabled,false);
   assert.equal(registration.deriveProviderOptions({settings:{}}).providerSubagentsEnabled,true);

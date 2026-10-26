@@ -1,48 +1,70 @@
-Run installed ZCode inside bb with an individual Z.ai Coding Plan. Includes
-account models, reasoning levels, file/terminal tools, native skills and commands,
-continuation, background work, stop, compaction and guidance during a turn.
+## What you can do
 
-Requires Apple silicon macOS, bb 0.47.1+, installed ZCode Desktop and Git
-(Xcode Command Line Tools). bb supplies host Node and build tools; global npm,
-Python and Homebrew are unnecessary. Checked: bb 0.47.1 / SDK 0.6.79 / host Node
-24.22.0 / Desktop 3.15.1 / CLI 0.16.9, individual Lite plan. Other combinations
-need verification. Windows, Linux, Intel macOS and Browser Use are unsupported;
-Computer Use is not established.
+Bring your individual Z.ai GLM Coding Plan into bb while ZCode handles the
+native coding work. Choose GLM-5.3 or GLM-5.3-Flash and the reasoning levels
+offered by your account catalogue; unavailable selections have no fallback.
 
-Unofficial early plugin, unaffiliated with Z.ai, ZCode or bb. The repository is
-currently private; installation requires repository access. No stable release
-is promised by the default branch.
+Work with files and terminal tools, continue saved sessions, stop a turn,
+compact context manually and send guidance during an active turn, including
+a long-running command. Use native ZCode skills, bb append instructions and
+bb-only skills. Native agents are available; `Disable provider subagents`
+controls them. Tool exclusions support whole native tool names.
 
-In Settings → Installed plugins → New plugin options → Install from source,
-paste `https://github.com/emlevsky777/bb-plugin-zcode.git` and confirm. This
-tracks main. Complete Z.ai sign-in in ZCode Desktop, select ZCode in a new thread
-and use Full permissions. The real HOME and Desktop store are shared; bb keeps
-separate sessions/history/logs. Native ZCode may refresh shared tokens; the
-plugin does not write Desktop settings or CLI config. Rejected sign-in requires
-signing in again in Desktop; merely opening it is not a verified token refresh.
+Configured MCP servers come from Desktop; complete their first OAuth sign-in
+there. Memory follows the Desktop preference, with `ZCode memory fallback`
+when that preference is unavailable.
 
-Stop all ZCode threads and background work before updating or removing. Open
-Settings → Installed plugins → ZCode for an offered update, or choose ZCode
-actions → Remove from bb. Updates track the recorded source; pinned tags and
-commits require fresh installation to change source. Removal clears settings,
-secrets and schedules; exact retained data cleanup is described in the README.
+## Attachments
 
-In a thread's right panel choose Open new tab → Start terminal, then run
-`bb zcode-report --help`, `bb zcode-report` or `bb zcode-report --json`.
-The terminal supplies bb without a system CLI installation. Reports are
-server-local, exclude secrets/session contents/personal paths and upload nothing.
-They do not diagnose remote agent hosts or prove sign-in readiness.
+Available: PNG/JPEG/GIF/WebP images up to 10 MiB and UTF-8 text files up to
+256 KiB. Flash read an attached table directly in the checked combination;
+GLM-5.3 reported only its path in bb and Desktop. A checked GLM-5.3 workflow
+used native Read and ZCode's image analyzer. Acceptance does not establish
+direct image perception for every model or format.
 
-Native MCP uses existing Desktop configuration; first MCP OAuth sign-in is in
-Desktop. Hooks follow native enablement/trust; configured-hook behavior is not
-live-proven. After automatic compaction the rest of that turn can lack the full
-bb instruction/skill block; the next ordinary turn restores it. Automatic guide
-reinjection is not enabled. New instruction/skill metadata needs a new session.
+Rejected: PDF, binary files and remote image URLs. Planned, not yet available:
+PDF attachments, larger text files and other formats; no delivery date.
 
-Plugins and native tools have full trust and account access. ZCode sends model
-requests; review trust boundaries and Coding Plan terms before use. Never share
-raw logs or credentials. Apache-2.0.
+## Requirements and limits
+
+macOS on Apple silicon, bb 0.47.1+, Git (Xcode Command Line Tools), installed
+ZCode Desktop and an individual Z.ai Coding Plan sign-in are required.
+Checked: bb 0.47.1 / SDK 0.6.79 / host Node 24.22.0 / Desktop 3.15.1 /
+CLI 0.16.9, individual Lite plan. Other combinations need verification.
+bb supplies Node and build tools; no global npm, Python or Homebrew is needed.
+Browser Use is unsupported; Computer Use is not established.
+
+Use Full permissions. Native tools have your account's access to the real
+HOME, environment and shared Desktop store; bb sessions/history/logs are
+separate. Native ZCode may refresh shared tokens. The plugin does not write
+Desktop settings or CLI config. Rejected sign-in requires signing in again
+in Desktop; real stored-token expiry is unmeasured.
+
+After automatic compaction, the rest of that turn can lack the full bb
+instruction/skill block; the next ordinary turn restores it. New instruction
+or skill metadata needs a new session. Queued guidance can be lost on
+disconnect. Check an uncertain send before retrying; it is not replayed
+automatically. Configured-hook behavior is not live-proven.
+
+## Getting started
+
+Stable version: `v0.1.0`, in the public repository. In Settings → Installed
+plugins → New plugin options → Install from source, paste
+`git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0` and confirm.
+The CLI uses `bb plugin install` with the same source. Complete sign-in in
+Desktop, leave `ZCode sign-in source` at `desktop`, then select ZCode in a
+new thread. Stop all ZCode threads and background work before updates/removal.
+
+## Help
+
+Open new tab → Start terminal in a bb thread and run `bb zcode-report`,
+`bb zcode-report --json` or `bb zcode-report --help`. Reports are server-local,
+exclude secrets/session contents/personal paths and upload nothing; they do
+not prove sign-in readiness or diagnose remote hosts.
+
+Unofficial; unaffiliated with Z.ai, ZCode or bb. Review account terms and trust
+before use. Never share raw logs or credentials. Apache-2.0.
 
 [Installation, update, removal and limits](https://github.com/emlevsky777/bb-plugin-zcode#readme)
 
-[Report an issue with reviewed output](https://github.com/emlevsky777/bb-plugin-zcode/issues)
+[Report an issue](https://github.com/emlevsky777/bb-plugin-zcode/issues)

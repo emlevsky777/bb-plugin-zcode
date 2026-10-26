@@ -154,21 +154,21 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     mkdirSync(root, { recursive: true, mode: 0o700 });
     appendFileSync(join(root, 'auth-metadata.ndjson'), JSON.stringify({ at: new Date().toISOString(), purpose, generation, fresh: true }) + '\n', { encoding: 'utf8', mode: 0o600 });
   });
-  const selectedAuth = (mode: AuthMode = 'cli') => dependencies.auth && mode === 'cli' ? auth : auth.fork(mode, explicitKeyPath);
+  const selectedAuth = (mode: AuthMode = 'desktop') => dependencies.auth && mode === 'desktop' ? auth : auth.fork(mode, explicitKeyPath);
   // A bb maintenance bridge may expire independently of a live thread bridge.
   // Share only the validated public catalogue, never credentials/identity/hash.
   // Pinned account capabilities are public config; authentication is checked
   // independently on every hit and every model request, never part of the key.
   const persistentCatalogue = dependencies.catalogueCache ?? !dependencies.configure;
-  function cacheScope(d: ReturnType<typeof discovery>, mode: AuthMode = 'cli', refresh = 0): string {
+  function cacheScope(d: ReturnType<typeof discovery>, mode: AuthMode = 'desktop'): string {
     const paths = getPaths();
-    const scope = JSON.stringify({ version: 3, semantics: 'zai-coding-plan-session-create-v1', root, runtime: d.sha256, cli: d.version, mode, refresh,
-      credentialFileIdentity: fileIdentity(mode === 'cli' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []),
+    const scope = JSON.stringify({ version: 3, semantics: 'zai-coding-plan-session-create-v1', root, runtime: d.sha256, cli: d.version, mode,
+      credentialFileIdentity: fileIdentity(mode === 'desktop' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []),
       builtin: createHash('sha256').update(readFileSync(paths.builtin)).digest('hex') });
     selectedAuth(mode).read('catalogue-cache-validation');
     return scope;
   }
-  async function cachedCatalogue(loadRoot: string, scope: string, epoch: number, mode: AuthMode, refresh: number): Promise<Catalogue> {
+  async function cachedCatalogue(loadRoot: string, scope: string, epoch: number, mode: AuthMode): Promise<Catalogue> {
     mkdirSync(loadRoot, { recursive: true, mode: 0o700 });
     const file = join(loadRoot, 'catalogue-v2.json');
     let invalid: string | undefined;
@@ -202,7 +202,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     if (invalid) evidence({ event: 'catalogue-cache-recovery', reason: invalid,
       action: 'Reloading validated catalogue from ZCode; session/history retained' }, loadRoot);
     const value = await loadCatalogue(loadRoot, mode);
-    if (stopped || epoch !== catalogueEpoch || root !== loadRoot || cacheScope(detect(), mode, refresh) !== scope)
+    if (stopped || epoch !== catalogueEpoch || root !== loadRoot || cacheScope(detect(), mode) !== scope)
       throw new Error('Catalogue root changed or runtime/config scope changed; retry after reconciliation');
     const temp = file + '.' + randomUUID() + '.tmp';
     try {
@@ -213,7 +213,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     } finally { try { if (existsSync(temp)) unlinkSync(temp); } catch { /* Optional cache cleanup. */ } }
     return value;
   }
-  async function prepare(cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }, service = false, serviceMode: AuthMode = 'cli'): Promise<RuntimeSetup> {
+  async function prepare(cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }, service = false, serviceMode: AuthMode = 'desktop'): Promise<RuntimeSetup> {
     const operationRoot = root;
     // Identity and binding checks precede discovery, auth and writes.
     const threadId = identity?.threadId;
@@ -314,7 +314,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     observe: evidence,
     memoryEnabled: () => desktopMemoryEnabled(dependencies.personalHome),
     prepare,
-    async health(mode = 'cli') {
+    async health(mode = 'desktop') {
       const d = detect(), paths = getPaths(); let status: 'not_installed' | 'ready' | 'unauthenticated' | 'unknown' = !d.installed ? 'not_installed' : 'ready';
       let message = status === 'ready' ? `Ready. ZCode: ${paths.script.replace('/Contents/Resources/glm/zcode.cjs', '')}.` : resolveZCode().bundle ? 'ZCode Desktop installation incomplete: repair or reinstall ZCode Desktop.' : resolveZCode().message;
       if (status === 'ready') try { selectedAuth(mode).read('health'); } catch (e) {
@@ -323,25 +323,25 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       }
       const context = d.installed ? compatibility().message : null;
       if (context) message += ' ' + context;
-      return providerHealthResultSchema.parse({ supported: true, health: { accountEmail: null, canInstall: false, canUpdate: false, installedVersion: d.version, loginCommand: null, minimumSupportedVersion: null, planLabel: mode === 'cli' ? 'Desktop Coding Plan' : 'Explicit Coding Plan key / gateway', status, statusMessage: message } });
+      return providerHealthResultSchema.parse({ supported: true, health: { accountEmail: null, canInstall: false, canUpdate: false, installedVersion: d.version, loginCommand: null, minimumSupportedVersion: null, planLabel: mode === 'desktop' ? 'Desktop Coding Plan' : 'Explicit Coding Plan key / gateway', status, statusMessage: message } });
     },
     async installation() {
       const d = detect(), paths = getPaths();
       return providerInstallationStatusSchema.parse({ currentVersion: d.version, executableName: 'zcode', executablePath: d.installed ? paths.script : null, installAction: null, installSource: d.installed ? 'external' : 'notInstalled', installed: d.installed, latestVersion: null, minimumSupportedVersion: null, needsUpdate: false, npmGlobalPackageVersion: null, npmPackageName: null, versionUnsupported: false });
     },
-    async models(_cwd, mode = 'cli', refresh = 0) {
+    async models(_cwd, mode = 'desktop') {
       if (stopped) throw new Error('Native services closed');
       // Unknown versions run; the actual catalogue/protocol still validates.
       const d = detect();
       if (!d.installed) throw new MissingExecutableError(resolveZCode().message);
       // Authentication is fresh even for an in-memory public catalogue hit.
       selectedAuth(mode).read('catalogue-ready');
-      const scope = persistentCatalogue ? cacheScope(d, mode, refresh) : JSON.stringify({ mode, refresh, credentials: fileIdentity(mode === 'cli' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []) });
+      const scope = persistentCatalogue ? cacheScope(d, mode) : JSON.stringify({ mode, credentials: fileIdentity(mode === 'desktop' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []) });
       if (catalogueScope !== scope) { catalogueEpoch++; catalogue = undefined; loading = undefined; catalogueScope = scope; }
       if (catalogue) { evidence({ event: 'catalogue-cache-hit', epoch: catalogueEpoch }); return structuredClone(catalogue); }
       if (!loading) {
         const epoch = catalogueEpoch, loadRoot = root;
-        const promise = (!persistentCatalogue ? loadCatalogue(loadRoot, mode) : cachedCatalogue(loadRoot, scope, epoch, mode, refresh)).then(value => {
+        const promise = (!persistentCatalogue ? loadCatalogue(loadRoot, mode) : cachedCatalogue(loadRoot, scope, epoch, mode)).then(value => {
           if (stopped || epoch !== catalogueEpoch) throw new Error('Catalogue root changed or services closed; retry on current root');
           catalogue = value;
           return value;
@@ -352,15 +352,15 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       }
       return structuredClone(await loading.promise);
     },
-    async validateSelection(model, reasoning, mode = 'cli', refresh = 0) {
-      const available = record(await services.models(undefined, mode, refresh)).models as ReturnType<typeof mapNativeModels>;
+    async validateSelection(model, reasoning, mode = 'desktop') {
+      const available = record(await services.models(undefined, mode)).models as ReturnType<typeof mapNativeModels>;
       const selected = model ? available.find(m => m.model === model) : available.find(m => m.isDefault);
       const effort = reasoning || selected?.defaultReasoningEffort;
       if (!selected || !effort || !selected.supportedReasoningEfforts.some(e => e.reasoningEffort === effort)) throw new Error('Selected model/reasoning unavailable; models with a default reasoning level unsupported by bb SDK cannot be used. No fallback');
       return { model: selected.model, reasoning: effort };
     },
   };
-  async function loadCatalogue(loadRoot: string, mode: AuthMode = 'cli'): Promise<Catalogue> {
+  async function loadCatalogue(loadRoot: string, mode: AuthMode = 'desktop'): Promise<Catalogue> {
       const cwd = join(loadRoot, 'catalogue-scratch'); mkdirSync(cwd, { recursive: true, mode: 0o700 });
       const setup = await prepare(cwd, undefined, undefined, true, mode);
       const launch = setup.launch;

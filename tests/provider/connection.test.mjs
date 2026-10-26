@@ -19,7 +19,7 @@ const recorded = JSON.parse(readFileSync(new URL('./fixtures/bb-real-inputs.json
 const options = { ...recorded[0].request.params.options, envVars: {} };
 test('public host imports and registration declare only the connected scope without starting native', async () => {
   assert.equal(host.experimental_host.experimental_apiVersion, 1); assert.equal(typeof host.handleLine, 'function');
-  const calls = []; await plugin({ settings: { define: () => ({get:async()=>({authMode:'cli',catalogueRefresh:0}),onChange:()=>{}}) }, providers: { register: value => calls.push(value) } });
+  const calls = []; await plugin({ settings: { define: () => ({get:async()=>({authMode:'desktop'}),onChange:()=>{}}) }, providers: { register: value => calls.push(value) } });
   assert.equal(calls[0].displayName, 'ZCode'); assert.deepEqual(calls[0].capabilities.permissionModes, ['full']);
   assert.deepEqual(calls[0].models, { scope: 'host' }); assert.ok(calls[0].capabilities.reasoningLevels.includes('medium'));
   assert.equal(api.bridgeCapabilities.approvalEnforcedBy, 'provider');

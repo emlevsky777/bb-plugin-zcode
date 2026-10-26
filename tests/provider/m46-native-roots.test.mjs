@@ -37,7 +37,7 @@ test('M46 native catalogue canonical original files deduplicate aliases, omit pl
 test('M46 provider publishes only dynamic native roots and host retains native SDK validators', async () => {
   assert.equal(host.default, host.experimental_host, 'Installed bb host worker imports the default entry');
   let provider;
-  await plugin({ settings: { define: () => ({ get: async () => ({ authMode: 'cli', catalogueRefresh: 0 }), onChange() {} }) },
+  await plugin({ settings: { define: () => ({ get: async () => ({ authMode: 'desktop' }), onChange() {} }) },
     providers: { register: value => { provider = value; } } });
   assert.equal(provider.experimental_resolvesNativeRoots, true);
   assert.equal(provider.experimental_nativeSkillRoots, undefined); assert.equal(provider.experimental_nativeCommandRoots, undefined);

@@ -32,7 +32,7 @@ test('M494 server import and registration do not invoke discovery commands', () 
   const code = `import cp from 'node:child_process'; import {syncBuiltinESMExports} from 'node:module';
     let calls=0; cp.execFileSync=()=>{calls++;throw Error('unexpected process');}; syncBuiltinESMExports();
     const {default:plugin}=await import(${JSON.stringify(entry)});
-    await plugin({settings:{define:()=>({get:async()=>({authMode:'cli'}),onChange(){}})},providers:{register(){}}});
+    await plugin({settings:{define:()=>({get:async()=>({authMode:'desktop'}),onChange(){}})},providers:{register(){}}});
     if(calls) throw Error('Server searched for ZCode');`;
   execFileSync(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
 });
@@ -137,7 +137,7 @@ test('M494 source and settings contain no Cyrillic product text', async () => {
     assert.doesNotMatch(text, /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/, file);
   }
   let descriptors;
-  await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'cli' }), onChange() {} }; } }, providers: { register() {} } });
+  await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'desktop' }), onChange() {} }; } }, providers: { register() {} } });
   assert.equal(Object.keys(descriptors).length, 4);
   for (const d of Object.values(descriptors)) { assert.ok(d.label && d.description); assert.doesNotMatch(d.label + d.description, /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/); }
 });

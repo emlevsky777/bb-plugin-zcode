@@ -5,13 +5,52 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
+import { createHash, createCipheriv } from 'node:crypto';
 import { api } from './helpers.mjs';
 import { ProjectTokenResolver, ProjectTokenError } from '../../src/project-token.ts';
 
 const params = { requestId: 'request', sessionId: 'session', reason: 'model-request', providerId: api.accountProviderId,
   workspace: { workspacePath: '/work', workspaceKey: '/work' }, modelSelection: { providerId: api.accountProviderId, modelId: 'GLM-5.3' },
   accountAccess: { type: 'zhipu-account', mode: 'individual-coding-plan', accountType: 'zai', entitled: true } };
+test('Desktop cipher overrides retain every byte, including whitespace-only secrets; store and config stay unchanged', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'm499b-cipher-')), file = join(dir, 'credentials.json'), config = join(dir, 'config.json');
+  try {
+    writeFileSync(config, 'SYNTHETIC_CONFIG_SENTINEL');
+    for (const secret of [' SYNTHETIC_OVERRIDE ', '   ']) {
+      const key = createHash('sha256').update(secret).digest();
+      const encrypt = value => {
+        const iv = Buffer.alloc(12, 7), cipher = createCipheriv('aes-256-gcm', key, iv);
+        const bytes = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+        return 'enc:v1:' + [iv, cipher.getAuthTag(), bytes].map(part => part.toString('base64url')).join('.');
+      };
+      writeFileSync(file, JSON.stringify({ [`account-provider:${api.accountProviderId}:identity`]: encrypt('SYNTHETIC_ACCOUNT'),
+        'oauth:zai:access_token': encrypt('SYNTHETIC_OAUTH') }));
+      const before = readFileSync(file);
+      const auth = new api.ReadOnlyAuth(file, api.credentialCipherKey({ ZCODE_CREDENTIAL_SECRET: secret }));
+      assert.equal(auth.read().oauth.accessToken, 'SYNTHETIC_OAUTH');
+      assert.deepEqual(readFileSync(file), before);
+      assert.equal(readFileSync(config, 'utf8'), 'SYNTHETIC_CONFIG_SENTINEL');
+    }
+  } finally { rmSync(dir, { recursive: true }); }
+});
+test('Desktop Bearer prefix normalization applies to transport and cache scope', async () => {
+  const s = service(), resolver = new ProjectTokenResolver(s.send);
+  const first = await resolver.resolve('account', '  bEaReR SYNTHETIC_OAUTH  ', {}, () => true);
+  assert.ok(s.calls.every(call => call.headers.Authorization === 'Bearer SYNTHETIC_OAUTH'));
+  const second = await resolver.resolve('account', 'SYNTHETIC_OAUTH', { expectedAccountScope: first.accountScope }, () => true);
+  assert.deepEqual(second, first); assert.equal(s.calls.length, 3);
+});
+test('valid customer JSON above 64 KiB follows native response handling without another request', () => {
+  const code = `import https from 'node:https'; import {EventEmitter} from 'node:events'; import {syncBuiltinESMExports} from 'node:module';
+    let calls=0; const body=JSON.stringify({code:200,data:{organizations:[{organizationId:'org',projects:[{projectId:'project'}]}],padding:'x'.repeat(70000)}});
+    https.request=(url,options,callback)=>{calls++;const req=new EventEmitter();req.destroy=e=>queueMicrotask(()=>req.emit('error',e));
+      req.end=()=>queueMicrotask(()=>{const res=new EventEmitter();res.statusCode=200;callback(res);res.emit('data',Buffer.from(body.slice(0,40000)));res.emit('data',Buffer.from(body.slice(40000)));res.emit('end');req.emit('close');});return req;};syncBuiltinESMExports();
+    const {tokenRequest}=await import(${JSON.stringify(new URL('../../src/project-token.ts', import.meta.url).href)});
+    const result=await tokenRequest({})('/api/biz/customer/getCustomerInfo','GET',{});
+    if(calls!==1||result.data.organizations[0].projects[0].projectId!=='project'||result.data.padding.length!==70000)process.exitCode=1;`;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+});
 function service(clock = () => Date.now()) {
   const calls = []; let token = 0, fail = false;
   const send = async (path, method, headers, body) => {

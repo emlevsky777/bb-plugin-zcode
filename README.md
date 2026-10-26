@@ -7,8 +7,8 @@ individual Z.ai Coding Plan: files, terminal tools, native skills and commands.
 This early unofficial plugin is unaffiliated with Z.ai, ZCode or bb. The plugin
 uses your installed ZCode to send model requests; the bridge also calls Z.ai
 to obtain short-lived project tokens for shared Desktop sign-in. You are
-responsible for complying with your Coding Plan terms. The repository is
-currently private; installation requires repository access.
+responsible for complying with your Coding Plan terms. Stable version: `v0.1.0`.
+The source repository is public.
 
 ## Requirements and installation
 
@@ -20,17 +20,22 @@ In bb, open **Settings → Installed plugins** (Plugins), then **New plugin
 options → Install from source**, and paste:
 
 ```text
-https://github.com/emlevsky777/bb-plugin-zcode.git
+git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0
 ```
 
-Review and confirm. This URL tracks the default branch, currently `main`;
-it does not pin the `v0.1.0-rc.1` tag.
+Review and confirm. This source selects stable versions in the `^0.1.0` range.
+The same installation is available in bb's terminal:
+
+```sh
+bb plugin install git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0
+```
 
 bb builds both server and host bundles. Plugin ID: `zcode`. Open a thread, select
 **ZCode**, a model (GLM-5.3 when available), permissions **Full**, and send a
 message. bb permissions govern tool access; review commands and project trust.
 
 Complete the first individual Z.ai Coding Plan sign-in in ZCode Desktop.
+Leave **ZCode sign-in source** at `desktop` (the default).
 The plugin reads that shared sign-in and refreshes short-lived project tokens
 in memory; it does not refresh the stored OAuth/business token. If the server
 rejects that token, open Desktop and sign in again, then retry in bb. Merely
@@ -44,8 +49,8 @@ is preferred when multiple copies exist.
 Stop every ZCode thread with its **Stop** button before updating or removing.
 Open **Settings → Installed plugins → ZCode** to review and apply an offered
 update. To remove it, choose **ZCode actions → Remove from bb**. Updates follow
-the recorded source; tags and commits are pinned and require removal and fresh
-installation to change source. Removal clears settings, secrets and schedules,
+the recorded source and stable range. Exact tags and commits are pinned;
+changing source requires removal and fresh installation. Removal clears settings, secrets and schedules,
 while bb 0.47.1 retains plugin session data.
 
 Optional CLI route: in the bb thread's right panel, choose **Open new tab →
@@ -90,11 +95,11 @@ Save needed settings first; never put secret values in a chat or issue.
 
 - Account model catalogue and supported reasoning levels. Missing explicitly
   selected models or efforts fail without substitution.
-- Continuation, foreground/background stop, context compaction, guidance during
+- Continuation, foreground stop, context compaction, guidance during
   an active turn, and subagents with bb's setting enabled.
-- Native skills selected with `/` or `$`, and native commands with `/`: one
-  command per message. New resident skills may require a new thread; bb's menu
-  cache may take about ten seconds to refresh.
+- Native ZCode skills and bb-only skills. Native skill/command menu selection
+  on this release base is not live-verified. The implementation accepts one
+  native command per message; new resident skills may require a new thread.
 - bb append instructions and bb-only skills are delivered once per native
   session, including cold resume. Skill metadata uses exact `SKILL.md` paths;
   read bb-only skills with the file tool. They are not registered in native
@@ -103,6 +108,14 @@ Save needed settings first; never put secret values in a chat or issue.
   not recreate an existing session. System instruction replacement is unsupported.
 - PNG/JPEG/GIF/WebP images up to 10 MiB, inline image data, and UTF-8 files up to
   256 KiB. PDF, binary files and remote image URLs are rejected.
+  Image interpretation depends on the native model: in the checked combination,
+  GLM-5.3-Flash transcribed an attached table without tools, while GLM-5.3 reported
+  seeing only its path in both bb and ZCode Desktop. Direct image perception is
+  not established for GLM-5.3; attachment acceptance alone does not prove it.
+  A checked tool-assisted GLM-5.3 result used native Read followed by ZCode's
+  image analyzer.
+  Planned, not yet available: PDF attachments, larger text files and other
+  formats. No delivery date is promised.
 - Real HOME and the shared ZCode Desktop store: personal/project instructions,
   standalone skills, enabled native plugins and configured MCP servers. bb keeps
   its own session database and history and logs. `ZCODE_DATA_BASE_DIR` is not

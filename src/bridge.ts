@@ -47,8 +47,8 @@ export interface BridgeServices {
   prepare: (cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }) => Promise<RuntimeSetup>;
   health: (mode?: AuthMode) => Promise<unknown>;
   installation: () => Promise<unknown>;
-  models: (cwd?: string, mode?: AuthMode, refresh?: number) => Promise<unknown>;
-  validateSelection: (model: string, reasoning: string, mode?: AuthMode, refresh?: number) => Promise<void | { model: string; reasoning: string }>;
+  models: (cwd?: string, mode?: AuthMode) => Promise<unknown>;
+  validateSelection: (model: string, reasoning: string, mode?: AuthMode) => Promise<void | { model: string; reasoning: string }>;
 }
 export interface RuntimeSetup { warnings?: readonly string[] | undefined; beforeInput?: (() => Promise<void>) | undefined }
 export interface RuntimeSetup { mentionCatalogue?: ((side: 'skills' | 'commands') => Promise<unknown>) | undefined; backgroundTaskStore?: string | undefined }
@@ -169,7 +169,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         generation: g, readsBefore: s.auth.reads, source: s.auth.source(), route: 'coding-plan-gateway', model: record(params.modelSelection).modelId });
       let headersApplied = false;
       void (async () => { try {
-        const models = record(await services.models(s.cwd, s.auth.source(), Number(record(record(s.construction.options).providerOptions ?? {}).catalogueRefresh ?? 0))).models;
+        const models = record(await services.models(s.cwd, s.auth.source())).models;
         const available = Array.isArray(models) ? models.map(m => string(record(m).model)) : [];
         if (!current(s, g) || s.closing) return;
         const result = await s.auth.runtimeHeaders(m.params, s.id, s.cwd, s.model, s.reasoning, available);
@@ -322,7 +322,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     if (sessions.has(threadId)) throw new Error('Thread already attached');
     if (!resume && createdIdentities.has(threadId)) throw new Error('Created native identity requires recovery/resume; no duplicate create');
     const setup = await services.prepare(cwd, execution, { threadId, ...(resume ? { providerThreadId: string(p.providerThreadId) } : {}) });
-    Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode, execution.catalogueRefresh));
+    Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode));
     const { model, reasoning } = execution;
     if (closing) throw new Error('Bridge is shutting down; resume required');
     const g = ++generation;
@@ -443,9 +443,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     if (method === 'provider/installation/run') return { available: false, message: 'Install ZCode Desktop yourself; no automatic updates' };
     if (method === 'model/list') {
       const p = modelListParamsSchema.parse(value), options = record(p.providerOptions ?? {});
-      const refresh = options.catalogueRefresh ?? 0;
-      if (!Number.isSafeInteger(refresh) || Number(refresh) < 0) throw new Error('Invalid catalogue refresh');
-      const result = record(await services.models(p.cwd, authMode(options.authMode), Number(refresh)));
+      const result = record(await services.models(p.cwd, authMode(options.authMode)));
       return { ...result, selectedOnlyModels: [] };
     }
     if (method === 'thread/start') return attach(threadStartParamsSchema.parse(value), false);
@@ -467,7 +465,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       if (s.steerRequests.has(p.clientRequestId)) throw new Error('Duplicate steer request');
       const converted = convertAttachments(await mentionInput(s, p.input, p.clientRequestId), s.cwd);
       if (converted.attachments.some(a => a.kind === 'image')) {
-        const models = record(await services.models(s.cwd, options.authMode, options.catalogueRefresh)).models;
+        const models = record(await services.models(s.cwd, options.authMode)).models;
         requireImageCapability(Array.isArray(models) ? models : [], options.model);
       }
       await s.beforeInput?.();
@@ -513,7 +511,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       const execution = currentExecution(reconciledOptions, s.instructionMode, s.construction.disallowedTools);
       if (execution.envVars.BB_THREAD_ID !== undefined && execution.envVars.BB_THREAD_ID !== p.threadId)
         throw new Error('Environment thread identity conflict');
-      Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode, execution.catalogueRefresh));
+      Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode));
       if (execution.signature !== s.options) {
         const construction = s.construction, id = s.id, before = s.state.snapshot;
         await stop(s, 'release');
@@ -535,7 +533,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       // Source selection is per turn, never a credential in launch options.
       s.auth.setMode(execution.authMode);
       const previousExecution = executionOptions(previous, s.instructionMode, s.construction.disallowedTools);
-      if (execution.authMode !== previousExecution.authMode || execution.catalogueRefresh !== previousExecution.catalogueRefresh ||
+      if (execution.authMode !== previousExecution.authMode ||
           execution.model !== s.model || execution.reasoning !== s.reasoning) s.mentionCatalogues.clear();
       try { await s.beforeInput?.(); } catch (error) { await stop(s, 'release'); throw error; }
       await s.refreshAuth?.(s.child);
@@ -548,7 +546,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       s.construction = { ...s.construction, options: reconciledOptions };
       const converted = convertAttachments(await mentionInput(s, p.input, p.clientRequestId), s.cwd);
       if (converted.attachments.some(a => a.kind === 'image')) {
-        const models = record(await services.models(s.cwd, execution.authMode, execution.catalogueRefresh)).models;
+        const models = record(await services.models(s.cwd, execution.authMode)).models;
         requireImageCapability(Array.isArray(models) ? models : [], execution.model);
       }
       const attachmentRefs = await createAttachmentRefs(converted.attachments, s.id, (method, params) => s.child.request(method, params));

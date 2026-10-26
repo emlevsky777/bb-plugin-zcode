@@ -44,7 +44,7 @@ test('O138 preparation leaves user configuration and instructions unchanged; sim
 test('removed isolation settings are unsupported; plugin no longer publishes the switches or host sync', async () => {
   assert.throws(() => api.executionOptions({ ...options, providerOptions: { useUserMcp: true, useZCodePlugins: false } }), /providerOptions/);
   let descriptors, registration;
-  await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'cli', useZCodePlugins: true, useUserMcp: true }), onChange() {} }; } },
+  await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'desktop', useZCodePlugins: true, useUserMcp: true }), onChange() {} }; } },
     providers: { register: r => { registration = r; } } });
   assert.equal(descriptors.useZCodePlugins, undefined); assert.equal(descriptors.useUserMcp, undefined);
   assert.equal(registration.experimental_bridgeOptions, undefined);

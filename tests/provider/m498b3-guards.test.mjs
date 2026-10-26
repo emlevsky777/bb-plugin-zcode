@@ -127,10 +127,10 @@ test('auth source changes both ways with background work; steer retains active s
   const state = JSON.parse(readFileSync(join(f.root, 'sessions.json'), 'utf8'))[f.params.providerThreadId];
   const expectedTurnId = state.rows.window.find(r => r.kind === 'turnHeader').turnId;
   await f.rpc('turn/steer', { ...f.params, options: next, expectedTurnId, clientRequestId: 'creq_3333333333', input: [{ type: 'text', text: '/steer-lifetime' }] });
-  assert.equal(f.evidence.find(e => e.event === 'steer-requested').authSource, 'cli'); assert.equal(f.auth.source(), 'cli');
+  assert.equal(f.evidence.find(e => e.event === 'steer-requested').authSource, 'desktop'); assert.equal(f.auth.source(), 'desktop');
   await f.child.request('fixture/complete', {});
   await f.rpc('turn/start', { ...f.params, options: next, clientRequestId: 'creq_4444444444', input: [{ type: 'text', text: '/clear' }] });
   assert.equal(f.auth.source(), 'coding-plan-key');
   await f.rpc('turn/start', { ...f.params, clientRequestId: 'creq_5555555555', input: [{ type: 'text', text: '/clear' }] });
-  assert.equal(f.auth.source(), 'cli');
+  assert.equal(f.auth.source(), 'desktop');
 }));
