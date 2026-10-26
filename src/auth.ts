@@ -8,6 +8,8 @@ import { readFileSync, openSync, fstatSync, closeSync, constants } from 'node:fs
 import { record } from './errors.ts';
 import { experimental_BridgeRecoveryError } from '@get-bb/plugin-sdk/provider-bridge';
 import { signInHint } from './applications.ts';
+import { ProjectTokenResolver, ProjectTokenError, tokenRequest } from './project-token.ts';
+import type { TokenRequest } from './project-token.ts';
 
 export const accountProviderId = 'account:zai-individual-coding-plan';
 export type AuthMode = 'cli' | 'coding-plan-key';
@@ -39,7 +41,7 @@ export function unsupportedPlan(value: unknown): string | undefined {
   return label ? `${bigmodel ? 'BigModel' : 'Z.ai'} ${label}` : undefined;
 }
 export function authRecovery(): experimental_BridgeRecoveryError {
-  return new experimental_BridgeRecoveryError({ code: -32000, message: 'ZCode requires CLI login',
+  return new experimental_BridgeRecoveryError({ code: -32000, message: 'ZCode requires sign-in',
     recovery: { kind: 'authRequired', message: signInHint(), retryable: false } });
 }
 export function credentialCipherKey(env = process.env, home = homedir()): Buffer {
@@ -67,14 +69,19 @@ export class ReadOnlyAuth {
   private onFresh: (purpose: string, generation: number) => void;
   private mode: AuthMode = 'cli';
   private explicitKeyPath: string | undefined;
+  private projectTokens: ProjectTokenResolver | undefined;
+  private network: TokenRequest = tokenRequest(process.env);
+  private clientVersion = 'unknown';
   constructor(path = `${homedir()}/.zcode/v2/credentials.json`, key = credentialCipherKey(), onFresh = (_purpose: string, _generation: number) => {}) { this.path = path; this.key = key; this.onFresh = onFresh; }
   fork(mode: AuthMode, explicitKeyPath?: string): ReadOnlyAuth {
     const fresh = new ReadOnlyAuth(this.path, this.key, this.onFresh);
     fresh.explicitKeyPath = explicitKeyPath; fresh.setMode(mode); return fresh;
   }
-  setMode(mode: AuthMode): void { this.mode = authMode(mode); }
+  setMode(mode: AuthMode): void { this.mode = authMode(mode); this.projectTokens?.clear(); }
+  setNetworkEnvironment(env: NodeJS.ProcessEnv, clientVersion: string) { this.network = tokenRequest(env); this.clientVersion = clientVersion; this.projectTokens = undefined; }
+  setTokenRequest(send: TokenRequest) { this.network = send; this.projectTokens = undefined; }
   source(): AuthMode { return this.mode; }
-  read(purpose = 'read'): { apiKey: string; generation: number } {
+  read(purpose = 'read'): { apiKey: string; generation: number; oauth?: { identity: string; accessToken: string } } {
     this.reads++;
     if (this.mode === 'coding-plan-key') {
       if (!this.explicitKeyPath) throw new AuthError('missing-key');
@@ -101,6 +108,15 @@ export class ReadOnlyAuth {
       throw new AuthError('unauthenticated');
     }
     const identity = decrypt(rawIdentity, this.key);
+    const source = store[`account-provider:${accountProviderId}:auth-source`];
+    const oauth = store['oauth:zai:access_token'];
+    if (!source || decrypt(source, this.key) !== 'manual') {
+      if (!oauth) throw new AuthError('unauthenticated');
+      const accessToken = decrypt(oauth, this.key);
+      if (!identity || !accessToken) throw new AuthError('unauthenticated');
+      this.onFresh(purpose, ++this.generation);
+      return { apiKey: '', generation: this.generation, oauth: { identity, accessToken } };
+    }
     const value = store[`account-provider:coding-plan:${accountProviderId}:account:${encodeURIComponent(identity)}:api-key`];
     if (!identity || !value) throw new AuthError('unauthenticated');
     const apiKey = decrypt(value, this.key);
@@ -114,7 +130,7 @@ export class ReadOnlyAuth {
       providers: { [accountProviderId]: { access: { type: 'zhipu-account', entitled: true } } },
       states: { [accountProviderId]: { availability: 'available', entitled: true, current: true } } };
   }
-  headers(value: unknown, sessionId: string, workspace: string, selectedModel: string, selectedReasoning?: string, availableModels: readonly string[] = [selectedModel]): Record<string, unknown> {
+  private validateHeaders(value: unknown, sessionId: string, workspace: string, selectedModel: string, selectedReasoning: string | undefined, availableModels: readonly string[]): Record<string, unknown> {
     const p = record(value), access = record(p.accountAccess), model = record(p.modelSelection), ws = record(p.workspace);
     const plan = unsupportedPlan(p);
     if (plan) throw new UnsupportedPlanError(plan);
@@ -124,7 +140,27 @@ export class ReadOnlyAuth {
         (model.modelId === selectedModel && model.options !== undefined && selectedReasoning !== undefined && record(model.options).reasoningLevel !== selectedReasoning)) throw new AuthError('unsupported-mode');
     if (p.sessionId !== sessionId || p.reason !== 'model-request' || typeof p.requestId !== 'string' ||
         !p.requestId || ws.workspacePath !== workspace || ws.workspaceKey !== workspace) throw new AuthError('invalid-store');
+    return p;
+  }
+  headers(value: unknown, sessionId: string, workspace: string, selectedModel: string, selectedReasoning?: string, availableModels: readonly string[] = [selectedModel]): Record<string, unknown> {
+    this.validateHeaders(value, sessionId, workspace, selectedModel, selectedReasoning, availableModels);
     const fresh = this.read('headers');
+    if (fresh.oauth) throw new AuthError('unsupported-mode'); // OAuth uses the async native token flow.
     return { headersApplied: true, requestAuth: { apiKey: fresh.apiKey } };
+  }
+  async runtimeHeaders(value: unknown, sessionId: string, workspace: string, selectedModel: string, selectedReasoning?: string, availableModels: readonly string[] = [selectedModel]): Promise<Record<string, unknown>> {
+    const params = this.validateHeaders(value, sessionId, workspace, selectedModel, selectedReasoning, availableModels);
+    const fresh = this.read('headers');
+    if (!fresh.oauth) {
+      if (params.expectedAccountScope || params.rejectedProjectTokenFingerprint) throw new ProjectTokenError('project_token_scope_invalidated');
+      return { headersApplied: true, requestAuth: { apiKey: fresh.apiKey } };
+    }
+    this.projectTokens ??= new ProjectTokenResolver(this.network, undefined, undefined, this.clientVersion);
+    const original = fresh.oauth;
+    const material = await this.projectTokens.resolve(original.identity, original.accessToken, params, () => {
+      const current = this.read('oauth-scope').oauth;
+      return current?.identity === original.identity && current.accessToken === original.accessToken;
+    });
+    return { headersApplied: true, requestAuth: material };
   }
 }

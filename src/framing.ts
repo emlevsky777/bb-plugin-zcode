@@ -4,9 +4,9 @@ import { crc32 } from './crc32.ts';
 import { parseFrame } from './native.ts';
 import type { Frame } from './native.ts';
 
-// Independent bounded Node implementation of the pinned V4 wire format.
-export interface DecoderLimits { maxBytes: number; maxFragments: number; maxAssemblies: number; timeoutMs: number }
-const defaults: DecoderLimits = { maxBytes: 16 * 1024 * 1024, maxFragments: 1024, maxAssemblies: 16, timeoutMs: 10_000 };
+// Installed CLI 0.16.9 fc logicalFrameAssembly* limits, not history limits.
+export interface DecoderLimits { maxBytes: number; maxFragments: number; maxAssemblies: number; timeoutMs: number; maxStagedBytes: number }
+const defaults: DecoderLimits = { maxBytes: 16 * 1024 * 1024, maxFragments: 1024, maxAssemblies: 32, timeoutMs: 30_000, maxStagedBytes: 32 * 1024 * 1024 };
 type Assembly = { metadata: string; parts: Map<number, Buffer>; size: number; started: number };
 export class FrameDecoder {
   private assemblies = new Map<string, Assembly>();
@@ -55,7 +55,11 @@ export class FrameDecoder {
         if (a.metadata !== metadata) throw new ProtocolError('fragment-metadata-mismatch');
         const previous = a.parts.get(index);
         if (previous && !previous.equals(part)) throw new ProtocolError('fragment-conflict');
-        if (!previous) { a.parts.set(index, part); a.size += part.length; }
+        if (!previous) {
+          const staged = [...this.assemblies.values()].reduce((sum, assembly) => sum + assembly.size, 0);
+          if (staged + part.length > this.limits.maxStagedBytes) throw new ProtocolError('assembly-staging-too-large');
+          a.parts.set(index, part); a.size += part.length;
+        }
         if (a.size > bytes) throw new ProtocolError('fragment-overflow');
         if (a.parts.size !== count) return null;
         this.assemblies.delete(key);
@@ -71,14 +75,15 @@ export class FrameDecoder {
   }
 }
 
-// Strict recovery policy: non-JSON stdout, bad UTF-8 and truncated framing abort the batch.
-// Fixed ProtocolError codes carry no raw stdout/secret payload. Caller must resnapshot;
-// JSON objects/RPC errors are returned intact for the correlation layer, never discarded.
+// Ignore unrelated stdout like builtin Codex. JSON-shaped damage, invalid UTF-8
+// and truncated protocol still fail; diagnostics never contain raw stdout.
 export class JsonLineDecoder {
   private buffered = Buffer.alloc(0);
   private maxBytes: number;
-  constructor(maxBytes = 1024 * 1024) {
-    if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 32 * 1024 * 1024) throw new ProtocolError('invalid-line-limit');
+  private warn: Warn;
+  constructor(maxBytes = Infinity, warn: Warn = () => {}) {
+    this.warn = warn;
+    if (maxBytes !== Infinity && (!Number.isSafeInteger(maxBytes) || maxBytes < 1)) throw new ProtocolError('invalid-line-limit');
     this.maxBytes = maxBytes;
   }
   feed(chunk: Uint8Array): unknown[] {
@@ -91,8 +96,15 @@ export class JsonLineDecoder {
         if (this.buffered.length + i - start > this.maxBytes) throw new ProtocolError('line-too-large');
         const bytes = Buffer.concat([this.buffered, input.subarray(start, i)]);
         this.buffered = Buffer.alloc(0); start = i + 1;
-        try { result.push(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))); }
+        let text: string;
+        try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim(); }
         catch { throw new ProtocolError('malformed-protocol-line'); }
+        if (!text) continue;
+        try { result.push(JSON.parse(text)); }
+        catch {
+          if (/^[{[]/.test(text)) throw new ProtocolError('malformed-protocol-line');
+          this.warn({ code: 'unrelated-native-stdout' });
+        }
       }
       if (this.buffered.length + input.length - start > this.maxBytes) throw new ProtocolError('line-too-large');
       this.buffered = Buffer.concat([this.buffered, input.subarray(start)]);

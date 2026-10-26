@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, realpathSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { artifact, plugin, host } from './helpers.mjs';
-const { catalogueRoots, rootsFingerprint, resolveNativeRootsCached, clearRootsCache, rootsCacheSize } = await import(artifact ? '../../dist/native-roots.js' : '../../src/native-roots.ts');
-const { nativePaths } = await import(artifact ? '../../dist/runtime.js' : '../../src/runtime.ts');
+const { catalogueRoots, rootsFingerprint, resolveNativeRootsCached, clearRootsCache, rootsCacheSize } = await (artifact ? import('../../dist/native-roots.js') : import('../../src/native-roots.ts'));
+const { nativePaths } = await (artifact ? import('../../dist/runtime.js') : import('../../src/runtime.ts'));
 // P1 expectation source: historical decision (owner) + A-39 measurement; fingerprint inputs are
 // the same user/project dirs the CLI reads (M4.6 native semantics). Cache
 // assertions use real local CLI `--json list` with synthetic HOME fixtures:
@@ -22,6 +22,9 @@ test('M46 native catalogue canonical original files deduplicate aliases, omit pl
       { ...selected, path: join(root, 'gone') }, { ...selected, source: 'future' }] }, 'skills');
     assert.equal(result.length, 1); assert.equal(result[0].path, realpathSync(file)); assert.equal(result[0].fallbackName, 'selected');
     assert.equal(result[0].shape, 'skill-file'); assert.equal(result[0].origin, 'user');
+    const systemPlugin = catalogueRoots({ skills: [{ ...selected, scope: 'system', source: 'plugin', pluginName: 'desktop' }] }, 'skills');
+    assert.equal(systemPlugin.length, 1); assert.equal(systemPlugin[0].origin, 'user');
+    assert.equal(systemPlugin[0].path, realpathSync(file));
     const commands = catalogueRoots({ commands: [{ ...selected, name: 'folder:skill', scope: 'project', source: 'zcode' }] }, 'commands');
     assert.equal(commands[0].shape, 'command-file'); assert.equal(commands[0].origin, 'project');
     assert.equal(commands[0].fallbackName, undefined);

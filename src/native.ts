@@ -57,7 +57,6 @@ export function parseSnapshot(value: unknown, warn: Warn): Snapshot {
   string(s.logEpoch); integer(rows.totalCount);
   if (rows.firstRowId !== null) integer(rows.firstRowId);
   if (!Array.isArray(rows.window)) throw new ProtocolError('invalid-rows');
-  if (rows.window.length > 4096 || Buffer.byteLength(JSON.stringify(s)) > 16 * 1024 * 1024) throw new ProtocolError('snapshot-limit');
   const window = rows.window.map(r => parseRow(r, warn));
   if (new Set(window.map(r => r.rowId)).size !== window.length) throw new ProtocolError('duplicate-snapshot-row');
   return { ...structuredClone(s), logEpoch: s.logEpoch as string,

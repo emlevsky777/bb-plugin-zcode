@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,existsSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import { api, plugin, snapshot, inputs } from './helpers.mjs';
@@ -66,7 +66,7 @@ test('M48 malformed identity, missing parent and unknown native enum diagnose wi
   }
   const w=[];api.parseRow({...child,status:'unknown'},x=>w.push(x));assert.equal(w[0].code,'unknown-row-enum');
 });
-test('M48 actual prepare config OFF/ON and same-home resume; project cannot override switch',async()=>{
+test('M48 session OFF/ON keeps real HOME, project and user config unwritten',async()=>{
   const root=mkdtempSync('/tmp/m48-'),personalHome=join(root,'personal'),builtin=join(root,'builtin.json');mkdirSync(personalHome);writeFileSync(builtin,'{}');
   const auth=new api.ReadOnlyAuth(join(root,'missing'));auth.read=()=>({apiKey:'SYNTHETIC'});
   const r=api.createNativeServices(join(root,'provider'),{auth,personalHome,discovery:()=>({installed:true,supported:true,sha256:'synthetic',version:'synthetic'}),
@@ -74,10 +74,13 @@ test('M48 actual prepare config OFF/ON and same-home resume; project cannot over
   try{
     const project=join(root,'zcode.json');writeFileSync(project,JSON.stringify({features:{subagent:true,compact:true}}));const bytes=readFileSync(project);
     const setup=await r.services.prepare(root,api.executionOptions({...options,providerOptions:{providerSubagentsEnabled:false}}),{threadId:'own'});setup.bindSession('native');
-    assert.equal(JSON.parse(readFileSync(join(setup.launch.env.HOME,'.zcode/cli/config.json'))).features.subagent,false);
-    const probe=spawnSync(process.execPath,['--require',setup.launch.args[1],'-e','console.log(require("node:fs").readFileSync(process.argv[1],"utf8"))',project],{encoding:'utf8'});
-    assert.equal(probe.status,0,probe.stderr);assert.deepEqual(JSON.parse(probe.stdout).features,{subagent:false,compact:true});assert.deepEqual(readFileSync(project),bytes);
+    assert.equal(setup.launch.env.HOME,personalHome);
+    assert.equal(existsSync(join(personalHome,'.zcode/cli/config.json')),false);
+    assert.deepEqual(api.executionOptions({...options,providerOptions:{providerSubagentsEnabled:false}},'append',['Bash','Agent']).toolDenylist,['Bash','Agent']);
+    assert.deepEqual(readFileSync(project),bytes);
     const resume=await r.services.prepare(root,api.executionOptions(options),{threadId:'own',providerThreadId:'native'});
-    assert.equal(resume.launch.env.HOME,setup.launch.env.HOME);assert.equal(JSON.parse(readFileSync(join(resume.launch.env.HOME,'.zcode/cli/config.json'))).features.subagent,true);
+    assert.equal(resume.launch.env.HOME,setup.launch.env.HOME);
+    assert.deepEqual(api.executionOptions(options).toolDenylist,[]);
+    assert.equal(existsSync(join(personalHome,'.zcode/cli/config.json')),false);
   }finally{await r.close();rmSync(root,{recursive:true,force:true});}
 });

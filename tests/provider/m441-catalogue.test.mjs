@@ -25,7 +25,10 @@ test('native schema evolution preserves new model/levels/default; removed prefer
  }
  assert.throws(()=>api.mapNativeModels([future,future],ref('GLM-Future')),/duplicate/);
  const unknown=evolved();unknown.reasoning={defaultLevel:'native-unknown',levels:[{value:'native-unknown'}]};
- assert.throws(()=>api.mapNativeModels([unknown],ref('GLM-Future')),/unsupported by bb SDK/);
+ // SDK .79 accepts provider-native effort identifiers instead of a closed enum.
+ const nativeEffort=api.mapNativeModels([unknown],ref('GLM-Future'))[0];
+ assert.equal(nativeEffort.defaultReasoningEffort,'native-unknown');
+ assert.deepEqual(nativeEffort.supportedReasoningEfforts.map(e=>e.reasoningEffort),['native-unknown']);
 });
 test('actual loader uses single unselected create, defaults distinguish explicit missing choice, credential/config/mode refresh and no inference',async()=>{
  const base=resolve(process.env.ZCODE_CONNECTION_TEST_ROOT??'.local/M4.4.1/offline');mkdirSync(base,{recursive:true});

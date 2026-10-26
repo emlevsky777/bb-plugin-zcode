@@ -95,37 +95,39 @@ test('M494 atomic notice marker suppresses repeated keys across restart and publ
   } finally { rmSync(root, { recursive: true }); }
 });
 
-test('M494 version A, second A, B, checked; health is concise and preserves loginCommand', async () => {
+test('M494 version A, second A, B, checked; health is concise without a CLI login action', async () => {
   const root = mkdtempSync(join(tmpdir(), 'm494-health-')), auth = new api.ReadOnlyAuth(join(root, 'auth.json'));
-  let combination = { ...api.checkedTuples[1].tuple, bb: '9.1.0' }, installed = true;
+  const checked = { ...api.compatibilityReference };
+  const checkedTable = [{ tuple: checked, level: 'level1', pluginRevision: 'fixture', resultRef: 'fixture', evidenceRef: 'fixture' }];
+  let combination = { ...checked, bb: '9.1.0' }, installed = true;
   const paths = { executable: process.execPath, script: '/fixture/ZCode.app/Contents/Resources/glm/zcode.cjs', builtin: '/fixture/builtin' };
   const runtime = () => api.createNativeServices(root, { auth, paths,
-    discovery: () => ({ installed, supported: true, sha256: null, version: '0.16.9' }), compatibility: () => api.compareCompatibility(combination) });
-  const put = () => writeFileSync(auth.path, JSON.stringify({ [`account-provider:${api.accountProviderId}:identity`]: 'FIXTURE',
+    discovery: () => ({ installed, supported: true, sha256: null, version: '0.16.9' }), compatibility: () => api.compareCompatibility(combination, checkedTable) });
+  const put = () => writeFileSync(auth.path, JSON.stringify({ [`account-provider:${api.accountProviderId}:auth-source`]: 'manual', [`account-provider:${api.accountProviderId}:identity`]: 'FIXTURE',
     [`account-provider:coding-plan:${api.accountProviderId}:account:FIXTURE:api-key`]: 'FIXTURE' }));
   try {
     let r = runtime(); assert.match(r.services.compatibilityWarning(), /9.1.0/); await r.close();
     r = runtime(); assert.equal(r.services.compatibilityWarning(), null);
     combination = { ...combination, bb: '9.2.0' }; assert.match(r.services.compatibilityWarning(), /9.2.0/);
-    combination = api.checkedTuples[1].tuple; assert.equal(r.services.compatibilityWarning(), null);
+    combination = checked; assert.equal(r.services.compatibilityWarning(), null);
     put(); const ready = (await r.services.health()).health;
-    assert.equal(ready.statusMessage, 'Ready. ZCode: /fixture/ZCode.app.'); assert.equal(ready.loginCommand, api.loginCommand(paths));
+    assert.equal(ready.statusMessage, 'Ready. ZCode: /fixture/ZCode.app.'); assert.equal(ready.loginCommand, null);
     r.services.observe({ event: 'catalogue-cache-recovery' });
     assert.equal((await r.services.health()).health.statusMessage, ready.statusMessage);
     combination = { ...combination, bb: '9.2.0' }; assert.match((await r.services.health()).health.statusMessage, /Ready.*not been checked/);
-    unlinkSync(auth.path); assert.match((await r.services.health()).health.statusMessage, /Run in Terminal/);
+    unlinkSync(auth.path); assert.match((await r.services.health()).health.statusMessage, /Open ZCode Desktop and sign in again/);
     installed = false; assert.equal((await r.services.health()).health.status, 'not_installed');
-    assert.doesNotMatch((await r.services.health()).health.statusMessage, /Run in Terminal/); await r.close();
+    assert.doesNotMatch((await r.services.health()).health.statusMessage, /Open ZCode Desktop/); await r.close();
   } finally { rmSync(root, { recursive: true }); }
 });
 
-test('M494 legacy Russian background descriptions are read and displayed in English', () => {
+test('M494 native background command is preserved verbatim in an English recovery notice', () => {
   const root = mkdtempSync(join(tmpdir(), 'm494-background-')), file = join(root, 'tasks.json');
   try {
-    writeFileSync(file, JSON.stringify({ version: 2, sessionId: 's', tasks: [{ workId: 'w', key: JSON.stringify(['s', 'background', 'w']), closed: false, description: 'bash (\u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u044b \u043d\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b)' }] }));
+    writeFileSync(file, JSON.stringify({ version: 2, sessionId: 's', tasks: [{ workId: 'w', key: JSON.stringify(['s', 'background', 'w']), closed: false, description: 'bash --label \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442' }] }));
     const tasks = new api.BackgroundTasks('s', () => {}, file), ds = tasks.baseline({ rows: { window: [] } });
-    assert.match(ds[0].summary, /bash \(arguments not retained\)/); tasks.recoveryDelivered();
-    assert.doesNotMatch(readFileSync(file, 'utf8'), /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/);
+    assert.match(ds[0].summary, /bash --label \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442/); tasks.recoveryDelivered();
+    assert.equal(JSON.parse(readFileSync(file, 'utf8')).tasks[0].description, 'bash --label \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442');
   } finally { rmSync(root, { recursive: true }); }
 });
 
@@ -136,6 +138,6 @@ test('M494 source and settings contain no Cyrillic product text', async () => {
   }
   let descriptors;
   await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'cli' }), onChange() {} }; } }, providers: { register() {} } });
-  assert.equal(Object.keys(descriptors).length, 5);
+  assert.equal(Object.keys(descriptors).length, 4);
   for (const d of Object.values(descriptors)) { assert.ok(d.label && d.description); assert.doesNotMatch(d.label + d.description, /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/); }
 });

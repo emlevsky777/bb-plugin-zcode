@@ -5,13 +5,6 @@ import type { Snapshot } from './native.ts';
 import { record, ProtocolError } from './errors.ts';
 import type { Warn } from './errors.ts';
 type Task = { workId: string; key: string; closed: boolean; settled: boolean; description: string; status: string; signature: string };
-// Never persist shell arguments or native title: either can contain credentials.
-function safeDescription(command: unknown): string {
-  if (typeof command !== 'string') return 'Bash (arguments not retained)';
-  const token = /^(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(command.trim());
-  const executable = (token?.[1] ?? token?.[2] ?? token?.[3] ?? '').split('/').at(-1);
-  return `${['node', 'bash', 'sh', 'zsh', 'sleep', 'python', 'python3', 'npm', 'curl', 'find', 'grep', 'rg', 'git'].includes(executable ?? '') ? executable : 'Bash'} (arguments not retained)`;
-}
 export class BackgroundTasks {
   private tasks = new Map<string, Task>();
   private ignored = new Set<string>();
@@ -23,20 +16,18 @@ export class BackgroundTasks {
     this.sessionId = sessionId; this.warn = warn; this.file = file;
     if (!file || !existsSync(file)) return;
     const bytes = readFileSync(file, 'utf8');
-    if (Buffer.byteLength(bytes) > 1024 * 1024) throw new ProtocolError('background-checkpoint-limit');
     const stored = record(JSON.parse(bytes));
-    if ((stored.version !== 1 && stored.version !== 2) || stored.sessionId !== sessionId || !Array.isArray(stored.tasks) || stored.tasks.length > 4096 ||
-        Object.keys(stored).some(k => !['version', 'sessionId', 'tasks', ...(stored.version === 1 ? ['supervisorPid'] : [])].includes(k)))
+    if (stored.version !== 2 || stored.sessionId !== sessionId || !Array.isArray(stored.tasks) ||
+        Object.keys(stored).some(k => !['version', 'sessionId', 'tasks'].includes(k)))
       throw new ProtocolError('background-checkpoint-invalid');
     for (const value of stored.tasks) {
       const t = record(value);
       if (typeof t.workId !== 'string' || !t.workId || typeof t.closed !== 'boolean' || t.key !== this.key(t.workId) || this.tasks.has(t.workId) ||
-          Object.keys(t).some(k => !['workId', 'key', 'closed', ...(stored.version === 2 ? ['description'] : [])].includes(k)))
+          Object.keys(t).some(k => !['workId', 'key', 'closed', 'description'].includes(k)))
         throw new ProtocolError('background-checkpoint-invalid');
-      if (stored.version === 2 && (typeof t.description !== 'string' || !/^(?:node|bash|sh|zsh|sleep|python|python3|npm|curl|find|grep|rg|git|Bash) \((?:arguments not retained|\u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u044b \u043d\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b)\)$/.test(t.description)))
-        throw new ProtocolError('background-checkpoint-invalid');
+      if (typeof t.description !== 'string') throw new ProtocolError('background-checkpoint-invalid');
       const task = { workId: t.workId, key: String(t.key), closed: t.closed, settled: t.closed,
-        description: stored.version === 2 ? `${String(t.description).split(' ')[0]} (arguments not retained)` : 'Bash (arguments not retained)', status: 'failed', signature: '' };
+        description: t.description, status: 'failed', signature: '' };
       this.tasks.set(task.workId, task);
       if (!t.closed) this.recovered.push(task);
     }
@@ -46,10 +37,9 @@ export class BackgroundTasks {
     if (!this.file) return;
     const value = JSON.stringify({ version: 2, sessionId: this.sessionId,
       tasks: [...this.tasks.values()].map(({ workId, key, closed, settled, description }) => ({ workId, key, closed: closed && settled, description })) });
-    if (Buffer.byteLength(value) > 1024 * 1024) throw new ProtocolError('background-checkpoint-limit');
     const temp = this.file + '.tmp'; writeFileSync(temp, value, { encoding: 'utf8', mode: 0o600 }); renameSync(temp, this.file);
   }
-  private shape(t: Task, taskStatus: string, description = 'Native background command') {
+  private shape(t: Task, taskStatus: string, description = t.description) {
     return { type: 'backgroundTask', familyId: t.key, taskType: 'bash', description,
       status: taskStatus === 'completed' ? 'completed' : ['failed', 'killed'].includes(taskStatus) ? 'failed' : 'pending',
       taskStatus, skipTranscript: false };
@@ -95,14 +85,13 @@ export class BackgroundTasks {
               typeof record(r.output).text === 'string' &&
               String(record(r.output).text).startsWith(`Command running in background with ID: ${w.workId}.`))));
         if (!anchor?.turnId) { this.warn({ code: 'background-anchor-unavailable' }, w.workId); continue; }
-        if (this.tasks.size >= 4096) throw new ProtocolError('background-ledger-limit');
         task = { workId: w.workId, key: this.key(w.workId), closed: false, settled: false,
-          description: safeDescription(record(anchor.input).command), status: 'running', signature: '' };
+          description: typeof record(anchor.input).command === 'string' ? String(record(anchor.input).command) : w.title, status: 'running', signature: '' };
         this.tasks.set(w.workId, task); this.persist();
-        emit({ kind: 'item.open', providerTurnId: anchor.turnId, key: { providerItemId: task.key }, item: this.shape(task, 'running', w.title) });
+        emit({ kind: 'item.open', providerTurnId: anchor.turnId, key: { providerItemId: task.key }, item: this.shape(task, 'running', task.description) });
       }
       const taskStatus = w.status === 'resultPending' ? 'completed' : w.status === 'cancelled' ? 'killed' : String(w.status);
-      const item = this.shape(task, taskStatus, w.title), signature = JSON.stringify(item);
+      const item = this.shape(task, taskStatus, task.description), signature = JSON.stringify(item);
       if (taskStatus === 'running') {
         if (foregroundBoundary || task.signature !== signature) emit({ kind: 'item.progress', key: { providerItemId: task.key }, snapshot: item, flush: true });
       } else {

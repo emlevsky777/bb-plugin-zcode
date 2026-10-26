@@ -79,7 +79,8 @@ test('Stop/release after boundary close task before reply and await real cleanup
     recovered.recoveryDelivered();
     assert.equal(recovered.project(snap('completedSuccess','running')).length,0);
     assert.equal(new api.BackgroundTasks('session1',()=>{},file).baseline(snap('completedSuccess','running')).length,0);
-    assert.doesNotMatch(readFileSync(file,'utf8'),/sleep 5|bounded command|supervisorPid/);
+    assert.equal(JSON.parse(readFileSync(file,'utf8')).tasks.find(t=>t.workId==='exec-own').description,'sleep 5');
+    assert.doesNotMatch(readFileSync(file,'utf8'),/supervisorPid|arguments not retained/);
   } finally { rmSync(root,{recursive:true}); }
 });
 test('documented SDK cold assembler limit: persisted provider key does not retain canonical task ID', () => {

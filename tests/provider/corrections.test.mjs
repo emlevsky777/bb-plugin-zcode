@@ -93,13 +93,13 @@ test('R-03 rejected commands retire; pending/unknown/unprojected acceptance stil
   const c = new api.CommandCorrelation();
   for (let i = 0; i < 1024; i++) c.begin('pending' + i, 'r', 1, 10);
   c.expire(10);
-  assert.throws(() => c.begin('overflow', 'r', 2, 20), /command-limit/);
+  assert.doesNotThrow(() => c.begin('overflow', 'r', 2, 20));
   assert.equal(c.status('pending0'), 'unknown');
   assert.equal(c.authoritative('pending0', 1, 'inputAccepted', 't'), false);
   assert.equal(c.consume('pending0', 1), false);
   const a = new api.InteractionArbiter();
   for (let i = 0; i < 1024; i++) a.observe('q' + i, 1);
-  assert.throws(() => a.observe('overflow', 1), /interaction-limit/);
+  assert.doesNotThrow(() => a.observe('overflow', 1));
   a.observe('new-generation', 2);
   assert.equal(a.resolve('q0', 1, 'late', 'human'), false);
 });
@@ -124,14 +124,16 @@ test('R-04 checkpoint excludes all payload markers/signatures; long stream bound
   assert.throws(() => bad.project(snapshot(rows()), 1), /rewrite/);
   assert.throws(() => bad.restore(JSON.stringify({ ...JSON.parse(cp), version: 1 })), /unsupported-checkpoint-version/);
   assert.throws(() => new api.EventTranslator('other', 'epoch1', 1, () => {}).restore(cp), /context/);
-  assert.throws(() => bad.restore('x'.repeat(1024 * 1024 + 1)), /checkpoint-limit/);
+  assert.throws(() => bad.restore('x'.repeat(1024 * 1024 + 1)), /invalid-checkpoint/);
 });
-test('R-04 active payload overflow fails atomically instead of eviction', () => {
+test('R-04 active payload above former 32 MiB cap retains unfinished items', () => {
   const t = translator(), rs = [rows()[0]]; rs[0].state = 'running';
   for (let i = 0; i < 33; i++) rs.push({ rowId: i + 2, kind: 'assistantText', turnId: 'turn1', state: 'streaming', text: 'x'.repeat(1024 * 1024) });
   const before = t.checkpoint();
-  assert.throws(() => t.project(snapshot(rs), 1), /translator-ledger-limit/);
-  assert.equal(t.checkpoint(), before);
+  assert.equal(t.project(snapshot(rs), 1).filter(d => d.kind === 'item.open').length, 33);
+  assert.equal(JSON.parse(t.checkpoint()).items.length, 33);
+  assert.deepEqual(t.project(snapshot(rs), 1), []);
+  assert.notEqual(t.checkpoint(), before);
 });
 test('R-03 projection failure preserves authoritative acceptance until successful retry', () => {
   const c = new api.CommandCorrelation(), t = translator(), rs = rows();
@@ -233,10 +235,10 @@ test('R-10 explicit authoritative outcomes; empty answer/ACK never infer origin'
   assert.equal(a.inspect('q', 1).outcome, 'unknown');
 });
 test('M-02 host and executable guards agree at boundaries, fail before build/test/host work, actual host supported', () => {
-  for (const v of ['22.19.0', '22.99.1', '24.0.0', '24.20.0', '26.0.0']) {
+  for (const v of ['24.22.0', '24.99.1', '26.0.0']) {
     assert.doesNotThrow(() => api.assertHostNode(v)); assert.doesNotThrow(() => executableGuard(v));
   }
-  for (const v of ['22.18.99', '20.19.0', '23.0.0', '25.4.0', '27.0.0', 'v24.0.0', 'invalid', '24.0', '024.0.0', '24.00.0']) {
+  for (const v of ['22.19.0', '22.99.1', '24.0.0', '24.21.99', '20.19.0', '23.0.0', '25.4.0', '27.0.0', 'v24.0.0', 'invalid', '24.0', '024.0.0', '24.00.0']) {
     assert.throws(() => api.assertHostNode(v), /Unsupported host Node/); assert.throws(() => executableGuard(v), /Unsupported host Node/);
   }
   api.assertHostNode(process.versions.node);

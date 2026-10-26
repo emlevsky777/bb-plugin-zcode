@@ -38,9 +38,9 @@ test('M493 complete command quotes all paths; no PATH zcode; all login surfaces 
     assert.equal(JSON.stringify(out), expected);
     let descriptors, registration;
     await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'cli', catalogueRefresh: 87 }), onChange() {} }; } }, providers: { register: r => { registration = r; } } });
-    assert.equal(descriptors.catalogueRefresh, undefined); assert.equal(registration.experimental_bridgeOptions.catalogueRefresh, 0);
+    assert.equal(descriptors.catalogueRefresh, undefined); assert.equal(registration.experimental_bridgeOptions, undefined);
     assert.equal(registration.deriveProviderOptions({ settings: { catalogueRefresh: 87 } }).catalogueRefresh, 87);
-    assert.equal(registration.strings.signInHint, api.signInHint()); assert.match(descriptors.authMode.description, /existing ZCode login/);
+    assert.equal(registration.strings.signInHint, api.signInHint()); assert.match(descriptors.authMode.description, /existing Desktop sign-in/);
     assert.ok(registration.strings.expiredHint.includes(api.signInHint()));
     assert.equal(api.authRecovery().recovery.message, api.signInHint());
   } finally { rmSync(root, { recursive: true }); }
@@ -53,7 +53,7 @@ for (const persistent of [false, true]) test(`M493 login file appears, changes, 
     discovery: () => ({ installed: true, supported: true, sha256: 'synthetic', version: 'synthetic' }),
     paths: { executable: process.execPath, script: resolve('tests/provider/fake-v4.mjs'), builtin },
     configure: async child => { launches++; await child.request('runtime/capabilities', {}); } });
-  const put = identity => writeFileSync(auth.path, JSON.stringify({ [`account-provider:${api.accountProviderId}:identity`]: identity,
+  const put = identity => writeFileSync(auth.path, JSON.stringify({ [`account-provider:${api.accountProviderId}:auth-source`]: 'manual', [`account-provider:${api.accountProviderId}:identity`]: identity,
     [`account-provider:coding-plan:${api.accountProviderId}:account:${identity}:api-key`]: 'SYNTHETIC_M493_KEY' }));
   try {
     assert.equal((await runtime.services.health()).health.status, 'unauthenticated');

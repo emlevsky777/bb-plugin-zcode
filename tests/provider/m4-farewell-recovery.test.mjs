@@ -16,9 +16,9 @@ const state = (command = '/own/node worker.mjs --key SYNTHETIC_SECRET_1') => ({ 
 ]), control: { phase: 'completedSuccess', activeWorks: [] },
  backgroundWorks: [{ workId: 'exec-own', kind: 'bash', title: 'secret title SYNTHETIC_SECRET_1', status: 'running', anchorRowId: 2 }] });
 const withRoot = async fn => { const root=mkdtempSync(join(tmpdir(),'m4-task-'));try{await fn(join(root,'tasks.json'));}finally{rmSync(root,{recursive:true});} };
-test('crash notice is thread scoped, distinguishes safe command/work, never repairs old card and excludes arguments/title/PID', async () => withRoot(async file => {
+test('crash notice is thread scoped, retains full command/work, never repairs old card and excludes supervisor PID', async () => withRoot(async file => {
   const t=new api.BackgroundTasks('s',()=>{},file);t.baseline(snapshot());t.project(state());
-  const bytes=readFileSync(file,'utf8');assert.doesNotMatch(bytes,/SYNTHETIC_SECRET_1|worker.mjs|supervisorPid|pid|lease/);
+  const bytes=readFileSync(file,'utf8');assert.equal(JSON.parse(bytes).tasks[0].description,'/own/node worker.mjs --key SYNTHETIC_SECRET_1');assert.doesNotMatch(bytes,/supervisorPid|lease/);
   assert.match(bytes,/node/);
   const recovered=new api.BackgroundTasks('s',()=>{},file),ds=recovered.baseline(state());
   assert.equal(ds.length,1);assert.equal(ds[0].kind,'provider.warning');assert.match(ds[0].summary,/node/);assert.match(ds[0].details,/exec-own/);
@@ -27,14 +27,11 @@ test('crash notice is thread scoped, distinguishes safe command/work, never repa
   assert.equal(JSON.parse(readFileSync(file,'utf8')).tasks[0].closed,false);
   recovered.recoveryDelivered();assert.equal(new api.BackgroundTasks('s',()=>{},file).baseline(state()).length,0);
 }));
-test('legacy v1 PID is ignored and removed, corrupt/session/unknown v2 fields fail visibly', async () => withRoot(async file => {
-  const v={version:1,sessionId:'s',supervisorPid:process.pid,tasks:[{workId:'exec-own',key:JSON.stringify(['s','background','exec-own']),closed:false}]};
-  writeFileSync(file,JSON.stringify(v));const t=new api.BackgroundTasks('s',()=>{},file);assert.equal(t.baseline(snapshot())[0].kind,'provider.warning');
-  t.recoveryDelivered();assert.doesNotMatch(readFileSync(file,'utf8'),/supervisorPid/);
-  const clean=JSON.parse(readFileSync(file,'utf8'));
-  for(const corrupt of [{...clean,sessionId:'foreign'},{...clean,pid:process.pid},{...clean,tasks:[{...clean.tasks[0],description:'SYNTHETIC_SECRET_1'}]}]){
-    writeFileSync(file,JSON.stringify(corrupt));assert.throws(()=>new api.BackgroundTasks('s',()=>{},file),/background-checkpoint-invalid/);
+test('legacy v1 is unsupported; corrupt/session/unknown v2 fields fail visibly', async () => withRoot(async file => {
+  for(const bad of [{version:1,sessionId:'s',supervisorPid:123,tasks:[]},{version:2,sessionId:'other',tasks:[]},{version:2,sessionId:'s',tasks:[],future:true}]) {
+    writeFileSync(file,JSON.stringify(bad)); assert.throws(()=>new api.BackgroundTasks('s',()=>{},file),/background-checkpoint-invalid/);
   }
+  writeFileSync(file,'{');assert.throws(()=>new api.BackgroundTasks('s',()=>{},file));
 }));
 test('failed output retains pending crash marker and successful cleanup alone commits closure', async () => withRoot(async file => {
   const out=[],l=new api.SessionLifecycle('own','s','epoch1',1,()=>{},m=>out.push(m),async()=>1,'/own',file);

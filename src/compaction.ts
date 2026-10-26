@@ -16,7 +16,7 @@ export class CompactionProjection {
   private kind: string;
   constructor(emit: (deltas: Record<string, unknown>[]) => void, kind = 'zcode/compaction') { this.emit = emit; this.kind = kind; }
   begin(id: string, clientRequestId: string): void {
-    if (this.requests.size >= 1024 || [...this.requests.values()].some(p => p.clientRequestId === clientRequestId)) throw Error('Duplicate compact request or session input limit');
+    if (this.requests.has(id) || [...this.requests.values()].some(p => p.clientRequestId === clientRequestId)) throw Error('Duplicate compact request');
     this.requests.set(id, { clientRequestId, accepted: false, closed: false });
   }
   reject(id: string): void { this.requests.delete(id); }

@@ -3,7 +3,7 @@ import { isAbsolute, basename } from 'node:path';
 import { record } from './errors.ts';
 
 export type SelectedMention = { start: number; end: number; name: string; trigger: '/' | '$'; source: 'skill' | 'command'; origin: 'user' | 'project' };
-export type NativeMentionTarget = { name: string; path: string; source: 'skill' | 'command'; origin: 'user' | 'project' };
+export type NativeMentionTarget = { name: string; path: string; source: 'skill' | 'command'; origin: 'user' | 'project'; loadWith?: 'file' };
 export function compactSelection(input: readonly unknown[]): { instructions: string } | null {
   if (input.length !== 1) return null;
   const item = record(input[0]);
@@ -44,12 +44,12 @@ export function selectedMentions(input: readonly unknown[]) {
   if (selected.filter(s => s.mention.source === 'command').length > 1) throw Error('Send selected native commands separately, one command per message.');
   return selected;
 }
-// CLI metadata is selected with the actual thread's isolated HOME/config and
-// plugin preload. A skill must ALSO exist in that resident session's catalogue.
+// CLI metadata uses the user's HOME and shared Desktop configuration. A skill
+// must ALSO exist in that resident session's catalogue.
 export function resolveMentionTarget(m: SelectedMention, catalogue: unknown, sessionSkills?: unknown): NativeMentionTarget {
   const side = m.source === 'skill' ? 'skills' : 'commands', rows = record(catalogue)[side];
   if (!Array.isArray(rows)) throw Error('Native mention catalogue unavailable. Send an ordinary message or select again after resume.');
-  const candidates = rows.map(record).filter(r => r.scope === m.origin && (r.name === m.name || r.qualifiedName === m.name) && typeof r.path === 'string');
+  const candidates = rows.map(record).filter(r => (r.scope === m.origin || (m.origin === 'user' && r.scope === 'system' && r.source === 'plugin')) && (r.name === m.name || r.qualifiedName === m.name) && typeof r.path === 'string');
   if (candidates.length !== 1) throw Error('Selected native item is unavailable or ambiguous. Select it again.');
   const row = candidates[0]!;
   if (row.qualifiedName !== undefined && typeof row.qualifiedName !== 'string') throw Error('Native mention identity is unknown');
@@ -98,7 +98,9 @@ export async function convertMentions(input: readonly unknown[], lookup: (m: Sel
     const first = converted.findIndex(raw => record(raw).type === 'text');
     const item = record(converted[first]); converted[first] = { ...item, text: '/' + command.name + '\n' + String(item.text) };
   }
-  const skills = targets.filter(t => t.source === 'skill');
+  const files = targets.filter(t => t.loadWith === 'file');
+  if (files.length) converted.push({ type: 'text', text: 'Read the selected bb skills using the file tool before carrying out this request: ' + files.map(s => JSON.stringify(s.path)).join(', ') + '.', mentions: [], visibility: 'agent-only' });
+  const skills = targets.filter(t => t.source === 'skill' && t.loadWith !== 'file');
   if (skills.length) converted.push({ type: 'text', text: 'Load the selected native skills with the Skill tool before carrying out this request: ' + [...new Set(skills.map(s => s.name))].map(n => JSON.stringify(n)).join(', ') + '.', mentions: [], visibility: 'agent-only' });
   return { input: converted, targets };
 }

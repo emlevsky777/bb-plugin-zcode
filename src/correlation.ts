@@ -33,7 +33,6 @@ export class CommandCorrelation {
       this.generation = generation;
     }
     if (this.commands.has(commandId) || this.retired.has(commandId)) throw new ProtocolError('duplicate-command');
-    if (this.commands.size >= 1024) throw new ProtocolError('command-limit');
     this.commands.set(commandId, { clientRequestId, generation, deadline, ack: false, outcome: 'pending' });
   }
   ack(commandId: string, generation: number): boolean {
@@ -99,7 +98,6 @@ export class RpcReplies {
   begin(id: string | number): void {
     if (typeof id === 'string') string(id); else integer(id);
     if (this.pending.has(id)) throw new ProtocolError('duplicate-rpc');
-    if (this.pending.size >= 1024) throw new ProtocolError('rpc-limit');
     this.pending.add(id);
   }
   response(value: unknown, generation: number): { kind: 'stale' } | { kind: 'result'; value: unknown } {

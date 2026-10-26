@@ -1,5 +1,13 @@
 # Release compatibility inspection
 
+25 October 2026: the current-base review covers all 72 previous entries and
+the new OAuth/project-token dependency (73 total), including all 15 weak anchors.
+[Artifact identities](M4.9.8c.1b-artifacts.json)
+include the changed native engine and builtin config. This source/offline review
+alone does not establish level1. On 26 October 2026 the owner accepted audit 2,
+the final live series and the blank-page Notion read; the exact combination is
+now registered as level1. See the compatibility table in [README](../README.md).
+
 Run from the repository with the host Node supported by bb:
 
 ```sh
@@ -29,6 +37,13 @@ the affected mechanism and run the existing offline and live checks before
 claiming a new version combination. The tool neither updates checked tuples
 nor enables/disables product features. It is the offline level-0 building block
 for the later VPS pipeline, without scheduling, downloading or notifications.
+
+The public export retains artifact identities and the complete dependency
+registry. Its provenance links point to this public summary; private execution
+reports and raw observations are not distributed. Development-only code paths
+omitted from the package point here when no product path remains. The checked
+runtime tuple is unchanged; its public references use the README compatibility
+table and the artifact identity JSON.
 
 ## Provenance and consolidation
 

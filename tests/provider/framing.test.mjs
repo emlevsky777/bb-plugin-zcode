@@ -7,7 +7,8 @@ test('incremental protocol lines, UTF-8 split, limits and EOF', () => {
   const decoder = new api.JsonLineDecoder(64);
   assert.deepEqual(decoder.feed(line.subarray(0, 12)), []);
   assert.deepEqual(decoder.feed(line.subarray(12)), [{ text: '\u0442\u0435\u043a\u0441\u0442' }]); decoder.end();
-  assert.throws(() => decoder.feed(Buffer.from('BAD\n')), /malformed/);
+  assert.deepEqual(decoder.feed(Buffer.from('BAD\n')), []);
+  assert.throws(() => decoder.feed(Buffer.from('{BAD\n')), /malformed/);
   assert.throws(() => decoder.feed(Buffer.from([0xff, 10])), /malformed/);
   assert.throws(() => decoder.feed(Buffer.alloc(65)), /line-too-large/);
   decoder.feed(Buffer.from('{')); assert.throws(() => decoder.end(), /truncated/);

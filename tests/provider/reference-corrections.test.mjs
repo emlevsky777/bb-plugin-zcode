@@ -253,7 +253,8 @@ test('historical decision idle background cleanup and failed ownership remain vi
 });
 test('B-15 stdout strict batch recovery is bounded/redacted; JSON errors and wrong RPC correlation surface', () => {
   const decoder = new api.JsonLineDecoder(128), marker = 'SYNTHETIC_SECRET_STDOUT';
-  assert.throws(() => decoder.feed(Buffer.from('log ' + marker + '\n')), e => e.code === 'malformed-protocol-line' && !e.message.includes(marker));
+  assert.deepEqual(decoder.feed(Buffer.from('log ' + marker + '\n')), []);
+  assert.throws(() => decoder.feed(Buffer.from('{bad ' + marker + '\n')), e => e.code === 'malformed-protocol-line' && !e.message.includes(marker));
   assert.equal(decoder.feed(Buffer.from('{"jsonrpc":"2.0","id":"rpc","error":{"code":-1,"message":"' + marker + '"}}\n'))[0].error.code, -1);
   const replies = new api.RpcReplies(1); replies.begin('rpc');
   assert.throws(() => replies.response({ jsonrpc: '2.0', id: 'other', result: {} }, 1), /correlation-mismatch/);

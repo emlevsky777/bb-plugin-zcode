@@ -35,7 +35,6 @@ export class InteractionArbiter {
     const key = this.key(id, generation);
     let item = this.entries.get(key);
     if (!item) {
-      if ([...this.entries.values()].filter(entry => entry.state === 'pending').length >= 1024) throw new ProtocolError('interaction-limit');
       item = { id, generation, state: 'pending', outcome: 'unknown' };
       this.entries.set(key, item);
     }

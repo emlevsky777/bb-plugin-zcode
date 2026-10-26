@@ -41,16 +41,16 @@ export function classifyOwnedGroup(pgid: number, ps = () => execFileSync('/bin/p
   } catch { return 'unknown'; }
 }
 export class MissingExecutableError extends Error { readonly code = -32004; constructor(message = 'ZCode executable missing') { super(message); } }
+export class NativeRequestTimeout extends Error {
+  constructor() { super('Native request timeout; outcome unknown. The native process remains available; this request was not sent again.'); }
+}
 export function childEnvironment(parent: NodeJS.ProcessEnv, own: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const clean = sanitizeInheritedChildProcessEnv({ env: parent });
-  const env: NodeJS.ProcessEnv = {};
-  for (const name of ['PATH', 'LANG', 'LC_ALL']) if (clean[name]) env[name] = clean[name];
-  // Explicit owned configuration, never bb execution envVars or arbitrary inheritance.
-  for (const name of ['HOME', 'TMPDIR', 'ELECTRON_RUN_AS_NODE', 'ZCODE_DATA_BASE_DIR', 'ZCODE_STORAGE_DIR', 'ZCODE_SESSION_DB_PATH',
-    'ZCODE_BUILTIN_PROVIDER_CONFIG_FILE', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE',
-    'ZCODE_PERSONAL_PROVIDER_CONFIG_FILE', 'ZCODE_LOG_DIR', 'ZCODE_HTTP_PROXY', 'ZCODE_AGENT_CA_CERT', 'ZCODE_RUNTIME_ENV']) {
-    if (own[name]) env[name] = own[name];
-  }
+  const env: NodeJS.ProcessEnv = { ...clean };
+  // Storage belongs to the user, as in Desktop. Only session/login/log paths
+  // are owned overrides; never inherit an obsolete isolated storage override.
+  delete env.ZCODE_STORAGE_DIR;
+  Object.assign(env, own);
   return env;
 }
 // Recording is a lossy safe projection. The recorder must never see auth payload,
@@ -81,7 +81,6 @@ export class NativeProcess {
   private groupAbsent = false;
   private control: Duplex;
   nativePid: number | undefined;
-  readonly home: string | undefined;
   readonly cleanupDiagnostics: { stage: string; code: string; classification: GroupClassification }[] = [];
   readonly cleanupObservations: { at: string; pgid: number; signal: 0; code: string | null; classification: GroupClassification }[] = [];
   readonly ownedDescendantPids = new Set<number>();
@@ -90,7 +89,7 @@ export class NativeProcess {
   private signalEscapedSettled!: () => void;
   private escapedSettledProof = new Promise<void>(resolve => { this.signalEscapedSettled = resolve; });
   private cleanupFault: ProcessCleanupError | undefined;
-  private decoder = new JsonLineDecoder(32 * 1024 * 1024);
+  private decoder = new JsonLineDecoder(undefined, diagnostic => process.stderr.write(JSON.stringify(diagnostic) + '\n'));
   private tail = '';
   private recordedInput = new PassThrough();
   private recordedOutput = new PassThrough();
@@ -105,7 +104,6 @@ export class NativeProcess {
     recorder = experimental_recordProviderChildIo,
     privateGroupClassifier = classifyOwnedGroup) {
     this.generation = generation;
-    this.home = launch.env.HOME;
     this.onMessage = onMessage; this.onDeath = onDeath; this.requestTimeout = requestTimeout;
     this.onMissingFiles = launch.onMissingFiles;
     this.groupClassifier = privateGroupClassifier;
@@ -115,7 +113,7 @@ export class NativeProcess {
       { cwd: launch.cwd, env: { ...launch.env, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) },
         detached: true, stdio: ['pipe', 'pipe', 'pipe', 'pipe'] }) as ChildProcessWithoutNullStreams;
     this.control = this.child.stdio[3] as Duplex;
-    const controlDecoder = new JsonLineDecoder(4096);
+    const controlDecoder = new JsonLineDecoder(undefined, () => { throw new Error('Invalid supervisor control'); });
     this.control.on('error', () => { this.rememberCleanup(new ProcessCleanupError('control', 'UNKNOWN', 'unknown')); });
     this.control.on('data', chunk => {
       try {
@@ -257,10 +255,11 @@ export class NativeProcess {
   }
   request(method: string, params: unknown): Promise<unknown> {
     if (!this.current || this.closing) return Promise.reject(new Error('Native child unavailable'));
-    if (this.pending.size >= 1024) return Promise.reject(new Error('native-rpc-limit'));
     const id = ++this.ordinal;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('Native request timeout; outcome unknown')); }, this.requestTimeout);
+      // Expiry settles the caller, not the native operation. Keep its RPC ID
+      // until a late response or release, so late ACK is not a protocol fault.
+      const timer = setTimeout(() => reject(new NativeRequestTimeout()), this.requestTimeout);
       this.pending.set(id, { resolve, reject, timer });
       try { this.write({ jsonrpc: '2.0', id, method, params }); }
       catch { clearTimeout(timer); this.pending.delete(id); reject(new Error('Native write failed')); }

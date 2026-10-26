@@ -4,7 +4,7 @@ import { createBridgeIo, createBridgeLineHandler, runBridgeRequest,
   bridgeRequestEnvelopeSchema, initializeParamsSchema, modelListParamsSchema,
   threadStartParamsSchema, threadResumeParamsSchema, threadStopParamsSchema,
   turnStartParamsSchema, turnSteerParamsSchema, threadDiscardParamsSchema, PROVIDER_BRIDGE_PROTOCOL_VERSION,
-  providerRecoveryNotificationSchema, threadDeltaSchema } from '@get-bb/plugin-sdk/provider-bridge';
+  providerRecoveryNotificationSchema, threadDeltaSchema, skillsConfigureParamsSchema } from '@get-bb/plugin-sdk/provider-bridge';
 import { NativeProcess, MissingExecutableError } from './process.ts';
 import type { Launch } from './process.ts';
 import { FrameDecoder } from './framing.ts';
@@ -15,6 +15,7 @@ import { ReadOnlyAuth, authRecovery, accountProviderId, AuthError, authMode, Uns
 import { signInHint } from './applications.ts';
 import type { AuthMode } from './auth.ts';
 import { record, string } from './errors.ts';
+import { NativeRequestTimeout } from './process.ts';
 import type { Snapshot } from './native.ts';
 import type { Row } from './native.ts';
 import { executionOptions } from './options.ts';
@@ -22,19 +23,23 @@ import { retainedRows, retentionDifference } from './retention.ts';
 import { InteractionArbiter } from './interactions.ts';
 import { nativeQuestion, nativeAnswer, questionTurn } from './questions.ts';
 import { inspectExecution } from './execution.ts';
-import { join } from 'node:path';
 import { convertAttachments, createAttachmentRefs, requireImageCapability } from './attachments.ts';
 import { convertMentions, selectedMentions, resolveMentionTarget, compactSelection } from './mentions.ts';
 import { CompactionProjection } from './compaction.ts';
 import { createDiagnosticReporter } from './messages.ts';
+import { SessionKnowledge } from './session-knowledge.ts';
+import { ProjectTokenError } from './project-token.ts';
+import { bbOnlySkills, skillsBlock } from './bb-skills.ts';
+import type { SkillRoot, BbSkill } from './bb-skills.ts';
 
-export const runtimePreferences = { nativeSearchEnhancementsEnabled: true, memoryEnabled: false,
+export const runtimePreferences = { nativeSearchEnhancementsEnabled: true, memoryEnabled: true,
   askUserQuestionAutoResolutionEnabled: false, modelContextBudgetStrategy: 'preflight-v1' };
 export const bridgeCapabilities = { grammarVersions: [3, 3] as [number, number], sessionRestore: true,
-  fork: 'none' as const, skills: { configure: false }, approvalEnforcedBy: 'provider' as const,
+  fork: 'none' as const, skills: { configure: true }, approvalEnforcedBy: 'provider' as const,
   threadArchive: false, threadRename: false, threadGoalClear: false, steerMode: 'inject' as const };
 export interface RuntimeSetup { launch: Launch; auth: ReadOnlyAuth; refreshAuth?: (child: NativeProcess) => Promise<void>; configure: (child: NativeProcess) => Promise<void>; bindSession?: ((id: string) => void) | undefined; markCreatePending?: (() => void) | undefined; readySession?: ((child: NativeProcess, id: string) => Promise<void>) | undefined }
 export interface BridgeServices {
+  memoryEnabled?: () => boolean | undefined;
   compatibility?: () => { message: string | null };
   compatibilityWarning?: () => string | null;
   claimDiagnostic?: (threadId: string, code: string) => boolean;
@@ -46,21 +51,34 @@ export interface BridgeServices {
   validateSelection: (model: string, reasoning: string, mode?: AuthMode, refresh?: number) => Promise<void | { model: string; reasoning: string }>;
 }
 export interface RuntimeSetup { warnings?: readonly string[] | undefined; beforeInput?: (() => Promise<void>) | undefined }
-export interface RuntimeSetup { mentionCatalogue?: ((side: 'skills' | 'commands') => Promise<unknown>) | undefined }
+export interface RuntimeSetup { mentionCatalogue?: ((side: 'skills' | 'commands') => Promise<unknown>) | undefined; backgroundTaskStore?: string | undefined }
+export interface RuntimeSetup { knowledgeStore?: string | undefined }
 type Session = { threadId: string; id: string; cwd: string; model: string; reasoning: string; generation: number; child: NativeProcess;
   auth: ReadOnlyAuth; refreshAuth: RuntimeSetup['refreshAuth']; beforeInput: RuntimeSetup['beforeInput']; state: ConversationState; decoder: FrameDecoder; lifecycle: SessionLifecycle | null;
   correlation: CommandCorrelation; detached: boolean; closing: boolean; subscription: string | null; options: string;
-  construction: Record<string, unknown>; instructionMode: string; timers: Map<string, ReturnType<typeof setTimeout>>;
+  construction: Record<string, unknown>; memoryEnabled: boolean; instructionMode: string; timers: Map<string, ReturnType<typeof setTimeout>>;
   interactions: InteractionArbiter; questions: Map<string, { rpcId: string | number; bbId: string; question: ReturnType<typeof nativeQuestion>; sent: boolean }>;
   steerRequests: Set<string>;
   compactions: CompactionProjection;
   mentionCatalogue: RuntimeSetup['mentionCatalogue'];
+  backgroundTaskStore: RuntimeSetup['backgroundTaskStore'];
+  knowledgeStore: RuntimeSetup['knowledgeStore'];
+  knowledge: SessionKnowledge;
+  skillRoots: SkillRoot[];
+  bbSkills: BbSkill[];
   mentionCatalogues: Map<string, Promise<unknown>>;
   stopping?: Promise<void> };
 
 export function createZCodeBridge(services: BridgeServices, write: (message: unknown) => void) {
+  function currentExecution(options: unknown, instructionMode: string, disallowed: unknown) {
+    const execution = executionOptions(options, instructionMode, disallowed);
+    execution.memoryEnabled = services.memoryEnabled?.() ?? execution.memoryEnabled;
+    execution.signature = JSON.stringify([Object.entries(execution.envVars).sort(), execution.toolDenylist, execution.memoryEnabled]);
+    return execution;
+  }
   const io = createBridgeIo({ write: line => write(JSON.parse(line)) });
   const sessions = new Map<string, Session>();
+  let skillRoots: SkillRoot[] = [];
   const operations = new Map<string, Promise<void>>();
   let generation = 0;
   let pluginId = 'zcode';
@@ -77,6 +95,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   function project(s: Session): void {
     const snapshot = s.state.snapshot;
     if (!snapshot || !s.lifecycle) return;
+    s.knowledge.observe(snapshot);
     const execution = inspectExecution(snapshot, warning(s.threadId));
     s.child.activity(!execution.known ? 'unknown' : execution.active || execution.waiting ? 'active' : 'idle');
     for (const row of snapshot.rows.window) if (row.kind === 'turnHeader' && typeof row.sourceCommandId === 'string' && typeof row.turnId === 'string') {
@@ -141,7 +160,9 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   function nativeMessage(s: Session, m: Record<string, unknown>, g: number): void {
     if (!current(s, g) || s.closing) return;
     if (m.method === 'session/requestRuntimePreferences') {
-      s.child.write({ jsonrpc: '2.0', id: m.id, result: runtimePreferences });
+      const preferences = { ...runtimePreferences, memoryEnabled: s.memoryEnabled };
+      services.observe?.({ event: 'runtime-preferences', threadId: s.threadId, sessionId: s.id, generation: g, ...preferences });
+      s.child.write({ jsonrpc: '2.0', id: m.id, result: preferences });
     } else if (m.method === 'interaction/requestProviderRuntimeHeaders') {
       const params = record(m.params);
       services.observe?.({ event: 'runtime-headers-request', sessionId: s.id, requestId: params.requestId,
@@ -151,15 +172,17 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         const models = record(await services.models(s.cwd, s.auth.source(), Number(record(record(s.construction.options).providerOptions ?? {}).catalogueRefresh ?? 0))).models;
         const available = Array.isArray(models) ? models.map(m => string(record(m).model)) : [];
         if (!current(s, g) || s.closing) return;
-        s.child.write({ jsonrpc: '2.0', id: m.id, result: s.auth.headers(m.params, s.id, s.cwd, s.model, s.reasoning, available) }); headersApplied = true; }
+        const result = await s.auth.runtimeHeaders(m.params, s.id, s.cwd, s.model, s.reasoning, available);
+        if (!current(s, g) || s.closing) return;
+        s.child.write({ jsonrpc: '2.0', id: m.id, result }); headersApplied = true; }
       catch (e) {
         if (!current(s, g) || s.closing) return;
-        const missingLogin = e instanceof AuthError && e.kind === 'unauthenticated';
+        const missingLogin = (e instanceof AuthError && e.kind === 'unauthenticated') || (e instanceof ProjectTokenError && e.code === 'project_token_login_failed');
         s.child.write({ jsonrpc: '2.0', id: m.id, result: { headersApplied: false,
-          errorMessage: missingLogin ? 'CLI login unavailable' : e instanceof UnsupportedPlanError ? e.message : 'Unsupported or invalid native auth input' } });
+          errorMessage: missingLogin ? signInHint() : e instanceof UnsupportedPlanError ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input' } });
         if (missingLogin) authFailed(s);
         else send('thread/delta', { threadId: s.threadId, deltas: [threadDeltaSchema.parse({ kind: 'provider.error',
-          category: e instanceof UnsupportedPlanError ? 'bad-request' : 'unknown', message: e instanceof UnsupportedPlanError ? e.message : 'Unsupported or invalid native auth input; inspect configuration' })] });
+          category: e instanceof UnsupportedPlanError ? 'bad-request' : 'unknown', message: e instanceof UnsupportedPlanError ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input; inspect configuration' })] });
       }
       services.observe?.({ event: 'runtime-headers-result', sessionId: s.id, requestId: params.requestId,
         generation: g, readsAfter: s.auth.reads, source: s.auth.source(), route: 'coding-plan-gateway', headersApplied });
@@ -192,7 +215,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         if (!s.lifecycle) {
           s.lifecycle = new SessionLifecycle(s.threadId, s.id, snapshot.logEpoch, g, warning(s.threadId),
             message => { if (current(s, g)) io.send(message); }, () => s.child.close(), s.cwd,
-            s.child.home ? join(s.child.home, 'bb-background-tasks.json') : undefined);
+            s.backgroundTaskStore);
           s.lifecycle.baseline(snapshot);
         }
         project(s);
@@ -218,6 +241,8 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   async function command(s: Session, type: string, payload: unknown, commandId = randomUUID()): Promise<Record<string, unknown>> {
     const ack = record(await s.child.request('v4/command', { commandId, clientId: 'bb-zcode',
       sessionId: type === 'createSession' ? null : s.id, type, payload, issuedAt: Date.now() }));
+    if (typeof ack.memoryEnabled === 'boolean') services.observe?.({ event: 'native-command-memory',
+      threadId: s.threadId, sessionId: s.id, commandId, type, memoryEnabled: ack.memoryEnabled });
     if (ack.status !== 'accepted') {
       const error = new Error('Native command rejected; not sent again') as Error & { rejected: boolean };
       error.rejected = true; throw error;
@@ -255,9 +280,14 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     while (!s.state.snapshot) { if (!current(s, s.generation) || Date.now() > end) throw new Error('Native snapshot unavailable'); await delay(20); }
   }
   async function mentionInput(s: Session, input: readonly unknown[], clientRequestId: string) {
+    if (!s.knowledge.started && s.skillRoots.length && s.mentionCatalogue) {
+      s.bbSkills = bbOnlySkills(s.skillRoots, await s.mentionCatalogue('skills')).skills;
+    } else if (s.knowledge.started) s.bbSkills = s.knowledge.skills;
     const selections = selectedMentions(input);
     const catalogues = s.mentionCatalogues; let skills: unknown;
     const converted = await convertMentions(input, async m => {
+      const bbSkill = m.source === 'skill' && s.bbSkills.find(skill => skill.name === m.name);
+      if (bbSkill) return { name: bbSkill.name, path: bbSkill.path, source: 'skill', origin: m.origin, loadWith: 'file' as const };
       if (!s.mentionCatalogue) throw Error('Native mention catalogue unavailable');
       const side = m.source === 'skill' ? 'skills' : 'commands';
       const started = performance.now(), hit = catalogues.has(side);
@@ -285,7 +315,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       optionFields: Object.keys(options), envNames: Object.keys(record(options.envVars ?? {})),
       providerOptionFields: Object.keys(record(options.providerOptions ?? {})),
       dynamicToolCount: Array.isArray(p.dynamicTools) ? p.dynamicTools.length : 0 });
-    const execution = executionOptions(options, String(p.instructionMode), p.disallowedTools);
+    const execution = currentExecution(options, String(p.instructionMode), p.disallowedTools);
     if (!threadId.trim()) throw new Error('Canonical thread identity required');
     if (execution.envVars.BB_THREAD_ID !== undefined && execution.envVars.BB_THREAD_ID !== threadId)
       throw new Error('Environment thread identity conflict');
@@ -299,10 +329,12 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     const s: Session = { threadId, cwd, model, reasoning, id: resume ? string(p.providerThreadId) : '', generation: g,
       auth: setup.auth, refreshAuth: setup.refreshAuth, beforeInput: setup.beforeInput, state: new ConversationState(warning(threadId)), decoder: new FrameDecoder(warning(threadId)),
       lifecycle: null, correlation: new CommandCorrelation(), detached: false, closing: false, subscription: null,
-      options: execution.signature, construction: { ...p }, instructionMode: String(p.instructionMode), timers: new Map(),
+      options: execution.signature, construction: { ...p }, memoryEnabled: execution.memoryEnabled, instructionMode: String(p.instructionMode), timers: new Map(),
       interactions: new InteractionArbiter(), questions: new Map(), steerRequests: new Set(),
       compactions: new CompactionProjection(deltas => send('thread/delta', { threadId, deltas: deltas.map(d => threadDeltaSchema.parse(d)) }), pluginId + '/compaction'),
-      mentionCatalogue: setup.mentionCatalogue, mentionCatalogues: new Map(), child: null as unknown as NativeProcess };
+      mentionCatalogue: setup.mentionCatalogue, backgroundTaskStore: setup.backgroundTaskStore, knowledgeStore: setup.knowledgeStore,
+      knowledge: new SessionKnowledge(setup.knowledgeStore), skillRoots: structuredClone(skillRoots), bbSkills: [],
+      mentionCatalogues: new Map(), child: null as unknown as NativeProcess };
     sessions.set(threadId, s);
     try {
       s.child = new NativeProcess(setup.launch, g, threadId, (m, gen) => {
@@ -314,14 +346,22 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       await setup.configure(s.child);
       if (!resume) {
         setup.markCreatePending?.();
-        const ack = await command(s, 'createSession', { workspaceId: cwd, config: { mode: 'yolo', planEnabled: false,
-          modelSelection: { providerId: accountProviderId, modelId: model, options: { reasoningLevel: reasoning } } } });
-        s.id = string(record(ack.result).sessionId);
+        const snapshot = record(await s.child.request('session/create', {
+          workspace: { workspacePath: cwd, workspaceKey: cwd }, mode: 'yolo', persistence: 'deferred',
+          titleGenerationEnabled: false, toolDenylist: execution.toolDenylist }));
+        s.id = string(record(snapshot.session).sessionId);
         createdIdentities.set(threadId, s.id);
         send('thread/identity', { threadId, providerThreadId: s.id });
         setup.bindSession?.(s.id);
       }
-      if (resume) send('thread/identity', { threadId, providerThreadId: s.id });
+      if (resume) {
+        // A new process has no resident session. Apply options before V4
+        // subscribe can load a resident with the native default tool set.
+        await s.child.request('session/resume', { sessionId: s.id,
+          workspace: { workspacePath: cwd, workspaceKey: cwd }, toolDenylist: execution.toolDenylist });
+        send('thread/identity', { threadId, providerThreadId: s.id });
+      }
+      services.observe?.({ event: 'session-tool-denylist', threadId, sessionId: s.id, resume, toolDenylist: execution.toolDenylist });
       send('thread/delta', { threadId, deltas: [{ kind: 'session.reset' }] });
       const compatibilityMessage = services.compatibilityWarning ? services.compatibilityWarning() : services.compatibility?.().message;
       if (compatibilityMessage) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: compatibilityMessage }] });
@@ -393,6 +433,11 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   async function dispatch(method: string, value: unknown): Promise<unknown> {
     if (closing) throw new Error('Bridge is shutting down; resume required');
     if (method === 'initialize') { initializeParamsSchema.parse(value); return { protocolVersion: PROVIDER_BRIDGE_PROTOCOL_VERSION, capabilities: bridgeCapabilities }; }
+    if (method === 'skills/configure') {
+      skillRoots = structuredClone(skillsConfigureParamsSchema.parse(value).roots);
+      for (const s of sessions.values()) if (!s.knowledge.started) s.skillRoots = structuredClone(skillRoots);
+      return { ok: true };
+    }
     if (method === 'provider/health') return services.health(authMode(record(record(value).providerOptions ?? {}).authMode));
     if (method === 'provider/installation/status') return services.installation();
     if (method === 'provider/installation/run') return { available: false, message: 'Install ZCode Desktop yourself; no automatic updates' };
@@ -419,7 +464,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       // composer options take effect on the next ordinary turn/start.
       const options = { ...executionOptions(s.construction.options, s.instructionMode, s.construction.disallowedTools),
         model: s.model, reasoning: s.reasoning, authMode: s.auth.source() };
-      if (s.steerRequests.has(p.clientRequestId) || s.steerRequests.size >= 1024) throw new Error('Duplicate steer request or session input limit');
+      if (s.steerRequests.has(p.clientRequestId)) throw new Error('Duplicate steer request');
       const converted = convertAttachments(await mentionInput(s, p.input, p.clientRequestId), s.cwd);
       if (converted.attachments.some(a => a.kind === 'image')) {
         const models = record(await services.models(s.cwd, options.authMode, options.catalogueRefresh)).models;
@@ -465,7 +510,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       selectedMentions(p.input); // Unsupported selection fails before reconfiguration.
       const previous = record(s.construction.options);
       const reconciledOptions = { ...p.options, envVars: p.options.envVars === undefined ? previous.envVars ?? {} : p.options.envVars };
-      const execution = executionOptions(reconciledOptions, s.instructionMode, s.construction.disallowedTools);
+      const execution = currentExecution(reconciledOptions, s.instructionMode, s.construction.disallowedTools);
       if (execution.envVars.BB_THREAD_ID !== undefined && execution.envVars.BB_THREAD_ID !== p.threadId)
         throw new Error('Environment thread identity conflict');
       Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode, execution.catalogueRefresh));
@@ -483,26 +528,23 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
           beforeEpoch: before?.logEpoch, afterEpoch: after?.logEpoch, beforeRows: before?.rows.totalCount,
           afterRows: after?.rows.totalCount, retained, difference: retentionDifference(before, after),
           scope: 'semantic visible native rows including unknown fields, not full cold context proof' });
-        if (!retained) { await stop(s, 'release'); throw new Error('Native retention not confirmed; keep native ID, HOME and history. Ask the provider maintainer to reconcile the retained rows before attaching the original bb thread again. No automatic new session.'); }
         send('session/replaced', { threadId: s.threadId, providerThreadId: s.id,
-          reason: before && after && before.rows.totalCount > after.rows.totalCount && before.rows.window.some(r => r.kind === 'hookInvocation')
-            ? 'Setting applied; conversation history retained. ZCode does not restore previous hook execution records after reconnecting.'
-            : 'Launch settings changed; same native history baseline verified. Subagent changes apply to this ordinary turn; steering keeps active settings.', contextLost: false, showRuntimeNote: true });
+          reason: 'Launch settings changed; the same native session was resumed. Memory and subagent changes apply to this ordinary turn; steering keeps active settings.',
+          contextLost: false, showRuntimeNote: true });
       }
       // Source selection is per turn, never a credential in launch options.
-      if (s.auth.source() !== execution.authMode) {
-        const snapshot = record(s.state.snapshot), control = record(snapshot.control);
-        const background = Array.isArray(snapshot.backgroundWorks) ? snapshot.backgroundWorks : [];
-        if ((Array.isArray(control.activeWorks) && control.activeWorks.length) ||
-            background.some(work => !['completed', 'failed', 'cancelled'].includes(String(record(work).status))))
-          throw new Error('Stop active native work before changing the credential source; no source fallback');
-      }
       s.auth.setMode(execution.authMode);
       const previousExecution = executionOptions(previous, s.instructionMode, s.construction.disallowedTools);
       if (execution.authMode !== previousExecution.authMode || execution.catalogueRefresh !== previousExecution.catalogueRefresh ||
           execution.model !== s.model || execution.reasoning !== s.reasoning) s.mentionCatalogues.clear();
       try { await s.beforeInput?.(); } catch (error) { await stop(s, 'release'); throw error; }
       await s.refreshAuth?.(s.child);
+      if (s.knowledge.needsReconcile) {
+        const history = record(await s.child.request('session/messages', { sessionId: s.id }));
+        if (!Array.isArray(history.messages)) throw Error('Native active history unavailable after compaction');
+        const retained = s.knowledge.reconcile(history.messages);
+        services.observe?.({ event: 'bb-knowledge-compaction-reconciled', threadId: s.threadId, sessionId: s.id, retained });
+      }
       s.construction = { ...s.construction, options: reconciledOptions };
       const converted = convertAttachments(await mentionInput(s, p.input, p.clientRequestId), s.cwd);
       if (converted.attachments.some(a => a.kind === 'image')) {
@@ -514,8 +556,8 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       const pendingSession = s, pendingGeneration = s.generation;
       const unresolved = setTimeout(() => {
         if (current(pendingSession, pendingGeneration) && ['pending', 'unknown'].includes(pendingSession.correlation.status(id) ?? '')) {
-          send('error', { threadId: pendingSession.threadId, message: 'Native input identity unresolved; stop and reconcile before retry' });
-          void stop(pendingSession, 'release').catch(() => send('error', { threadId: pendingSession.threadId, message: 'Owned cleanup unresolved; recovery required' }));
+          pendingSession.correlation.expire(Date.now());
+          send('error', { threadId: pendingSession.threadId, message: 'Native input identity unresolved; reconcile before retry. The native process remains available; this input was not sent again.' });
         }
       }, 60_000); unresolved.unref();
       s.timers.set(id, unresolved);
@@ -526,14 +568,23 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         s.reasoning = execution.reasoning;
         s.child.activity('active');
         services.observe?.({ event: 'attachment-input', threadId: s.threadId, sessionId: s.id, commandId: id, model: execution.model, attachments: converted.metadata });
-        await command(s, 'sendText', { text: converted.text, ...(attachmentRefs.length ? { attachments: attachmentRefs } : {}), requestedDelivery: 'startNow', mode: 'yolo', planEnabled: false,
+        if (!s.knowledge.started && s.skillRoots.length) {
+          const catalogue = s.mentionCatalogue ? await s.mentionCatalogue('skills') : { skills: [] };
+          const resolved = bbOnlySkills(s.skillRoots, catalogue); s.bbSkills = resolved.skills;
+          services.observe?.({ event: 'bb-skills-resolved', threadId: s.threadId, sessionId: s.id, ...resolved });
+        }
+        const block = [execution.instructions ? '[bb session instructions]\n' + execution.instructions : '', skillsBlock(s.bbSkills)].filter(Boolean).join('\n\n');
+        const text = s.knowledge.prepare(id, block, converted.text, s.bbSkills);
+        await command(s, 'sendText', { text, ...(attachmentRefs.length ? { attachments: attachmentRefs } : {}), requestedDelivery: 'startNow', mode: 'yolo', planEnabled: false,
           modelSelection: { providerId: accountProviderId, modelId: execution.model, options: { reasoningLevel: execution.reasoning } } }, id);
       } catch (e) {
         if ((e as { rejected?: boolean }).rejected) {
+          s.knowledge.rejected(id);
           s.correlation.authoritative(id, s.generation, 'rejected');
           services.observe?.({ event: 'pending-closed', threadId: s.threadId, commandId: id, outcome: 'rejected' });
         }
-        await stop(s, 'release'); throw e;
+        if (!(e instanceof NativeRequestTimeout)) await stop(s, 'release');
+        throw e;
       }
       s.correlation.ack(id, s.generation);
       // ACK delivery/inputId/optional schema messageId are not authoritative

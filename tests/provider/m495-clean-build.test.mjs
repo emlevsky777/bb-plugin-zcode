@@ -21,15 +21,16 @@ test('observer absent is inert; only owned loopback and canonical CA allowed', (
     symlinkSync('/etc/hosts', join(root, 'foreign')); config({ proxy: 'http://127.0.0.1:12345', ca: join(root, 'foreign') });
     assert.throws(() => observerEnvironment(root), /Observer/);
     const env = api.childEnvironment({ ZCODE_RUNTIME_ENV: 'development', ZCODE_HTTP_PROXY: 'foreign', NODE_EXTRA_CA_CERTS: 'foreign' }, { HOME: root });
-    for (const name of ['ZCODE_RUNTIME_ENV', 'ZCODE_HTTP_PROXY', 'ZCODE_AGENT_CA_CERT', 'NODE_EXTRA_CA_CERTS']) assert.equal(env[name], undefined);
+    assert.equal(env.ZCODE_RUNTIME_ENV, 'development'); assert.equal(env.ZCODE_HTTP_PROXY, 'foreign');
+    assert.equal(env.NODE_EXTRA_CA_CERTS, 'foreign'); assert.equal(env.ZCODE_AGENT_CA_CERT, undefined);
   } finally { rmSync(root, { recursive: true }); }
 });
 test('journal rotation, budget, daily gate, legacy cleanup preserve history and reject symlinks', async () => {
   const root = mkdtempSync(join(tmpdir(), 'm495-')), now = Date.now();
   const put = (name, text) => { const path = join(root, name); mkdirSync(join(path, '..'), { recursive: true }); writeFileSync(path, text); return path; };
   try {
-    const binding = put('thread-homes-v2/own/bb-binding.json', 'IDENTITY');
-    const history = put('thread-homes-v2/own/.zcode/cli/db/db.sqlite', 'HISTORY');
+    const binding = put('sessions/own/bb-binding.json', 'IDENTITY');
+    const history = put('sessions/own/db.sqlite', 'HISTORY');
     put('service-evidence.ndjson', '01234567890'); put('auth-metadata.ndjson', '01234567890');
     put('data/cli/debug/model-io-own.jsonl', 'PROMPT'); put('data/cli/debug/keep.jsonl', 'KEEP');
     symlinkSync(history, join(root, 'data/cli/debug/model-io-symlink.jsonl'));

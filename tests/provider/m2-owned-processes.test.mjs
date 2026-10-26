@@ -6,7 +6,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { runInNewContext } from 'node:vm';
 import { setTimeout as delay } from 'node:timers/promises';
 import { api, artifact } from './helpers.mjs';
-const { ownedDescendantProgram } = await import(artifact ? '../../dist/owned-descendants.js' : '../../src/owned-descendants.ts');
+const { ownedDescendantProgram } = await (artifact ? import('../../dist/owned-descendants.js') : import('../../src/owned-descendants.ts'));
 const { OwnedDescendants, parseOwnedInventory } = runInNewContext(ownedDescendantProgram + '\n({OwnedDescendants,parseOwnedInventory})');
 const row = (pid, parent, group, started = 'Mon Oct 5 12:00:00 2026', command = 'own-node') => ({ pid, parent, group, started, command, state: 'S' });
 test('owned descendant identity follows observed ancestry; PID reuse, foreign processes and orphan exec do not grant signals', () => {

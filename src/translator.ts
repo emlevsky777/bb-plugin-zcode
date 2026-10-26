@@ -12,8 +12,6 @@ import { serviceError } from './service-errors.ts';
 
 const terminal = headerOutcomes;
 const LIMIT = 4096;
-const MAX_BYTES = 1024 * 1024;
-const PAYLOAD_BYTES = 32 * 1024 * 1024;
 const digest = (text: string): string => createHash('sha256').update(text).digest('hex');
 interface ItemLedger {
   turnId: string;
@@ -72,11 +70,9 @@ export class EventTranslator {
   checkpoint(): string {
     const result = JSON.stringify({ version: 2, sessionId: this.sessionId, epoch: this.epoch,
       retiredThrough: this.ledger.retiredThrough, turns: [...this.ledger.turns], items: [...this.ledger.items], suppressUnaccepted: this.suppressUnaccepted });
-    if (Buffer.byteLength(result) > MAX_BYTES) throw new ProtocolError('checkpoint-limit');
     return result;
   }
   restore(checkpoint: string): void {
-    if (Buffer.byteLength(checkpoint) > MAX_BYTES) throw new ProtocolError('checkpoint-limit');
     let p: Record<string, unknown>;
     try { p = record(JSON.parse(checkpoint)); } catch { throw new ProtocolError('invalid-checkpoint'); }
     if (p.sessionId !== this.sessionId || p.epoch !== this.epoch) throw new ProtocolError('checkpoint-context-mismatch');
@@ -84,7 +80,7 @@ export class EventTranslator {
     if (p.suppressUnaccepted !== undefined && typeof p.suppressUnaccepted !== 'boolean') throw new ProtocolError('invalid-checkpoint');
     const retired = p.retiredThrough === -1 ? -1 : integer(p.retiredThrough);
     const turns = new Map<string, TurnLedger>(), items = new Map<string, ItemLedger>();
-    if (!Array.isArray(p.turns) || !Array.isArray(p.items) || p.turns.length > LIMIT || p.items.length > LIMIT) throw new ProtocolError('invalid-checkpoint');
+    if (!Array.isArray(p.turns) || !Array.isArray(p.items)) throw new ProtocolError('invalid-checkpoint');
     for (const pair of p.turns) {
       if (!Array.isArray(pair) || pair.length !== 2) throw new ProtocolError('invalid-checkpoint');
       const id = string(pair[0]), v = record(pair[1]);
@@ -287,10 +283,6 @@ export class EventTranslator {
       ledger.turns.delete(id);
       for (const [key, item] of ledger.items) if (item.turnId === id) ledger.items.delete(key);
     }
-    const metadata = JSON.stringify({ version: 2, sessionId: this.sessionId, epoch: this.epoch,
-      retiredThrough: ledger.retiredThrough, turns: [...ledger.turns], items: [...ledger.items] });
-    if (ledger.turns.size > LIMIT || ledger.items.size > LIMIT || Buffer.byteLength(metadata) + 40 > MAX_BYTES ||
-        Buffer.byteLength(JSON.stringify([...payloads])) > PAYLOAD_BYTES) throw new ProtocolError('translator-ledger-limit');
     this.ledger = ledger;
     this.payloads = payloads;
     this.suppressUnaccepted = suppressUnaccepted;

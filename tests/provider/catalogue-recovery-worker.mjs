@@ -1,7 +1,7 @@
 // Actual services.models with explicitly injected fake V4 from existing fixture.
 import { resolve, join } from 'node:path';
 import { writeFileSync } from 'node:fs';
-const api = await import(process.env.ZCODE_TEST_ARTIFACT === '1' ? '../../dist/index.js' : '../../src/index.ts');
+const api = await (process.env.ZCODE_TEST_ARTIFACT === '1' ? import('../../dist/index.js') : import('../../src/index.ts'));
 const root = process.argv[2], pause = process.argv[3] === 'pause';
 const auth = new api.ReadOnlyAuth(join(root, 'auth.json')); auth.read = () => ({ apiKey: 'SYNTHETIC_ONLY' });
 const runtime = api.createNativeServices(join(root, 'shared'), { auth, catalogueCache: true,

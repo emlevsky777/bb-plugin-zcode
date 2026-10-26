@@ -14,3 +14,4 @@ traces/raw/
 .zcode/
 .zcodex/
 __pycache__/
+node-compile-cache/

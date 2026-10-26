@@ -44,7 +44,7 @@ test('B17 real product handleLine with supervised fake V4 child passes public ca
 });
 test('ADR015 read-only fresh auth, empty/corrupt/cipher/identity/key change and unsupported mode', () => {
   const cwd = root(), file = cwd + '/credentials.json', a = new api.ReadOnlyAuth(file, Buffer.alloc(32));
-  const store = (identity, key) => ({ [`account-provider:${api.accountProviderId}:identity`]: identity,
+  const store = (identity, key) => ({ [`account-provider:${api.accountProviderId}:auth-source`]: 'manual', [`account-provider:${api.accountProviderId}:identity`]: identity,
     [`account-provider:coding-plan:${api.accountProviderId}:account:${encodeURIComponent(identity)}:api-key`]: key });
   try {
     assert.throws(() => a.read(), /unauthenticated/); writeFileSync(file, '{}'); assert.throws(() => a.read(), /unauthenticated/);
@@ -62,7 +62,7 @@ test('ADR015 read-only fresh auth, empty/corrupt/cipher/identity/key change and 
     const encrypt = text => { const cipher = createCipheriv('aes-256-gcm', Buffer.alloc(32), Buffer.alloc(12, 7));
       const data = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
       return 'enc:v1:' + [Buffer.alloc(12, 7), cipher.getAuthTag(), data].map(v => v.toString('base64url')).join('.'); };
-    const encrypted = { [`account-provider:${api.accountProviderId}:identity`]: encrypt('encrypted identity'),
+    const encrypted = { [`account-provider:${api.accountProviderId}:auth-source`]: encrypt('manual'), [`account-provider:${api.accountProviderId}:identity`]: encrypt('encrypted identity'),
       [`account-provider:coding-plan:${api.accountProviderId}:account:${encodeURIComponent('encrypted identity')}:api-key`]: encrypt('SYNTHETIC_SECRET_ENCRYPTED') };
     writeFileSync(file, JSON.stringify(encrypted)); const encryptedBytes = readFileSync(file);
     assert.equal(a.read().apiKey, 'SYNTHETIC_SECRET_ENCRYPTED'); assert.deepEqual(readFileSync(file), encryptedBytes);
@@ -75,7 +75,7 @@ test('ADR015 read-only fresh auth, empty/corrupt/cipher/identity/key change and 
 });
 test('K120 allowlist follows SDK sanitation; recording projection cannot retain synthetic auth', () => {
   const env = api.childEnvironment({ PATH: '/safe', ANTHROPIC_BASE_URL: 'https://poison.invalid', BB_PROVIDER_BRIDGE_RECORD_DIR: '/other', SECRET: 'SYNTHETIC_SECRET' }, { HOME: '/own' });
-  assert.deepEqual(env, { PATH: '/safe', HOME: '/own' });
+  assert.deepEqual(env, { PATH: '/safe', HOME: '/own', ANTHROPIC_BASE_URL: 'https://poison.invalid', SECRET: 'SYNTHETIC_SECRET' });
   for (const v of [{ id: 1, result: { requestAuth: { apiKey: 'SYNTHETIC_SECRET' } } }, { method: 'echo', params: { secret: 'SYNTHETIC_SECRET' } }, { error: { code: 401, message: 'SYNTHETIC_SECRET' } }]) assert.equal(api.recordingProjection(v).includes('SYNTHETIC_SECRET'), false);
 });
 test('B06 crash rejects pending on exit, close finalization and B15 safe bounded exit tail', async () => {

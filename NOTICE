@@ -19,3 +19,12 @@ GOAL 3.2.1 technical adaptation from the same pinned ZCode commit:
   standalone-account-provider-runtime.ts record addressing, adapted to
   targeted fresh read-only auth without cached secret values or backups.
   Apache-2.0; upstream license remains LICENSES/Apache-2.0.txt.
+
+M4.9.8c.1b adapts the current installed ZCode 3.15.1 native OAuth flow:
+- src/auth.ts: manual/OAuth source selection and account-scope material.
+- src/project-token.ts: Desktop resolveProviderMaterial and
+  ProjectAccessTokenClient/Cache semantics for individual Z.ai sign-in.
+  Engine SHA256 b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e.
+  Adapted to Node HTTP, read-only credential access and in-memory token refresh;
+  no user configuration or native credential/location-cache writes.
+  Upstream: https://github.com/zai-org/ZCode, Apache-2.0.

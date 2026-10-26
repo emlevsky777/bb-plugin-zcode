@@ -2,45 +2,235 @@
   "version": 1,
   "touchpoints": [
     {
+      "id": "zcode-memory-preference",
+      "product": "ZCode",
+      "uses": "Native reverse runtime preferences; read-only Desktop ~/.zcode/v2/setting.json memoryEnabled priority, frozen during active steer, with plugin default-ON fallback when no boolean is available",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "memoryEnabled",
+          "strength": "strong",
+          "reason": "Native preference schema; Desktop source chain verified on 11 October 2026 in out/host/index.js."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/requestRuntimePreferences",
+          "strength": "strong",
+          "reason": "Installed native session preference surface; offline active-turn behavior and live preferences/ACK are checked separately."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "resolveSessionRuntimePreferences",
+          "strength": "strong",
+          "reason": "Desktop local handler resolves memoryEnabled from the settings service, not the native default."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "getSettingsFile",
+          "strength": "strong",
+          "reason": "Desktop settings service reads .zcode/v2/setting.json; source identity and chain are recorded in KNOWLEDGE."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/options.ts",
+        "src/bridge.ts",
+        "src/runtime.ts",
+        "src/desktop-memory.ts"
+      ],
+      "impact": "Memory choice can be ignored or incorrectly inferred from native defaults; provider must not write Desktop settings.",
+      "milestones": [
+        "M4.9.8b.2b",
+        "M4.9.8b.2c",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-session-tool-denylist",
+      "product": "ZCode",
+      "uses": "Native session denylist on create and cold resume before subscribe; OFF adds Agent without config writes",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "toolDenylist",
+          "strength": "strong",
+          "reason": "Native create/resume schema field; actual model catalogue must prove application."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "toolDisallowlist",
+          "strength": "strong",
+          "reason": "Native bootstrap/tool-filter field; textual presence is not effective prohibition."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/resume",
+          "strength": "strong",
+          "reason": "Resident and cold semantics differ; cold resume must be verified before subscribe."
+        }
+      ],
+      "code": [
+        "src/options.ts",
+        "src/bridge.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Requested tool restrictions may not reach the model on create/resume/model change; report native limits without restoring config isolation.",
+      "milestones": [
+        "M4.9.8b.2a",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-provider-options-lifecycle",
+      "product": "bb",
+      "uses": "Single registration with mutable settings delivered per command, not static bridge identity",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/server.js",
+          "text": "deriveProviderOptions",
+          "strength": "strong",
+          "reason": "Installed reference forwards settings per command; settings-change lifecycle requires tests."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/plugin-sdk-runtime.js.map",
+          "text": "experimental_bridgeOptions",
+          "strength": "strong",
+          "reason": "Public declaration documents static launch facts; mutable settings must not change identity."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/options.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Changes can restart bridge registration or be lost; steer must retain active turn options.",
+      "milestones": [
+        "M4.9.8b.2a",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
       "id": "zcode-tool-environment",
       "product": "ZCode",
-      "uses": "Native tool environment inheritance and filtered network passthrough; HOME is not accepted by passthrough",
+      "uses": "Inherit ordinary user environment and HOME; share Desktop storage, override session DB/login/log paths",
       "anchors": [
-        { "file": "Contents/Resources/glm/zcode.cjs", "text": "ZCODE_TOOL_ENV_PASSTHROUGH_JSON", "strength": "strong", "reason": "Native filtered tool-environment channel; presence does not imply HOME support." },
-        { "file": "Contents/Resources/glm/zcode.cjs", "text": "shouldCaptureZCodeToolEnvPassthroughKey", "strength": "strong", "reason": "Native key filter must be checked before changing isolated process HOME." },
-        { "file": "Contents/Resources/glm/zcode.cjs", "text": "getDefaultConfigPath", "strength": "strong", "reason": "User config remains HOME-relative; storage overrides alone cannot isolate it." }
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_TOOL_ENV_PASSTHROUGH_JSON",
+          "strength": "strong",
+          "reason": "Native filtered tool-environment channel; presence does not imply HOME support."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "shouldCaptureZCodeToolEnvPassthroughKey",
+          "strength": "strong",
+          "reason": "Native key filter must be checked before changing isolated process HOME."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "getDefaultConfigPath",
+          "strength": "strong",
+          "reason": "User config remains HOME-relative; storage overrides alone cannot isolate it."
+        }
       ],
-      "code": ["src/process.ts", "src/runtime.ts"],
-      "impact": "Tool HOME differs from the user HOME, or real HOME weakens internal config isolation.",
-      "milestones": ["M4.9.8"],
-      "sources": ["docs/maintenance/M4.9.8-fix-native-semantics.md"]
+      "code": [
+        "src/process.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Native path/environment changes can mix session history or change shared resource availability; offline no-write and real-HOME live check verify behavior.",
+      "milestones": [
+        "M4.9.8",
+        "M4.9.8b",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
     },
     {
       "id": "bb-user-cli-path",
       "product": "bb",
       "uses": "Embedded terminal provides bundled bb CLI for the local problem report",
       "anchors": [
-        { "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/bb", "text": "BB_CLI", "strength": "weak", "reason": "Bundled entrypoint; embedded-terminal live execution is the behavioral proof." }
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/bb",
+          "text": "BB_CLI",
+          "strength": "weak",
+          "reason": "Bundled entrypoint; embedded-terminal live execution is the behavioral proof."
+        }
       ],
-      "code": ["README.md", "README.ru.md", "src/plugin.ts"],
+      "code": [
+        "README.md",
+        "README.ru.md",
+        "src/plugin.ts"
+      ],
       "impact": "Users cannot produce a problem report without system CLI installation if embedded-terminal injection changes.",
-      "milestones": ["M4.9.8"],
-      "sources": ["docs/maintenance/M4.9.8-fix-native-semantics.md"]
+      "milestones": [
+        "M4.9.8",
+        "M4.9.8c.1b",
+        "M4.9.8c.2"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
     },
     {
       "id": "bb-git-install-build",
       "product": "bb",
       "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling",
       "anchors": [
-        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "installGitDependencies", "strength": "strong", "reason": "Named native Git dependency install mechanism; behavioral install smoke required." },
-        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "buildPluginServer", "strength": "strong", "reason": "Named native server build mechanism; behavioral install smoke required." },
-        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "buildPluginHost", "strength": "strong", "reason": "Named native host build mechanism; behavioral install smoke required." },
-        { "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js", "text": "checkPluginSdkRange", "strength": "strong", "reason": "Native SDK compatibility gate; behavioral install smoke required." }
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "installGitDependencies",
+          "strength": "strong",
+          "reason": "Named native Git dependency install mechanism; behavioral install smoke required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "buildPluginServer",
+          "strength": "strong",
+          "reason": "Named native server build mechanism; behavioral install smoke required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "buildPluginHost",
+          "strength": "strong",
+          "reason": "Named native host build mechanism; behavioral install smoke required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "checkPluginSdkRange",
+          "strength": "strong",
+          "reason": "Native SDK compatibility gate; behavioral install smoke required."
+        }
       ],
-      "code": ["package.json", "src/plugin.ts", "src/host.ts"],
+      "code": [
+        "package.json",
+        "src/plugin.ts",
+        "src/host.ts"
+      ],
       "impact": "Git installation is rejected or provider bundles fail to build; SDK runtime subpaths must be production dependencies.",
-      "milestones": ["M4.9.7"],
-      "sources": ["docs/maintenance/M4.9.7-native-semantics.md", "docs/implementation/039-M4.9.7-repository.md"]
+      "milestones": [
+        "M4.9.7",
+        "M4.9.8c.1b",
+        "M4.9.8c.2"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
     },
     {
       "id": "zcode-layout",
@@ -70,15 +260,12 @@
         "M4.2",
         "M4.9.3",
         "M4.9.4",
-        "M4.9.6a"
+        "M4.9.6a",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/maintenance/M4.9.6a-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -107,13 +294,12 @@
       "milestones": [
         "M1",
         "M4.2",
-        "M4.9.3"
+        "M4.9.3",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -143,14 +329,11 @@
         "M4.2",
         "M4.9.3",
         "M4.9.4",
-        "M4.9.6a"
+        "M4.9.6a",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/maintenance/M4.9.6a-touchpoints.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -174,20 +357,17 @@
         "M4.2",
         "M4.9.1",
         "M4.9.3",
-        "M4.9.4"
+        "M4.9.4",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.1-touchpoints.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "bb-sdk-version",
       "product": "bb",
-      "uses": "SDK carried by bb",
+      "uses": "SDK carried by bb; exact SDK .79 CLI declarations and development public-SDK scanner, whose actual c/m-prefixed source extension coverage includes mjs verified explicitly in c-2.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -197,19 +377,19 @@
         }
       ],
       "code": [
-        "src/compatibility.ts"
+        "src/compatibility.ts",
+        "scripts/release/package-check.test.mjs"
       ],
       "impact": "Unknown SDK version and compatibility warning.",
       "milestones": [
         "M4.2",
         "M4.9.1",
-        "M4.9.4"
+        "M4.9.4",
+        "M4.9.8c.1b",
+        "M4.9.8c.2"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.1-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -231,12 +411,11 @@
       "impact": "Host may reject unsupported Node or fail to load TypeScript.",
       "milestones": [
         "M1",
-        "M4.2"
+        "M4.2",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -283,13 +462,12 @@
       "milestones": [
         "M1",
         "M4.2",
-        "M4.9.1"
+        "M4.9.1",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.1-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -327,15 +505,12 @@
         "M3",
         "M4.1",
         "M4.2",
-        "M4.9.1"
+        "M4.9.1",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.1-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/015-M3-supervisor-background-and-tools.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -367,16 +542,11 @@
         "M4.6.1",
         "M4.6.2",
         "M4.6.3",
-        "M4.9.1"
+        "M4.9.1",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.6-touchpoints.md",
-        "docs/maintenance/M4.6.1-touchpoints.md",
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.6.3-touchpoints.md",
-        "docs/maintenance/M4.9.1-touchpoints.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -405,8 +575,7 @@
       ],
       "code": [
         "src/plugin.ts",
-        "src/native-roots.ts",
-        "src/plugin-roots-config.ts"
+        "src/native-roots.ts"
       ],
       "impact": "Unrepresentable command/menu duplicates or missing roots.",
       "milestones": [
@@ -414,14 +583,13 @@
         "M4.4.1",
         "M4.6",
         "M4.6.2",
-        "M4.7"
+        "M4.7",
+        "M4.9.8b",
+        "M4.9.8c.1",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6-touchpoints.md",
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.7-touchpoints.md",
-        "docs/implementation/019-M4.4-desktop-coexistence.md",
-        "docs/implementation/020-M4.4.1-model-catalogue.md"
+        "compat/README.md"
       ]
     },
     {
@@ -462,11 +630,11 @@
       "impact": "Stale skill/command menu until next host RPC.",
       "milestones": [
         "M4.6.1",
-        "M4.9.6a"
+        "M4.9.6a",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.1-touchpoints.md",
-        "docs/maintenance/M4.9.6a-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -502,13 +670,11 @@
       "milestones": [
         "M1",
         "M4.2",
-        "M4.9.1"
+        "M4.9.1",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.1-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -545,14 +711,12 @@
         "M1",
         "M4.1",
         "M4.9.4",
-        "M4.9.5"
+        "M4.9.5",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/maintenance/M4.9.5-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md"
+        "compat/README.md"
       ]
     },
     {
@@ -574,11 +738,11 @@
       "impact": "Explicit Coding Plan key unavailable; no CLI fallback.",
       "milestones": [
         "M4.3",
-        "M4.9.6a"
+        "M4.9.6a",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.6a-touchpoints.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
@@ -627,13 +791,12 @@
         "M4.3",
         "M4.9.2",
         "M4.9.3",
-        "M4.9.4"
+        "M4.9.4",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.2-touchpoints.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
@@ -662,18 +825,18 @@
       "milestones": [
         "M4.6",
         "M4.7.1",
-        "M4.9.4"
+        "M4.9.4",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6-touchpoints.md",
-        "docs/maintenance/M4.7.1-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "bb-settings",
       "product": "SDK",
-      "uses": "Settings registration and CLI command registration",
+      "uses": "Settings and CLI registration; c-2 declarative root zcode-report: SDK .79 defineCli/cliCommand, metadata/help/JSON errors and combined output limit, with explicitly server-local report scope.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -698,24 +861,42 @@
           "text": "cli",
           "strength": "weak",
           "reason": "Internal generic/minified or indirect textual evidence; manual semantic review required."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "rendersHelp",
+          "strength": "strong",
+          "reason": "Installed CLI help/output contract; declarations define exact SDK signatures, focused CLI and embedded-terminal checks establish behavior."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "PLUGIN_CLI_OUTPUT_MAX_BYTES",
+          "strength": "strong",
+          "reason": "Installed CLI help/output contract; declarations define exact SDK signatures, focused CLI and embedded-terminal checks establish behavior."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "plugin_cli_output_too_large",
+          "strength": "strong",
+          "reason": "Installed CLI help/output contract; declarations define exact SDK signatures, focused CLI and embedded-terminal checks establish behavior."
         }
       ],
       "code": [
         "src/plugin.ts",
-        "src/problem-report.ts"
+        "src/problem-report.ts",
+        "src/report-cli.ts"
       ],
-      "impact": "Settings synchronization or local problem report unavailable.",
+      "impact": "Settings or CLI help/JSON/report unavailable; oversized output refused. The report must never silently describe the invoking remote host using server-local paths.",
       "milestones": [
         "M4.6.1",
         "M4.6.2",
         "M4.9.4",
-        "M4.9.5"
+        "M4.9.5",
+        "M4.9.8c.1b",
+        "M4.9.8c.2"
       ],
       "sources": [
-        "docs/maintenance/M4.6.1-touchpoints.md",
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/maintenance/M4.9.5-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -751,12 +932,12 @@
       "milestones": [
         "M4.4.2",
         "M4.5",
-        "M4.7"
+        "M4.7",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.5-touchpoints.md",
-        "docs/maintenance/M4.7-touchpoints.md",
-        "docs/implementation/021-M4.4.2-attachments.md"
+        "compat/README.md"
       ]
     },
     {
@@ -791,13 +972,14 @@
       "milestones": [
         "M4.6.4",
         "M4.7",
-        "M4.7.1"
+        "M4.7.1",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1a",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.4-touchpoints.md",
-        "docs/maintenance/M4.6.4-continuation-touchpoints.md",
-        "docs/maintenance/M4.7-touchpoints.md",
-        "docs/maintenance/M4.7.1-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -831,10 +1013,13 @@
       ],
       "impact": "Compaction command/projection unavailable or false terminal outcome.",
       "milestones": [
-        "M4.7.1"
+        "M4.7.1",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.7.1-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -861,10 +1046,11 @@
       ],
       "impact": "Subagent projection fails; ordinary tools remain.",
       "milestones": [
-        "M4.8"
+        "M4.8",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.8-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -892,10 +1078,12 @@
       ],
       "impact": "Subagent setting no longer reaches native config.",
       "milestones": [
-        "M4.8"
+        "M4.8",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.8-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -917,16 +1105,18 @@
         }
       ],
       "code": [
-        "src/runtime.ts"
+        "src/runtime.ts",
+        "src/problem-report.ts"
       ],
       "impact": "Optional effort hidden or only unsupported model excluded.",
       "milestones": [
         "M1",
-        "M4.9.6a"
+        "M4.9.6a",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.6a-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md"
+        "compat/README.md"
       ]
     },
     {
@@ -953,10 +1143,11 @@
       ],
       "impact": "Missing or excessive host queued retries.",
       "milestones": [
-        "M4.9.2"
+        "M4.9.2",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.2-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -988,15 +1179,12 @@
         "M2",
         "M3",
         "M4.1",
-        "M4.2"
+        "M4.2",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/015-M3-supervisor-background-and-tools.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1044,13 +1232,14 @@
       "milestones": [
         "M1",
         "M2",
-        "M4.2"
+        "M4.2",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1a",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1102,12 +1291,12 @@
       "impact": "Protocol decode/transport fails.",
       "milestones": [
         "M1",
-        "M4.2"
+        "M4.2",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1158,15 +1347,12 @@
         "M2",
         "M3",
         "M4.1",
-        "M4.2"
+        "M4.2",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/015-M3-supervisor-background-and-tools.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1198,21 +1384,18 @@
         "M2",
         "M4.1",
         "M4.6.2",
-        "M4.9.5"
+        "M4.9.5",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.9.5-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-env",
       "product": "ZCode",
-      "uses": "Data/log/session database environment precedence",
+      "uses": "Separate bb session DB, sign-in overlay and logs with shared Desktop HOME/storage; no DATA_BASE_DIR override because native MCP OAuth credentials also use it",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1224,7 +1407,7 @@
           "file": "Contents/Resources/glm/zcode.cjs",
           "text": "ZCODE_DATA_BASE_DIR",
           "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+          "reason": "Native shared credentials resolver uses this environment variable before homedir; the provider must not redirect it to its sign-in overlay."
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1241,27 +1424,27 @@
       ],
       "code": [
         "src/runtime.ts",
-        "src/process.ts"
+        "src/process.ts",
+        "src/native-roots.ts"
       ],
-      "impact": "Mandatory storage/DB isolation cannot be established.",
+      "impact": "Native environment precedence can redirect own session DB or shared storage.",
       "milestones": [
         "M1",
         "M4.2",
         "M4.6",
-        "M4.6.3"
+        "M4.6.3",
+        "M4.9.8b.2b",
+        "M4.9.8b.2c",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.6-touchpoints.md",
-        "docs/maintenance/M4.6.3-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-builtin",
       "product": "ZCode",
-      "uses": "Builtin account providers/models and configuration revision",
+      "uses": "Native active builtin account providers/models and normalized revision for host account overlay; no provider copy",
       "anchors": [
         {
           "file": "Contents/Resources/config/provider/zcode-builtin.json",
@@ -1291,20 +1474,19 @@
         "M1",
         "M4.2",
         "M4.3",
-        "M4.9.3"
+        "M4.9.3",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-config-env",
       "product": "ZCode",
-      "uses": "Explicit builtin/personal provider paths",
+      "uses": "Installed builtin location hint for native CLI selection of active builtin and shared Desktop personal config; no provider copies or personal override",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1333,19 +1515,19 @@
       "milestones": [
         "M1",
         "M4.2",
-        "M4.3"
+        "M4.3",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-runtime-headers",
       "product": "ZCode",
-      "uses": "Account signing/entitlement runtime headers",
+      "uses": "Host-managed app-server account overlay/signing/entitlement headers; standalone credential runtime is absent in protocol bootstrap",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1376,20 +1558,19 @@
         "M1",
         "M4.2",
         "M4.3",
-        "M4.8"
+        "M4.8",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.8-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/017-M4.2-compatibility.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-credentials",
       "product": "ZCode",
-      "uses": "Shared CLI credential format and identity",
+      "uses": "Shared CLI credential format and identity, including native MCP OAuth credentials on the real HOME",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1418,13 +1599,14 @@
       "milestones": [
         "M1",
         "M4.3",
-        "M4.9.3"
+        "M4.9.3",
+        "M4.9.8b.2b",
+        "M4.9.8b.2c",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1452,11 +1634,11 @@
       "impact": "Provided sign-in command fails.",
       "milestones": [
         "M4.3",
-        "M4.9.3"
+        "M4.9.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1489,17 +1671,17 @@
       "impact": "Unsupported account misidentified; explicit refusal required.",
       "milestones": [
         "M4.3",
-        "M4.9.3"
+        "M4.9.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.3-touchpoints.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-personal-config",
       "product": "ZCode",
-      "uses": "Native config/skills layering and path overrides",
+      "uses": "Shared Desktop personal provider configuration selected by native CLI, read in place",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1527,20 +1709,21 @@
         }
       ],
       "code": [
-        "src/personal-settings.ts",
         "src/native-roots.ts",
         "src/runtime.ts"
       ],
-      "impact": "Optional personal settings unavailable; disable with warning.",
+      "impact": "Changes to native configuration precedence or HOME reads can change shared Desktop behavior; the plugin never writes user config.",
       "milestones": [
         "M4.4",
         "M4.6",
-        "M4.6.1"
+        "M4.6.1",
+        "M4.9.8b",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6-touchpoints.md",
-        "docs/maintenance/M4.6.1-touchpoints.md",
-        "docs/implementation/019-M4.4-desktop-coexistence.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1591,15 +1774,12 @@
         "M4.6",
         "M4.6.1",
         "M4.7",
-        "M4.9.6a"
+        "M4.9.6a",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6-touchpoints.md",
-        "docs/maintenance/M4.6.1-touchpoints.md",
-        "docs/maintenance/M4.7-touchpoints.md",
-        "docs/maintenance/M4.9.6a-touchpoints.md",
-        "docs/implementation/019-M4.4-desktop-coexistence.md",
-        "docs/implementation/020-M4.4.1-model-catalogue.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1628,12 +1808,13 @@
       "milestones": [
         "M4.7",
         "M4.9.6a",
-        "M4.9.6b"
+        "M4.9.6b",
+        "M4.9.8b.2b",
+        "M4.9.8c.1",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.7-touchpoints.md",
-        "docs/maintenance/M4.9.6a-touchpoints.md",
-        "docs/maintenance/M4.9.6b-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1659,10 +1840,12 @@
       ],
       "impact": "Selected skill not invoked; commands/plain text remain.",
       "milestones": [
-        "M4.7"
+        "M4.7",
+        "M4.9.8c.1",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.7-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1689,10 +1872,12 @@
       ],
       "impact": "Custom command selection fails locally.",
       "milestones": [
-        "M4.7"
+        "M4.7",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.7-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -1731,17 +1916,17 @@
       "impact": "Local attachment unavailable; ordinary text remains.",
       "milestones": [
         "M4.4.2",
-        "M4.5"
+        "M4.5",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.5-touchpoints.md",
-        "docs/implementation/021-M4.4.2-attachments.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-plugin-discovery",
       "product": "ZCode",
-      "uses": "CLI plugin list native enabled/precedence metadata",
+      "uses": "Native CLI skills/commands catalogue, including Desktop user and system plugins; discovery view removed under historical decision",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1769,26 +1954,24 @@
         }
       ],
       "code": [
-        "src/user-plugins.ts",
-        "src/native-roots.ts",
-        "src/discovery-view.ts"
+        "src/native-roots.ts"
       ],
-      "impact": "Optional user/project plugin layer disabled with warning.",
+      "impact": "Changes to native scope/source/path metadata can omit menu entries or invalidate selected mentions.",
       "milestones": [
         "M4.6.2",
         "M4.6.3",
-        "M4.9.6b"
+        "M4.9.6b",
+        "M4.9.8b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.6.3-touchpoints.md",
-        "docs/maintenance/M4.9.6b-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-plugin-registry",
       "product": "ZCode",
-      "uses": "Installed registry/transactions and mutable plugin store",
+      "uses": "Removed under historical decision: Installed registry/transactions and mutable plugin store",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1816,121 +1999,23 @@
         }
       ],
       "code": [
-        "src/user-plugins.ts",
-        "src/plugin-isolation.ts",
-        "src/discovery-view.ts"
+        "compat/README.md"
       ],
-      "impact": "Plugin activation/state isolation breaks; never write owner store.",
-      "milestones": [
-        "M4.6.2",
-        "M4.6.3"
-      ],
-      "sources": [
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.6.3-touchpoints.md"
-      ]
-    },
-    {
-      "id": "zcode-project-view",
-      "product": "ZCode",
-      "uses": "Sync project config loader and OFF projection",
-      "anchors": [
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "loadConfigFile",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "readFileSync",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "zcode.json",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "mergeRuntimeHooks",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        }
-      ],
-      "code": [
-        "src/project-config-view.ts",
-        "src/runtime.ts"
-      ],
-      "impact": "OFF/project isolation unconfirmed: thread stops before input.",
+      "impact": "Historical dependency retained for provenance; the isolated view is no longer used.",
       "milestones": [
         "M4.6.2",
         "M4.6.3",
-        "M4.9.6b"
+        "M4.9.8b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.2-touchpoints.md",
-        "docs/maintenance/M4.6.3-touchpoints.md",
-        "docs/maintenance/M4.9.6b-touchpoints.md"
-      ]
-    },
-    {
-      "id": "zcode-official-manifest",
-      "product": "ZCode",
-      "uses": "Official manifests copy-on-read and private MCP launch args",
-      "anchors": [
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "writeOfficialPluginRuntimeManifest",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "writeTextFileAtomicallyWithRetry",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "process.execArgv",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": ".zcode-plugin",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        },
-        {
-          "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "plugin.json",
-          "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
-        }
-      ],
-      "code": [
-        "src/project-config-view.ts",
-        "src/plugin-isolation.ts",
-        "src/user-plugins.ts"
-      ],
-      "impact": "Unconfirmed official launch isolation stops thread before input.",
-      "milestones": [
-        "M4.6.3",
-        "M4.9.6b"
-      ],
-      "sources": [
-        "docs/maintenance/M4.6.3-touchpoints.md",
-        "docs/maintenance/M4.9.6b-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-plugin-guard",
       "product": "ZCode",
-      "uses": "Session-authority plugin state and startup oracle",
+      "uses": "Removed under historical decision: Session-authority plugin state and startup oracle",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1958,25 +2043,24 @@
         }
       ],
       "code": [
-        "src/runtime.ts",
-        "src/plugin-isolation.ts"
+        "compat/README.md"
       ],
-      "impact": "Unknown/bypassed OFF state stops thread before input.",
+      "impact": "Historical dependency retained for provenance; the isolated view is no longer used.",
       "milestones": [
         "M4.6.3",
         "M4.6.4",
-        "M4.9.6b"
+        "M4.9.6b",
+        "M4.9.8b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.3-touchpoints.md",
-        "docs/maintenance/M4.6.4-touchpoints.md",
-        "docs/maintenance/M4.9.6b-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-trust",
       "product": "ZCode",
-      "uses": "Direct hook trust from own user config/storage",
+      "uses": "Removed under historical decision: Direct hook trust from own user config/storage",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1998,15 +2082,16 @@
         }
       ],
       "code": [
-        "src/plugin-isolation.ts",
-        "src/runtime.ts"
+        "compat/README.md"
       ],
-      "impact": "Unknown/granted own trust stops thread; no grants issued.",
+      "impact": "Historical dependency retained for provenance; the isolated view is no longer used.",
       "milestones": [
-        "M4.6.3"
+        "M4.6.3",
+        "M4.9.8b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.3-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2044,13 +2129,13 @@
       "milestones": [
         "M4.6.4",
         "M4.7",
-        "M4.9.8"
+        "M4.9.8",
+        "M4.9.8b.2b",
+        "M4.9.8c.1a",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.6.4-touchpoints.md",
-        "docs/maintenance/M4.6.4-continuation-touchpoints.md",
-        "docs/maintenance/M4.7-touchpoints.md",
-        "docs/maintenance/M4.9.8-fix-native-semantics.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2077,10 +2162,13 @@
       ],
       "impact": "Compaction unavailable or outcome unprojectable; no false success.",
       "milestones": [
-        "M4.7.1"
+        "M4.7.1",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.7.1-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2109,16 +2197,17 @@
       ],
       "code": [
         "src/runtime.ts",
-        "src/project-config-view.ts",
         "src/subagents.ts",
         "src/execution.ts"
       ],
       "impact": "Subagent selection/projection fails; ordinary tools independent.",
       "milestones": [
-        "M4.8"
+        "M4.8",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.8-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2145,16 +2234,18 @@
       ],
       "impact": "Child model rejected; main model not silently substituted.",
       "milestones": [
-        "M4.8"
+        "M4.8",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.8-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-background",
       "product": "ZCode",
-      "uses": "Native background cancellation/continuation/tool fields",
+      "uses": "Native background cancellation/continuation/tool fields and full command descriptions",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2193,15 +2284,13 @@
         "M3",
         "M4.1",
         "M4.2",
-        "M4.8"
+        "M4.8",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.8-touchpoints.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/015-M3-supervisor-background-and-tools.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2243,13 +2332,12 @@
       "milestones": [
         "M1",
         "M2",
-        "M4.2"
+        "M4.2",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/017-M4.2-compatibility.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2295,10 +2383,12 @@
       ],
       "impact": "Premature terminal or generic/duplicate failure.",
       "milestones": [
-        "M4.9.2"
+        "M4.9.2",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.2-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2354,10 +2444,11 @@
       ],
       "impact": "Wrong error category or missing recovery hint.",
       "milestones": [
-        "M4.9.2"
+        "M4.9.2",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.2-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2395,10 +2486,11 @@
       ],
       "impact": "New business code incorrectly classified instead of unknown.",
       "milestones": [
-        "M4.9.2"
+        "M4.9.2",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.2-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2438,10 +2530,12 @@
       ],
       "impact": "Development recording growth or unbounded native journal.",
       "milestones": [
-        "M4.9.5"
+        "M4.9.5",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.5-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2468,11 +2562,11 @@
       "impact": "Stand accounting unavailable or unintended proxy.",
       "milestones": [
         "M1",
-        "M4.9.5"
+        "M4.9.5",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.5-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2504,16 +2598,18 @@
       ],
       "impact": "Native tools unavailable or permission broker missing.",
       "milestones": [
-        "M4.9.5"
+        "M4.9.5",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/maintenance/M4.9.5-touchpoints.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "plugin-checkpoints",
       "product": "SDK",
-      "uses": "Bridge data lifetime for binding/background/translator records",
+      "uses": "Bridge data lifetime for binding/current background/translator records; no legacy checkpoint v1 support",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -2535,16 +2631,13 @@
         "M4.1",
         "M4.9.4",
         "M4.9.5",
-        "M4.9.6b"
+        "M4.9.6b",
+        "M4.9.8b.2b",
+        "M4.9.8b.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/KNOWLEDGE.md",
-        "docs/maintenance/M4.9.4-touchpoints.md",
-        "docs/maintenance/M4.9.5-touchpoints.md",
-        "docs/maintenance/M4.9.6b-touchpoints.md",
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/014-M2-continuity-stop-and-questions.md",
-        "docs/implementation/016-M4.1-bridge-farewell-and-recovery.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2590,11 +2683,12 @@
       "impact": "Model catalogue unavailable or incorrect defaults; do not invent a model.",
       "milestones": [
         "M1",
-        "M4.4.1"
+        "M4.4.1",
+        "M4.9.8b.2b",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/020-M4.4.1-model-catalogue.md"
+        "compat/README.md"
       ]
     },
     {
@@ -2633,17 +2727,17 @@
       "impact": "CLI credentials cannot be decoded; no fallback or store mutation.",
       "milestones": [
         "M1",
-        "M4.3"
+        "M4.3",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/implementation/018-M4.3-auth-and-keys.md"
+        "compat/README.md"
       ]
     },
     {
       "id": "zcode-mcp-ready",
       "product": "ZCode",
-      "uses": "Native startup readiness log shape",
+      "uses": "Optional native MCP startup logs as diagnostics and bb zcode-report input, without thread warnings; native protocol controls availability",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2671,18 +2765,207 @@
         }
       ],
       "code": [
-        "src/runtime.ts"
+        "src/runtime.ts",
+        "src/problem-report.ts"
       ],
-      "impact": "Native MCP readiness unconfirmed: thread stops; keep original native history.",
+      "impact": "Changed log shape may omit diagnostics, but cannot gate input, produce a thread warning for server failure, or prove connected tools.",
       "milestones": [
         "M1",
         "M4.5",
-        "M4.6.2"
+        "M4.6.2",
+        "M4.9.8b.2b",
+        "M4.9.8b.2c",
+        "M4.9.8c.1b"
       ],
       "sources": [
-        "docs/implementation/012-M1-catalogue-simplification.md",
-        "docs/maintenance/M4.5-touchpoints.md",
-        "docs/maintenance/M4.6.2-touchpoints.md"
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "sdk-skills-configure",
+      "product": "SDK",
+      "uses": "SDK .37 skills/configure roots, pending updates before first dispatch, frozen bb-only metadata after delivery",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "skillsConfigureParamsSchema",
+          "strength": "strong",
+          "reason": "SDK .37 configuration payload schema export in installed bb server; method independently inspected in built-in provider host."
+        }
+      ],
+      "code": [
+        "src/bridge.ts"
+      ],
+      "impact": "bb skills unavailable or configured roots cannot be interpreted.",
+      "milestones": [
+        "M4.9.8c.1",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-skill-instruction-format",
+      "product": "ZCode",
+      "uses": "Full CLI discovery including bundled/plugin roots, canonical-path and effective-name subtraction; native-order bb winners and exact file metadata",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveDefaultSkillRoots",
+          "strength": "strong",
+          "reason": "Descriptive native function name; implementation inspected on 11 October 2026."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "buildSkillsSection",
+          "strength": "strong",
+          "reason": "Native metadata formatter; presence is not proof of deduplication."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/mentions.ts",
+        "src/bb-skills.ts",
+        "src/native-roots.ts"
+      ],
+      "impact": "Duplicate skill metadata or wrong winning file in bb session.",
+      "milestones": [
+        "M4.9.8c.1",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-compaction-active-history",
+      "product": "ZCode",
+      "uses": "Read session/messages after authoritative compact success; reconcile the latest active boundary and optional preserved segment before one frozen-block redelivery",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "compactActiveSessionMessages",
+          "strength": "strong",
+          "reason": "Installed active-history hydration semantics, exercised with native pure functions."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "buildPostCompactRuntimeEntries",
+          "strength": "strong",
+          "reason": "Native compaction preserves context_prefix metadata but drops the injected real_user prefix."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/messages",
+          "strength": "strong",
+          "reason": "Read-only RPC for full message history; active context is derived separately."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "CompactCompleted",
+          "strength": "strong",
+          "reason": "12 October 2026 G4 preparation: auto/manual compact success projection exists; live signal timing and guide delivery remain not proven."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "timelineMarker",
+          "strength": "weak",
+          "reason": "Generic V4 row-kind anchor; auto/success semantics and timing require installed projector review and live requests (12 October 2026)."
+        }
+      ],
+      "code": [
+        "src/session-knowledge.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "12 October 2026 G4 live: V4 auto success is timely, but native drains one guide per response boundary; preceding user guidance defers the full block to main continuation three. No guide reinjection adopted. Ordinary c-1 reconciliation remains the supported restoration path.",
+      "milestones": [
+        "M4.9.8c.1",
+        "M4.9.8c.1a",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-installed-guide",
+      "product": "ZCode",
+      "uses": "Distributed bb provider skill references installed ZCode guide files",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/packages/zcode-guide-plugin/skills/zcode-configuration-guide/SKILL.md",
+          "text": "name: zcode-configuration-guide",
+          "strength": "strong",
+          "reason": "Installed guide file and frontmatter identity, version 0.3.0."
+        }
+      ],
+      "code": [
+        "skills/zcode-provider/SKILL.md"
+      ],
+      "impact": "Provider skill link cannot reach the native configuration guide.",
+      "milestones": [
+        "M4.9.8c.1",
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-oauth-project-token",
+      "product": "ZCode",
+      "uses": "Shared Desktop OAuth sign-in resolves current individual Coding Plan project access tokens before native model requests.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "normalizePolledTokenSet",
+          "strength": "strong",
+          "reason": "Desktop normalizes its stored OAuth token before use; the standalone CLI wrapper is not the shared-store reference."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "async resolveProviderMaterial",
+          "strength": "strong",
+          "reason": "Desktop passes the stored business token directly to ProjectAccessTokenClient."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
+          "text": "clientType:\"zcode\",clientVersion:",
+          "strength": "strong",
+          "reason": "Desktop project-token issuance sends its Desktop build version; final live bodies verify the selected bundle version 3.15.1."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ProjectAccessTokenClient",
+          "strength": "strong",
+          "reason": "Current native OAuth resolution and scoped runtime request authentication; text alone is not live proof."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "expectedAccountScope",
+          "strength": "strong",
+          "reason": "Current native OAuth resolution and scoped runtime request authentication; text alone is not live proof."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "rejectedProjectTokenFingerprint",
+          "strength": "strong",
+          "reason": "Current native OAuth resolution and scoped runtime request authentication; text alone is not live proof."
+        }
+      ],
+      "code": [
+        "src/auth.ts",
+        "src/project-token.ts",
+        "src/bridge.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Shared Desktop sign-in stores a normalized business token; repeating the standalone CLI exchange breaks a valid login. Failed token resolution must not dispatch or resend model input.",
+      "milestones": [
+        "M4.9.8c.1b"
+      ],
+      "sources": [
+        "compat/README.md"
       ]
     }
   ]

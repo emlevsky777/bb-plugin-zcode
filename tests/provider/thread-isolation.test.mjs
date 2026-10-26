@@ -21,28 +21,28 @@ function runtime() {
   r.services.validateSelection = async () => {};
   return { root, r, personalHome, counts: () => ({ reads, discoveries }) };
 }
-test('M46 malformed personal layer warns on actual bridge resume while preserving native identity and ordinary turn', async () => {
+test('O138 shared personal config remains untouched across resume and ordinary turn', async () => {
   const { root, r, personalHome } = runtime();
   try { await harness(r, async (rpc, out) => {
     const start = { threadId: 'm46', cwd: root, instructionMode: 'append', options, disallowedTools: [], dynamicTools: [] };
     const native = (await rpc('thread/start', start)).result.providerThreadId;
     const setup = await r.services.prepare(root, api.executionOptions(options), { threadId: 'm46', providerThreadId: native });
-    const binding = readFileSync(join(setup.launch.env.HOME, 'bb-binding.json'));
-    assert.equal(setup.launch.env.ZCODE_STORAGE_DIR, join(r.root(), 'data'));
+    const binding = readFileSync(join(api.sessionDataDir(r.root(), root, 'm46'), 'bb-binding.json'));
+    assert.equal(setup.launch.env.ZCODE_STORAGE_DIR, undefined);
     assert.equal(setup.launch.env.ZCODE_RUNTIME_ENV, undefined, 'ordinary launch uses ZCode production default');
     assert.equal(setup.launch.env.ZCODE_HTTP_PROXY, undefined);
     assert.equal(setup.launch.env.ZCODE_AGENT_CA_CERT, undefined);
-    assert.equal(setup.launch.env.ZCODE_SESSION_DB_PATH, join(setup.launch.env.HOME, '.zcode/cli/db/db.sqlite'));
+    assert.equal(setup.launch.env.ZCODE_SESSION_DB_PATH, join(api.sessionDataDir(r.root(), root, 'm46'), 'db.sqlite'));
     mkdirSync(join(personalHome, '.zcode/cli'), { recursive: true }); writeFileSync(join(personalHome, '.zcode/cli/config.json'), '{malformed');
     await rpc('thread/stop', { threadId: 'm46', providerThreadId: native, activeTurnId: null, intent: 'release' });
     const resumed = await rpc('thread/resume', { ...start, providerThreadId: native });
     assert.equal(resumed.result.providerThreadId, native);
-    assert.ok(out.some(m => m.params?.deltas?.some(d => d.kind === 'provider.warning' && d.summary.includes('Personal ZCode settings'))));
+    assert.equal(readFileSync(join(personalHome, '.zcode/cli/config.json'), 'utf8'), '{malformed');
     await rpc('turn/start', { threadId: 'm46', providerThreadId: native, clientRequestId: 'creq_2222222222', options,
       input: [{ type: 'text', text: 'ordinary', mentions: [] }] });
     for (let i = 0; i < 800 && !out.some(m => m.params?.deltas?.some(d => d.kind === 'turn.boundary')); i++) await delay(10);
     assert.ok(out.some(m => m.params?.deltas?.some(d => d.kind === 'turn.boundary')));
-    assert.deepEqual(readFileSync(join(setup.launch.env.HOME, 'bb-binding.json')), binding);
+    assert.deepEqual(readFileSync(join(api.sessionDataDir(r.root(), root, 'm46'), 'bb-binding.json')), binding);
   }); } finally { await r.close(); rmSync(root, { recursive: true }); }
 });
 async function harness(r, fn) {
@@ -55,7 +55,7 @@ async function harness(r, fn) {
   try { await fn(rpc, output, bridge); } finally { await bridge.close(); await r.close(); }
 }
 test('actual prepare canonical identity, same-cwd separation, stable resume and clear; pre-auth conflicts/legacy/cwd', async () => {
-  const { root, r, counts } = runtime(), cwd = root;
+  const { root, r, counts, personalHome } = runtime(), cwd = root;
   try {
     for (const id of [undefined, { threadId: '' }, { threadId: ' ' }]) await assert.rejects(r.services.prepare(cwd, api.executionOptions(options), id), /identity/);
     await assert.rejects(r.services.prepare(cwd, api.executionOptions({ ...options, envVars: { BB_THREAD_ID: 'b' } }), { threadId: 'a' }), /conflict/);
@@ -64,8 +64,8 @@ test('actual prepare canonical identity, same-cwd separation, stable resume and 
     const b = await r.services.prepare(cwd, api.executionOptions({ ...options, instructions: 'B_PRIVATE' }), { threadId: 'b' }); b.bindSession('native-b');
     assert.equal(a.launch.env.ZCODE_STORAGE_DIR, b.launch.env.ZCODE_STORAGE_DIR, 'historical decision shared storage; only plugin registration/data use per-thread mode stores');
     assert.notEqual(a.launch.env.ZCODE_SESSION_DB_PATH, b.launch.env.ZCODE_SESSION_DB_PATH);
-    assert.notEqual(a.launch.env.HOME, b.launch.env.HOME); assert.equal(a.launch.env.BB_THREAD_ID, 'a');
-    assert.equal(readFileSync(join(a.launch.env.HOME, '.zcode/AGENTS.md'), 'utf8'), 'A_PRIVATE');
+    assert.equal(a.launch.env.HOME, b.launch.env.HOME); assert.equal(a.launch.env.HOME, personalHome); assert.equal(a.launch.env.BB_THREAD_ID, 'a');
+    assert.equal(existsSync(join(personalHome, '.zcode/AGENTS.md')), false);
     const again = await r.services.prepare(cwd, api.executionOptions(options), { threadId: 'a', providerThreadId: 'native-a' });
     const alias = join(root, 'alias'); symlinkSync(root, alias);
     const aliased = await r.services.prepare(alias, api.executionOptions(options), { threadId: 'a', providerThreadId: 'native-a' });
@@ -73,14 +73,14 @@ test('actual prepare canonical identity, same-cwd separation, stable resume and 
     const other = join(root, 'other'); mkdirSync(other);
     await assert.rejects(r.services.prepare(other, api.executionOptions(options), { threadId: 'a', providerThreadId: 'native-a' }), /binding/);
     assert.equal(again.launch.env.HOME, a.launch.env.HOME); assert.equal(existsSync(join(a.launch.env.HOME, '.zcode/AGENTS.md')), false);
-    assert.equal(readFileSync(join(b.launch.env.HOME, '.zcode/AGENTS.md'), 'utf8'), 'B_PRIVATE');
+    assert.equal(existsSync(join(personalHome, '.zcode/AGENTS.md')), false);
     const before = counts();
     await assert.rejects(r.services.prepare('/different', api.executionOptions(options), { threadId: 'a', providerThreadId: 'native-a' }), /binding/);
     await assert.rejects(r.services.prepare(cwd, api.executionOptions(options), { threadId: 'a', providerThreadId: 'legacy' }), /legacy/);
     await assert.rejects(r.services.prepare(cwd, api.executionOptions(options), { threadId: 'new', providerThreadId: 'legacy' }), /legacy/);
     assert.deepEqual(counts(), before);
     await r.services.models(); // Synthetic child; service HOME and store separate.
-    const homes = readdirSync(join(r.root(), 'catalogue-homes')).map(name => join(r.root(), 'catalogue-homes', name));
+    const homes = readdirSync(join(r.root(), 'services')).map(name => join(r.root(), 'services', name));
     assert.equal(homes.length, 1);
     assert.ok(existsSync(join(homes[0], 'fake-native-sessions.json')));
     assert.equal(existsSync(join(homes[0], '.zcode/AGENTS.md')), false);
@@ -91,10 +91,11 @@ test('actual prepare canonical identity, same-cwd separation, stable resume and 
 test('binding/HOME faults expose recovery action before auth or native startup and preserve original binding bytes', async () => {
   const { root, r, counts } = runtime();
   try {
-    assert.throws(() => api.executionOptions({ ...options, envVars: { HOME: '/manual' } }), /remove the manual HOME override/);
+    const withHome = await r.services.prepare(root, api.executionOptions({ ...options, envVars: { HOME: '/manual' } }), { threadId: 'manual' });
+    assert.equal(withHome.launch.env.HOME, join(root, 'personal'));
     await assert.rejects(r.services.prepare(root, api.executionOptions(options)), /attach from the original bb thread/);
     const setup = await r.services.prepare(root, api.executionOptions(options), { threadId: 'own' });
-    setup.bindSession('native-own'); const file = join(setup.launch.env.HOME, 'bb-binding.json');
+    setup.bindSession('native-own'); const file = join(api.sessionDataDir(r.root(), root, 'own'), 'bb-binding.json');
     const before = counts(); writeFileSync(file, '{', 'utf8');
     await assert.rejects(r.services.prepare(root, api.executionOptions(options), { threadId: 'own', providerThreadId: 'native-own' }), /keep binding\/session\/history files.*reconcile/);
     assert.equal(readFileSync(file, 'utf8'), '{'); assert.deepEqual(counts(), before);
@@ -121,8 +122,8 @@ test('actual handleLine -> prepare: two threads; snapshot env clear/absent, inst
     await rpc('turn/start', turn('a', a, { ...options, envVars: {}, instructions: '' }));
     assert.equal(out.filter(m => m.method === 'session/replaced').length, 1);
     assert.equal(out.find(m => m.method === 'session/replaced').params.contextLost, false);
-    const home = api.sessionHome(r.root(), root, 'a'); assert.equal(existsSync(join(home, '.zcode/AGENTS.md')), false);
-    assert.equal(readFileSync(join(api.sessionHome(r.root(), root, 'b'), '.zcode/AGENTS.md'), 'utf8'), 'OWN_b');
+    const home = api.sessionDataDir(r.root(), root, 'a'); assert.equal(existsSync(join(home, '.zcode/AGENTS.md')), false);
+    assert.equal(existsSync(join(api.sessionDataDir(r.root(), root, 'b'), '.zcode/AGENTS.md')), false);
     const stable = bridge.ownedPids(); await rpc('turn/start', turn('a', a, options)); assert.deepEqual(bridge.ownedPids(), stable);
     const conflict = await rpc('turn/start', turn('a', a, { ...options, envVars: { BB_THREAD_ID: 'b' } }), true); assert.ok(conflict.error);
     const missing = await rpc('thread/start', { ...start('c'), threadId: '' }, true); assert.ok(missing.error);

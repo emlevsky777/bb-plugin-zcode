@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { api } from './helpers.mjs';
 // Native JSON member order is synthetic; not E2's exact raw difference.
 for (const mutation of ['keys', 'clocks', 'text', 'unknown', 'array', 'identity'])
-test('M1 actual bridge retention: ' + mutation, async () => {
+test('M1 actual bridge retention is diagnostic, not a pre-send gate: ' + mutation, async () => {
   const base = resolve(process.env.ZCODE_CONNECTION_TEST_ROOT ?? '.local/implementation-3.2.2.E/offline'); mkdirSync(base, { recursive: true });
   const root = mkdtempSync(join(base, 'retention-')), output = [], evidence = []; let generation = 0, ordinal = 0;
   const options = { permissionMode: 'full', permissionScope: 'full', approvalReviewer: null, permissionEscalation: null, instructions: 'synthetic X' };
@@ -40,13 +40,13 @@ test('M1 actual bridge retention: ' + mutation, async () => {
     const turn = { threadId: 'own', providerThreadId: s.result.providerThreadId, clientRequestId: 'creq_2222222222', options, input: [{ type: 'text', text: 'hello', mentions: [] }] };
     assert.ok((await rpc('turn/start', turn)).result);
     for (let i = 0; i < 200 && !output.some(m => m.params?.deltas?.some(d => d.kind === 'turn.boundary')); i++) await delay(10);
-    const failed = await rpc('turn/start', { ...turn, options: { ...options, instructions: 'synthetic Y' } });
+    const next = await rpc('turn/start', { ...turn, options: { ...options, envVars: { BB_RETENTION_FIXTURE: 'next' } } });
     const preserved = ['keys', 'clocks'].includes(mutation);
-    if (preserved) assert.ok(failed.result); else assert.match(failed.error.message, /Native retention not confirmed/);
+    assert.ok(next.result, JSON.stringify(next));
     const retention = evidence.find(e => e.event === 'replacement-retention'); assert.equal(retention.retained, preserved); assert.equal(retention.beforeRows, retention.afterRows);
     const states = evidence.filter(e => e.event === 'native-state');
-    const after = states.at(-1).rows, before = states.filter(s => s.generation === 1).at(-1).rows;
+    const after = states.find(s => s.generation === 2).rows, before = states.filter(s => s.generation === 1).at(-1).rows;
     if (mutation !== 'identity' && !preserved) assert.deepEqual(after, before, 'sanitized structural equality alone is insufficient');
-    assert.equal(output.filter(m => m.method === 'session/replaced').length, preserved ? 1 : 0);
+    assert.equal(output.filter(m => m.method === 'session/replaced').length, 1);
   } finally { await bridge.close(); rmSync(root, { recursive: true }); }
 });

@@ -8,7 +8,7 @@ import { api } from './helpers.mjs';
 const base = resolve(process.env.ZCODE_CONNECTION_TEST_ROOT ?? '.local/M1/offline');
 mkdirSync(base, { recursive: true });
 const options = { permissionMode: 'full', permissionScope: 'full', approvalReviewer: null, permissionEscalation: null };
-for (const fault of ['bind', 'subscribe', 'ready', 'offGuard', 'trustGrant', 'reject', 'timeout', 'release', 'death'])
+for (const fault of ['bind', 'subscribe', 'ready', 'reject', 'timeout', 'release', 'death'])
 test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
   const root = mkdtempSync(join(base, 'fault-')), builtin = join(root, 'builtin.json');
   writeFileSync(builtin, '{}', 'utf8');
@@ -20,7 +20,7 @@ test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
     configure: async c => {
       child = c; late = c.onMessage; const request = c.request.bind(c);
       c.request = async (method, params) => {
-        if (params?.type === 'createSession') creates++;
+        if (method === 'session/create') creates++;
         if (params?.type === 'sendText') inputs++;
         if (method === 'v4/conversation/subscribe' && fault === 'subscribe') throw Error('synthetic subscribe failure');
         if (params?.type === 'sendText' && fault === 'reject') return { status: 'rejected' };
@@ -35,14 +35,6 @@ test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
     const setup = await prepare(...args);
     if (fault === 'bind') setup.bindSession = () => { throw Error('synthetic bind failure'); };
     if (fault === 'ready') setup.readySession = async () => { throw Error('synthetic native readiness failure'); };
-    if (fault === 'offGuard') setup.readySession = async (c, id) => {
-      const logs = join(root, 'guard-logs'); mkdirSync(logs);
-      writeFileSync(join(logs, 'startup.jsonl'), [
-        { sessionId: id, event: 'bootstrap.app.startup.plugins.completed', context: { hookCount: 1, pluginStorageRoot: '/bypass' } },
-        { sessionId: id, event: 'bootstrap.app.startup.completed' }
-      ].map(JSON.stringify).join('\n'));
-      await api.verifyNativePluginState(logs, c, id, root, '/planned', true, () => {});
-    };
     return setup;
   };
   const bridge = api.createZCodeBridge(runtime.services, m => output.push(m)); let ordinal = 0;
@@ -55,31 +47,32 @@ test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
   try {
     const start = { threadId: 'own-fault', cwd: root, options, instructionMode: 'append' };
     const result = await rpc('thread/start', start);
-    if (['bind', 'subscribe', 'ready', 'offGuard'].includes(fault)) {
+    if (['bind', 'subscribe', 'ready'].includes(fault)) {
       assert.ok(result.error);
       const identity = output.find(m => m.method === 'thread/identity').params.providerThreadId;
       assert.ok(identity); assert.ok(output.some(m => m.method === 'error' && m.params.providerThreadId === identity));
       assert.ok((await rpc('thread/start', start)).error); assert.equal(creates, 1);
-      const binding = JSON.parse(readFileSync(join(api.sessionHome(runtime.root(), root, start.threadId), 'bb-binding.json'), 'utf8'));
+      const binding = JSON.parse(readFileSync(join(api.sessionDataDir(runtime.root(), root, start.threadId), 'bb-binding.json'), 'utf8'));
       assert.equal(fault === 'bind' ? binding.creationPending : binding.nativeSessionId === identity, true);
       await assert.rejects(prepare(root, api.executionOptions(options), { threadId: start.threadId }), /no create fallback/);
       assert.equal(inputs, 0);
     } else {
       assert.ok(result.result, 'attach must succeed before injecting the pending-input timeout');
       const nativeId = result.result.providerThreadId;
-      if (fault === 'trustGrant') {
-        const security = join(runtime.root(), 'data/security');
-        writeFileSync(join(security, 'workspace-hook-trust-v1.json'), JSON.stringify({ schemaVersion: 1, records: [{ grant: true }] }));
-      }
       // Scope this fault to the pending input, not concurrent process startup
       // or the capabilities/subscribe RPCs required to establish the fixture.
       if (fault === 'timeout') globalThis.setTimeout = (fn, ms, ...args) => timer(fn, ms === 60_000 ? 200 : ms, ...args);
       const turn = await rpc('turn/start', { threadId: start.threadId, providerThreadId: nativeId,
         clientRequestId: 'creq_2222222222', options, input: [{ type: 'text', text: '/synthetic-headerless', mentions: [] }] });
-      if (['reject','trustGrant'].includes(fault)) assert.ok(turn.error); else assert.ok(turn.result);
-      if (fault === 'trustGrant') { assert.equal(inputs, 0); assert.equal(await child.close(), 0); return; }
+      if (fault === 'reject') assert.ok(turn.error); else assert.ok(turn.result);
       if (fault === 'release') assert.ok((await rpc('thread/stop', { threadId: start.threadId, providerThreadId: nativeId, intent: 'release', activeTurnId: null })).result);
       if (fault === 'death') { assert.ok(child.nativePid); process.kill(child.nativePid, 'SIGKILL'); }
+      if (fault === 'timeout') {
+        for (let i = 0; i < 150 && !output.some(m => m.method === 'error' && m.params.message.includes('unresolved')); i++) await delay(10);
+        assert.equal(child.child.exitCode, null); assert.equal(inputs, 1);
+        assert.equal(evidence.filter(e => e.event === 'pending-closed').length, 0);
+        assert.ok((await rpc('thread/stop', { threadId: start.threadId, providerThreadId: nativeId, intent: 'release', activeTurnId: null })).result);
+      }
       for (let i = 0; i < 150 && !evidence.some(e => e.event === 'pending-closed'); i++) await delay(10);
       const closure = evidence.filter(e => e.event === 'pending-closed'); assert.equal(closure.length, 1);
       assert.equal(closure[0].outcome, fault === 'reject' ? 'rejected' : 'unknown');

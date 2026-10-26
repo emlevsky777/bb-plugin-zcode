@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {api,plugin} from './helpers.mjs';
 const provider='account:zai-individual-coding-plan';
-function store(identity,key){return JSON.stringify({['account-provider:'+provider+':identity']:identity,
+function store(identity,key){return JSON.stringify({['account-provider:'+provider+':auth-source']:'manual',['account-provider:'+provider+':identity']:identity,
  ['account-provider:coding-plan:'+provider+':account:'+encodeURIComponent(identity)+':api-key']:key});}
 const params={providerId:provider,accountAccess:{type:'zhipu-account',mode:'individual-coding-plan',accountType:'zai',entitled:true},
  modelSelection:{providerId:provider,modelId:'GLM-5.3'},sessionId:'own',reason:'model-request',requestId:'req1',workspace:{workspacePath:'/own',workspaceKey:'/own'}};
@@ -28,13 +28,14 @@ test('CLI rotation and explicit native secret source are fresh, isolated, read-o
   assert.throws(()=>auth.headers({...params,providerId:'zai-api'},'own','/own','GLM-5.3'),e=>e.kind==='unsupported-mode');
  }finally{rmSync(root,{recursive:true});}
 });
-test('declared native settings forward public source/refresh/plugin flags; change re-registers without exposing secret',async()=>{
+test('declared native settings forward per-command source/refresh without registration or secret',async()=>{
  const calls=[];let change;const values={authMode:'cli',catalogueRefresh:0,backupKey:'SYNTHETIC_M43_SECRET'};
  await plugin({settings:{define:descriptors=>{assert.equal(descriptors.backupKey.secret,true);return{get:async()=>values,onChange:fn=>change=fn};}},providers:{register:v=>calls.push(v)}});
  assert.equal(JSON.stringify(calls).includes(values.backupKey),false);
- assert.deepEqual(calls[0].deriveProviderOptions({settings:values}),{authMode:'cli',catalogueRefresh:0,useZCodePlugins:false,useUserMcp:false,providerSubagentsEnabled:true});
- await change({...values,authMode:'coding-plan-key',catalogueRefresh:1});
- assert.deepEqual(calls.at(-1).experimental_bridgeOptions,{authMode:'coding-plan-key',catalogueRefresh:0,useZCodePlugins:false,useUserMcp:false});
+ assert.deepEqual(calls[0].deriveProviderOptions({settings:values}),{authMode:'cli',catalogueRefresh:0,providerSubagentsEnabled:true,memoryEnabled:true});
+ assert.equal(change,undefined);
+ assert.deepEqual(calls[0].deriveProviderOptions({settings:{...values,authMode:'coding-plan-key',catalogueRefresh:1}}),{authMode:'coding-plan-key',catalogueRefresh:1,providerSubagentsEnabled:true,memoryEnabled:true});
+ assert.equal(calls.length,1); assert.equal(calls[0].experimental_bridgeOptions,undefined);
  assert.equal(JSON.stringify(calls).includes(values.backupKey),false);
 });
 test('health checks compatibility once and preserves installation/auth failure guards',async()=>{

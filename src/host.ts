@@ -5,31 +5,21 @@ import { experimental_defineProviderBridge, createBridgeIo } from '@get-bb/plugi
 import { createZCodeBridge } from './bridge.ts';
 import { createNativeServices } from './runtime.ts';
 import { join, dirname, basename } from 'node:path';
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
-import { pluginRootsContract } from './plugin-roots-config.ts';
-import { clearRootsCache } from './native-roots.ts';
+import { experimental_nativeRootsHostContract } from '@get-bb/plugin-sdk/host';
+import type { PluginRpcContract } from '@get-bb/plugin-sdk';
 import { configureZCodeLocation } from './applications.ts';
 export { createZCodeBridge } from './bridge.ts';
 
 assertHostNode();
-// The combined contract retains the native-root SDK validators and adds only
-// our own setting synchronization; core still calls resolveNativeRoots.
-export const experimental_host = experimental_defineHostEntry({ contract: pluginRootsContract,
+// Keep the native-root SDK validators; settings travel per command.
+// SDK .79's exported Zod contract and host StandardSchema failure result
+// declarations differ; retain the original runtime validators unchanged.
+export const experimental_host = experimental_defineHostEntry({ contract: experimental_nativeRootsHostContract as unknown as PluginRpcContract,
   handlers: {
-    setPluginsEnabled(input, context) {
-      const { enabled } = input as { enabled: boolean }, dir = context.experimental_paths.dataDir;
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-      const file = join(dir, 'plugins-enabled.json'), temp = file + '.tmp';
-      writeFileSync(temp, JSON.stringify({ enabled }) + '\n', { encoding: 'utf8', mode: 0o600 }); renameSync(temp, file);
-      clearRootsCache(); return { enabled };
-    },
     resolveNativeRoots(input, context) {
       configureZCodeLocation(join(context.experimental_paths.dataDir, 'zcode'));
-      let enabled = false;
-      try { enabled = JSON.parse(readFileSync(join(context.experimental_paths.dataDir, 'plugins-enabled.json'), 'utf8')).enabled === true; }
-      catch { /* Optional menu layer fails closed. */ }
       return resolveNativeRootsCached((input as { cwd: string | null }).cwd,
-        join(context.experimental_paths.dataDir, 'native-roots'), context.signal, undefined, enabled);
+        join(context.experimental_paths.dataDir, 'native-roots'), context.signal);
     }
   } });
 export default experimental_host;

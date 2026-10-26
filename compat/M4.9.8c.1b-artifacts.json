@@ -1,0 +1,97 @@
+{
+  "at": "2026-10-25T18:04:55.856Z",
+  "scope": "Installed code/declarations only; no user state or credentials",
+  "files": [
+    {
+      "product": "bb",
+      "path": "Contents/Resources/app.asar/node_modules/bb-app/package.json",
+      "size": 2735,
+      "mode": "644",
+      "sha256": "466055f490e9594140177b76fab95980d2baabf132957fd40a2eade8884d166a"
+    },
+    {
+      "product": "bb",
+      "path": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+      "size": 8496290,
+      "mode": "644",
+      "sha256": "7107e7dc8f5ddc377a3fc74d669d7899b3b41bc53d516edb185acc007d2ff77b"
+    },
+    {
+      "product": "bb",
+      "path": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js.map",
+      "size": 16070753,
+      "mode": "644",
+      "sha256": "da3e09db508e59944e50e05ebf5b20ca220aae51648c71a006852eed0c156b89"
+    },
+    {
+      "product": "bb",
+      "path": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+      "size": 602905,
+      "mode": "644",
+      "sha256": "00ae179cbf018b6803b43c9c54ed90947f8c175f94f6f7ea25b073d60db3f644"
+    },
+    {
+      "product": "bb",
+      "path": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-claude-code/dist/host.js",
+      "size": 2159957,
+      "mode": "644",
+      "sha256": "bf624bdd69f04219d55fc7ac8ad11a0a86c2c63c49ca6f929fd7c893a99fdb32"
+    },
+    {
+      "product": "ZCode",
+      "path": "Contents/Resources/app.asar/out/host/index.js",
+      "size": 1678223,
+      "mode": "644",
+      "sha256": "3fc3c5b286d7871e87f257eb09ab8e7165e8705307c2ee6cb66b687cd4c7f4bc"
+    },
+    {
+      "product": "ZCode",
+      "path": "Contents/Resources/glm/zcode.cjs",
+      "size": 15126820,
+      "mode": "755",
+      "sha256": "b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e"
+    },
+    {
+      "product": "ZCode",
+      "path": "Contents/Resources/config/provider/zcode-builtin.json",
+      "size": 184963,
+      "mode": "644",
+      "sha256": "18f80aed398652090bb23f50b11f23c321b23590395b3e4af9494f6f0eca00c6"
+    },
+    {
+      "product": "sdk",
+      "path": "node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk.d.ts",
+      "size": 1130344,
+      "mode": "644",
+      "sha256": "7e9d7dbd1b0f2f88cf576559c6d90b367a636121346f8bc30cea0a19d4b2a50e"
+    },
+    {
+      "product": "sdk",
+      "path": "node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk-host.d.ts",
+      "size": 29571,
+      "mode": "644",
+      "sha256": "62ca8b7daaf6c914a0bb67b8dd0d59092176f64f0488bbbe17fac71af6485f52"
+    },
+    {
+      "product": "sdk",
+      "path": "node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk-provider-bridge.d.ts",
+      "size": 218587,
+      "mode": "644",
+      "sha256": "7ebe8f7c7ea2040ffcaab8973607a7fa4fe249d0dd53d8ecad94e602baecc7af"
+    },
+    {
+      "product": "sdk",
+      "path": "node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk-testing.d.ts",
+      "size": 74248,
+      "mode": "644",
+      "sha256": "38f7df7632ab75f6b776f47af95d41c39160cadb5e04d9d8dc503f7fb7460c74"
+    },
+    {
+      "product": "ZCode",
+      "path": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
+      "size": 823893,
+      "mode": "644",
+      "sha256": "b052a71d50d597aeff4a2f537870cde2a1e2d18495b7de8fa99a09647b92bafd"
+    }
+  ]
+}

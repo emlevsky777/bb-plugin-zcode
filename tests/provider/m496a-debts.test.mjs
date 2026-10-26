@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { homedir } from 'node:os';
 import { api, artifact } from './helpers.mjs';
-const { redactHomePath, formatProblemReport } = await import(artifact ? '../../dist/problem-report.js' : '../../src/problem-report.ts');
+const { redactHomePath, formatProblemReport } = await (artifact ? import('../../dist/problem-report.js') : import('../../src/problem-report.ts'));
 
 test('M496a Desktop version reads XML and actual binary plist; unavailable remains unknown', () => {
   const root = mkdtempSync('/tmp/m496a-plist-'), file = join(root, 'Info.plist');
@@ -27,21 +27,21 @@ test('M496a report hides home in Applications paths without replacing sibling pr
   assert.equal(redactHomePath(null, '/home/private'), null);
   const output = formatProblemReport({ bb: null, ZCode: null, CLI: null, plugin: '0.0.0', macOS: 'unknown',
     state: 'installed', ZCodePath: join(homedir(), 'Applications/ZCode.app'), cliLogin: 'not set', events: [] }, {});
-  assert.match(output, /"ZCodePath": "~\/Applications\/ZCode.app"/);
+  assert.equal(output.includes('ZCodePath'), false);
   assert.equal(output.includes(homedir()), false);
 });
 
-test('M496a unknown optional effort is hidden; unsupported default excludes only its model', () => {
+test('SDK .79 preserves native effort identifiers and their selected default', () => {
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/m441-catalogue.json', import.meta.url), 'utf8'));
   const normal = structuredClone(fixture.models[0]), extra = structuredClone(fixture.models[1]);
   extra.reasoning.levels.push({ value: 'native-future' });
   const mapped = api.mapNativeModels([normal, extra], fixture.nativeDefault);
   assert.equal(mapped.length, 2);
-  assert.ok(mapped.every(m => m.supportedReasoningEfforts.every(e => e.reasoningEffort !== 'native-future')));
+  assert.ok(mapped[1].supportedReasoningEfforts.some(e => e.reasoningEffort === 'native-future'));
   assert.equal(mapped[1].defaultReasoningEffort, extra.reasoning.defaultLevel);
   extra.reasoning.defaultLevel = 'native-future';
-  assert.deepEqual(api.mapNativeModels([normal, extra], fixture.nativeDefault).map(m => m.id), [normal.ref.modelId]);
-  assert.throws(() => api.mapNativeModels([extra], extra.ref), /default reasoning unsupported by bb SDK/);
+  assert.deepEqual(api.mapNativeModels([normal, extra], fixture.nativeDefault).map(m => m.id), [normal.ref.modelId, extra.ref.modelId]);
+  assert.equal(api.mapNativeModels([extra], extra.ref)[0].defaultReasoningEffort, 'native-future');
 });
 
 test('M496a mention CLI once per native session; resume/config replacement reload; stale file fails locally', async () => {

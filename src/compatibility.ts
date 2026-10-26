@@ -5,7 +5,7 @@ import { bbBundle } from './applications.ts';
 
 export interface CompatibilityTuple {
   bb: string | null; installedSdk: string | null; declaredSdk: string;
-  desktop: string | null; cli: string | null; runtimeSha256: string | null;
+  desktop: string | null; cli: string | null; runtimeSha256: string | null; builtinSha256: string | null;
   bbArtifactSha256: string | null; sdkArtifactSha256: string | null;
   platform: string; arch: string; node: string;
 }
@@ -34,30 +34,32 @@ export function createFileIdentityCache<T>(files: readonly string[], load: () =>
 const bbRoot = `${bbBundle() ?? '/bb-not-found.app'}/Contents/Resources/app.asar/node_modules/bb-app`;
 export function compatibilityFiles(paths: { executable: string; script: string }) { return [`${bbBundle() ?? '/bb-not-found.app'}/Contents/Resources/app.asar`, bbRoot + '/package.json', bbRoot + '/server/dist/start-server.js',
   paths.script.replace('/Contents/Resources/glm/zcode.cjs', '/Contents/Info.plist'),
-  paths.executable.replace('/Contents/MacOS/ZCode Helper', '/Contents/Info.plist')]; }
-// Published after the recognized M4.2 audit.
-// M4.9.1 tuple is authorized by the owner-launched contract and its live checks.
+  paths.executable.replace('/Contents/MacOS/ZCode Helper', '/Contents/Info.plist'),
+  paths.script.replace('/glm/zcode.cjs', '/config/provider/zcode-builtin.json')]; }
+export const compatibilityReference = {
+  "bb": "0.47.1",
+  "installedSdk": "0.6.79",
+  "declaredSdk": "0.6.79",
+  "desktop": "3.15.1",
+  "cli": "0.16.9",
+  "runtimeSha256": "b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e",
+  "builtinSha256": "18f80aed398652090bb23f50b11f23c321b23590395b3e4af9494f6f0eca00c6",
+  "bbArtifactSha256": "466055f490e9594140177b76fab95980d2baabf132957fd40a2eade8884d166a",
+  "sdkArtifactSha256": "7107e7dc8f5ddc377a3fc74d669d7899b3b41bc53d516edb185acc007d2ff77b",
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "24.22.0",
+  "level": "level1",
+  "evidenceRef": "README.md#compatibility"
+};
+// Owner accepted audit 2 and the blank-page Notion read on 26 October 2026.
 export const checkedTuples: readonly CheckedTuple[] = [{
-  tuple: { bb: '0.45.0', installedSdk: '0.6.15', declaredSdk: '0.5.29', desktop: '3.14.4', cli: '0.16.9',
-    runtimeSha256: 'fad4c35c4c36ec210d8a06d3fa0e77de23c8545e2eb6ff90aea1eb38d1e6275f',
-    bbArtifactSha256: '71ceb2d68cdc5686747ef6cd0917559a42bd71aee4c29fc44f749db626a09719',
-    sdkArtifactSha256: 'db0cad113c6ef945a900b958bb0d836e2501d674f925c13f8e8b5e43e2a45228',
-    platform: 'darwin', arch: 'arm64', node: '24.20.0' },
-  pluginRevision: '2c67304a137e321d541200c238b21dbc98272fac', resultRef: 'M4.2-owner-closure-20261006',
-  evidenceRef: 'traces/sanitized/M4.2/final4.json', level: 'level1',
-}, {
-  tuple: { bb: '0.45.0', installedSdk: '0.6.15', declaredSdk: '0.6.15', desktop: '3.14.4', cli: '0.16.9',
-    runtimeSha256: 'fad4c35c4c36ec210d8a06d3fa0e77de23c8545e2eb6ff90aea1eb38d1e6275f',
-    bbArtifactSha256: '71ceb2d68cdc5686747ef6cd0917559a42bd71aee4c29fc44f749db626a09719',
-    sdkArtifactSha256: 'db0cad113c6ef945a900b958bb0d836e2501d674f925c13f8e8b5e43e2a45228',
-    platform: 'darwin', arch: 'arm64', node: '24.20.0' },
-  pluginRevision: 'M4.9.1', resultRef: 'M4.9.1-sdk-20261009',
-  evidenceRef: 'docs/implementation/032-M4.9.1-sdk.md', level: 'level1',
+  tuple: compatibilityReference,
+  pluginRevision: 'c65a1db',
+  resultRef: 'README.md#compatibility',
+  evidenceRef: 'compat/M4.9.8c.1b-artifacts.json',
+  level: 'level1',
 }];
-export const compatibilityReference = { bb: '0.45.0', installedSdk: '0.6.15', declaredSdk: '0.6.15',
-  desktop: '3.14.4', cli: '0.16.9', runtimeSha256: 'fad4c35c4c36ec210d8a06d3fa0e77de23c8545e2eb6ff90aea1eb38d1e6275f',
-  resultRef: 'M4.9.1-sdk-20261009', evidenceRef: 'docs/implementation/032-M4.9.1-sdk.md',
-  pluginRevision: 'M4.9.1', level: 'level1' };
 const version = (v: unknown): string | null => typeof v === 'string' && /^\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/.test(v) ? v : null;
 export function desktopVersion(file: string): string | null {
   try {
@@ -88,6 +90,6 @@ export function discoverCompatibility(paths: { executable: string; script: strin
   const cli = version(safe(() => execFileSync(paths.executable, [paths.script, '--version'], {
     env: { PATH: process.env.PATH, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8', timeout: 3000, maxBuffer: 4096, stdio: ['ignore', 'pipe', 'ignore'],
   }).trim().replace(/^zcode\s+/i, '')));
-  return { bb, installedSdk, declaredSdk: '0.6.15', desktop, cli, runtimeSha256,
+  return { bb, installedSdk, declaredSdk: '0.6.79', desktop, cli, runtimeSha256, builtinSha256: sha(safe(() => readFileSync(compatibilityFiles(paths)[5]!))),
     bbArtifactSha256: sha(bbPackage), sdkArtifactSha256: sha(sdkArtifact), platform: process.platform, arch: process.arch, node: process.versions.node };
 }

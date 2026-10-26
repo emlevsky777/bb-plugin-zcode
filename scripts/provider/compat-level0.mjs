@@ -22,7 +22,7 @@ export function validateRegistry(value) {
     if (!text(p.id) || !/^[a-z][a-z0-9-]+$/.test(p.id) || ids.has(p.id)) fail('duplicate/invalid id'); ids.add(p.id);
     if (!['bb', 'SDK', 'ZCode'].includes(p.product) || !text(p.uses) || !text(p.impact)) fail(p.id + ' product/description');
     for (const name of ['code', 'milestones', 'sources']) if (!Array.isArray(p[name]) || !p[name].length || !p[name].every(text) || new Set(p[name]).size !== p[name].length) fail(p.id + ' ' + name);
-    if (!p.code.every(safePath) || !p.sources.every(safePath) || !p.milestones.every(v => /^M\d[\d.ab]*$/.test(v))) fail(p.id + ' paths/milestones');
+    if (!p.code.every(safePath) || !p.sources.every(safePath) || !p.milestones.every(v => /^M\d[\d.a-z]*$/.test(v))) fail(p.id + ' paths/milestones');
     if (!Array.isArray(p.anchors) || !p.anchors.length) fail(p.id + ' anchors');
     for (const a of p.anchors) {
       exact(a, ['file', 'text', 'strength', 'reason'], p.id + ' anchor');

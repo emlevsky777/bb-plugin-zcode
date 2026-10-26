@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import '../../scripts/provider/guard.mjs';
 export const artifact = process.env.ZCODE_TEST_ARTIFACT === '1';
-export const api = await import(artifact ? '../../dist/index.js' : '../../src/index.ts');
-export const host = await import(artifact ? '../../dist/host.js' : '../../src/host.ts');
-export const plugin = (await import(artifact ? '../../dist/plugin.js' : '../../src/plugin.ts')).default;
+export const api = await (artifact ? import('../../dist/index.js') : import('../../src/index.ts'));
+export const host = await (artifact ? import('../../dist/host.js') : import('../../src/host.ts'));
+export const plugin = (await (artifact ? import('../../dist/plugin.js') : import('../../src/plugin.ts'))).default;
 export const accepted = JSON.parse(readFileSync(new URL('./fixtures/accepted-write.json', import.meta.url), 'utf8')).frame;
 export function snapshot(rows = [], epoch = 'epoch1') {
   return { logEpoch: epoch, rows: { window: structuredClone(rows), totalCount: rows.length, firstRowId: rows[0]?.rowId ?? null } };

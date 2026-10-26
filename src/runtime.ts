@@ -1,10 +1,7 @@
-import { existsSync, readFileSync, mkdirSync, copyFileSync, writeFileSync, readdirSync, appendFileSync, unlinkSync, realpathSync, renameSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync, appendFileSync, unlinkSync, realpathSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { preparePersonalSettings } from './personal-settings.ts';
-import { readUserPlugins, applyUserPlugins, optionalUserPlugins } from './user-plugins.ts';
-import { assertEmptyWorkspaceTrust, assertOffPluginCatalogue, assertOfficialLaunchIsolation } from './plugin-isolation.ts';
 import { resolve, join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -18,80 +15,57 @@ import { observerEnvironment } from './observer.ts';
 import { runtimePreferences } from './bridge.ts';
 import type { BridgeServices, RuntimeSetup } from './bridge.ts';
 import type { executionOptions } from './options.ts';
-import { discoverCompatibility, compareCompatibility, createFileIdentityCache, compatibilityFiles, fileIdentity } from './compatibility.ts';
-import { nativePaths, loginCommand, signInHint, configureZCodeLocation, resolveZCode } from './applications.ts';
+import { discoverCompatibility, compareCompatibility, createFileIdentityCache, compatibilityFiles, fileIdentity, desktopVersion } from './compatibility.ts';
+import { nativePaths, signInHint, configureZCodeLocation, resolveZCode } from './applications.ts';
 import { claimNotice, diagnosticNoticeName } from './messages.ts';
+import { desktopMemoryEnabled } from './desktop-memory.ts';
 export { nativePaths } from './applications.ts';
 // Match Desktop's installed host/CLI executable identity. The main executable
 // registers CLI/MCP children as dev.zcode.app/Foreground in LaunchServices.
 // The supplied helper is dev.zcode.app.helper/UIElement (Desktop 3.14.4).
 // A missing helper is an installation error; never fall back to the main app.
-export const supportedRuntimeSha = 'fad4c35c4c36ec210d8a06d3fa0e77de23c8545e2eb6ff90aea1eb38d1e6275f';
+export const supportedRuntimeSha = 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e';
 export async function waitNativeMcpReady(logs: string, child: NativeProcess, id: string,
-  observe: (value: Record<string, unknown>) => void, timeout = 20_000, disabledServerCount = 0): Promise<void> {
-  if (!Number.isSafeInteger(disabledServerCount) || disabledServerCount < 0) throw Error('Invalid planned MCP exclusions');
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    if (child.child.exitCode !== null || child.child.signalCode !== null) throw new Error('Native startup died before MCP readiness');
-    for (const file of readdirSync(logs).filter(f => f.endsWith('.jsonl'))) for (const line of readFileSync(join(logs, file), 'utf8').split('\n').filter(Boolean)) {
+  observe: (value: Record<string, unknown>) => void, timeout = 20_000): Promise<string | undefined> {
+  // Logs are optional diagnostics, never a readiness gate before native input.
+  void timeout;
+  if (child.child.exitCode !== null || child.child.signalCode !== null) throw new Error('Native startup died before MCP readiness');
+  let files: string[];
+  try { files = readdirSync(logs).filter(f => f.endsWith('.jsonl')); } catch { files = []; }
+  for (const file of files) {
+    let text: string;
+    try { text = readFileSync(join(logs, file), 'utf8'); } catch { continue; }
+    for (const line of text.split('\n').filter(Boolean)) {
       let event: Record<string, unknown>;
       try { event = record(JSON.parse(line)); } catch { continue; }
       if (event.sessionId !== id) continue;
-      if (event.event === 'mcp.startup.failed') throw new Error('Native MCP startup failed; reconcile configured MCP services, then attach the original bb thread again. Keep native ID, HOME and history.');
+      if (event.event === 'mcp.startup.failed') {
+        observe({ event: 'native-mcp-degraded', sessionId: id, generation: child.generation });
+        continue;
+      }
       if (event.event !== 'mcp.startup.completed') continue;
-      const context = record(event.context), counts = record(context.statusCounts);
+      let context: Record<string, unknown>, counts: Record<string, unknown>;
+      try { context = record(event.context); counts = record(context.statusCounts); } catch { continue; }
       if (!Number.isSafeInteger(context.serverCount) || Number(context.serverCount) < 0 ||
-          !Number.isSafeInteger(counts.connected ?? 0) || !Number.isSafeInteger(counts.disabled ?? 0) ||
-          (counts.disabled ?? 0) !== disabledServerCount ||
-          Number(counts.connected ?? 0) + disabledServerCount !== context.serverCount ||
-          Object.entries(counts).some(([name, count]) => !['connected', 'disabled'].includes(name) && count !== 0))
-        throw new Error('Native MCP readiness unconfirmed; reconcile configured MCP services before attaching the original bb thread again. Keep native ID, HOME and history.');
-      observe({ event: 'native-session-ready', sessionId: id, pid: child.child.pid,
-        generation: child.generation, serverCount: context.serverCount, connected: counts.connected ?? 0,
-        ...(disabledServerCount ? { disabled: disabledServerCount } : {}) });
+          Object.values(counts).some(count => !Number.isSafeInteger(count) || Number(count) < 0) ||
+          Object.values(counts).reduce<number>((sum, count) => sum + Number(count), 0) !== context.serverCount) {
+        observe({ event: 'native-mcp-log-incomplete', sessionId: id, generation: child.generation });
+        continue;
+      }
+      observe({ event: 'native-mcp-startup-observed', sessionId: id, generation: child.generation,
+        serverCount: context.serverCount, connected: counts.connected ?? 0, disabled: counts.disabled ?? 0, failed: counts.failed ?? 0 });
+      if (Number(counts.failed ?? 0) > 0) observe({ event: 'native-mcp-degraded', sessionId: id, generation: child.generation });
       return;
     }
-    await delay(20);
   }
-  throw new Error('Native MCP startup readiness timed out; reconcile before retry');
+  observe({ event: 'native-mcp-pending', sessionId: id, generation: child.generation });
+  return;
 }
-export async function verifyNativePluginState(logs: string, child: NativeProcess, id: string, cwd: string,
-  pluginStore: string, off: boolean, observe: (value: Record<string, unknown>) => void, timeout = 20_000) {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    if (child.child.exitCode !== null || child.child.signalCode !== null) throw Error('ZCode plugin startup died; thread stopped before input');
-    let completed = false, plugins: Record<string, unknown> | undefined;
-    for (const file of readdirSync(logs).filter(f => f.endsWith('.jsonl'))) for (const line of readFileSync(join(logs, file), 'utf8').split('\n').filter(Boolean)) {
-      let event: Record<string, unknown>;
-      try { event = record(JSON.parse(line)); } catch { continue; }
-      if (event.sessionId !== id) continue;
-      if (event.event === 'bootstrap.app.startup.completed') completed = true;
-      if (event.event === 'bootstrap.app.startup.plugins.completed') plugins = record(event.context);
-    }
-    if (completed && plugins) {
-      if (plugins.pluginStorageRoot !== pluginStore || !Number.isSafeInteger(plugins.hookCount) || Number(plugins.hookCount) < 0 || (off && plugins.hookCount !== 0))
-        throw Error('ZCode plugin storage or OFF hooks disagree with the isolation plan; thread stopped before input');
-      const catalogue = await child.request('plugins/referenceCatalog', { sessionId: id, workspace: { workspacePath: cwd, workspaceKey: cwd } });
-      if (off) assertOffPluginCatalogue(catalogue);
-      observe({ event: 'native-plugin-guard', sessionId: id, generation: child.generation, mode: off ? 'off' : 'on',
-        pluginStorageRoot: plugins.pluginStorageRoot, hookCount: plugins.hookCount, catalogue });
-      return catalogue;
-    }
-    await delay(20);
-  }
-  throw Error('ZCode plugin loaded state is unavailable; thread stopped before input');
-}
-export function writeSessionInstructions(ownHome: string, instructions: string) {
-  const file = join(ownHome, '.zcode/AGENTS.md');
-  if (!instructions) { if (existsSync(file)) unlinkSync(file); return; }
-  mkdirSync(join(ownHome, '.zcode'), { recursive: true, mode: 0o700 });
-  writeFileSync(file, instructions, { encoding: 'utf8', mode: 0o600 });
-}
-export function sessionHome(root: string, _cwd: string, threadId: string) {
-  // Native session disk state also lives under HOME. Preserve it across process
-  // replacement while keeping instructions isolated between bb threads.
+
+export function sessionDataDir(root: string, _cwd: string, threadId: string) {
+  // Stable own session data; never a process HOME or legacy-path fallback.
   if (!threadId || !threadId.trim()) throw new Error('Canonical thread identity required');
-  return join(root, 'thread-homes-v2', createHash('sha256').update(threadId).digest('hex'));
+  return join(root, 'sessions', encodeURIComponent(threadId));
 }
 let cachedDiscovery: (() => { installed: boolean; supported: boolean; sha256: string | null; version: string | null; tuple?: ReturnType<typeof discoverCompatibility> }) | undefined;
 let discoveryPaths = '';
@@ -221,8 +195,6 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       evidence({ event: 'catalogue-shared-cache-hit' }, loadRoot);
       return { models: normalized };
       } catch (error) {
-        if (error instanceof Error && error.message === 'Catalogue cache inaccessible')
-          throw new Error('Catalogue cache inaccessible; restore access to provider data directory and restart provider. Keep sessions/history.');
         invalid = 'invalid-public-cache'; return;
       }
     };
@@ -237,8 +209,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       writeFileSync(temp, JSON.stringify({ scope, catalogue: value }), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
       renameSync(temp, file);
     } catch {
-      throw new Error('Catalogue cache publication failed; restore access to provider data directory and restart provider. Keep sessions/history.');
-    } finally { if (existsSync(temp)) unlinkSync(temp); }
+      evidence({ event: 'catalogue-cache-write-skipped' }, loadRoot);
+    } finally { try { if (existsSync(temp)) unlinkSync(temp); } catch { /* Optional cache cleanup. */ } }
     return value;
   }
   async function prepare(cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }, service = false, serviceMode: AuthMode = 'cli'): Promise<RuntimeSetup> {
@@ -249,8 +221,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     if (!service && execution?.envVars.BB_THREAD_ID !== undefined && execution.envVars.BB_THREAD_ID !== threadId)
       throw new Error('Environment thread identity conflict; remove manual BB_THREAD_ID override and attach from the original bb thread.');
     try { cwd = realpathSync(cwd); } catch { throw new Error('Workspace binding path unavailable; restore original workspace directory and attach again. Keep session/history files.'); }
-    const ownHome = service ? join(root, 'catalogue-homes', randomUUID()) : sessionHome(root, cwd, threadId!);
-    const bindingFile = join(ownHome, 'bb-binding.json');
+    const sessionDir = service ? join(root, 'services', randomUUID()) : sessionDataDir(root, cwd, threadId!);
+    const bindingFile = join(sessionDir, 'bb-binding.json');
     let binding: Record<string, unknown> | null;
     try { binding = existsSync(bindingFile) ? record(JSON.parse(readFileSync(bindingFile, 'utf8'))) : null; }
     catch { throw new Error('Native binding unreadable; keep binding/session/history files and ask the provider maintainer to reconcile the original native identity before attach.'); }
@@ -267,50 +239,25 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     let builtinRevision: string | null = null;
     const generationRoot = join(root, 'generations', randomUUID()), logs = join(generationRoot, 'logs');
     const dataRoot = join(root, 'data');
-    for (const dir of [root, dataRoot, ownHome, logs]) mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const personalLayer = service ? undefined : preparePersonalSettings(ownHome, dataRoot, cwd, dependencies.personalHome ?? homedir());
-    let pluginPreload: string | undefined, disabledServerCount = 0, pluginStore: string | undefined, pluginsOff = true;
-    if (service) {
-      mkdirSync(join(ownHome, '.zcode/cli'), { recursive: true, mode: 0o700 });
-      writeFileSync(join(ownHome, '.zcode/cli/config.json'), JSON.stringify({ storage: { dir: dataRoot }, hooks: { enabled: false }, memory: { use: false } }), { mode: 0o600 });
-      const plan = applyUserPlugins(ownHome, dataRoot, cwd, false);
-      pluginPreload = plan.preload;
-    } else {
-      const { enabled, plugins } = await optionalUserPlugins(execution?.useZCodePlugins === true,
-        () => readUserPlugins(cwd, paths, dependencies.personalHome ?? homedir(), undefined, value => evidence(value, operationRoot)), personalLayer!.warnings);
-      const pluginPlan = applyUserPlugins(ownHome, dataRoot, cwd, enabled, plugins, execution?.providerSubagentsEnabled !== false);
-      pluginPreload = pluginPlan.preload; disabledServerCount = pluginPlan.disabledServerCount;
-      pluginStore = pluginPlan.pluginStore; pluginsOff = !enabled;
-      assertEmptyWorkspaceTrust(ownHome, dataRoot);
-    }
-    writeSessionInstructions(ownHome, execution?.instructions ?? '');
-    if (!service && personalLayer) {
-      const config = { ...record(JSON.parse(readFileSync(personalLayer.configPath, 'utf8'))),
-        features: { subagent: execution?.providerSubagentsEnabled !== false } };
-      writeFileSync(personalLayer.configPath, JSON.stringify(config) + '\n', { mode: 0o600 });
-      evidence({ event: 'subagent-setting', threadId, enabled: execution?.providerSubagentsEnabled !== false }, operationRoot);
-    }
+    for (const dir of [root, dataRoot, sessionDir, logs]) mkdirSync(dir, { recursive: true, mode: 0o700 });
     if (!service && !binding) writeFileSync(bindingFile, JSON.stringify({ threadId, cwd: resolve(cwd), nativeSessionId: null }), { encoding: 'utf8', mode: 0o600 });
-    const builtin = join(dataRoot, 'zcode-builtin.json'), personal = join(dataRoot, 'provider-config.json');
-    if (!existsSync(builtin)) copyFileSync(paths.builtin, builtin);
-    if (!existsSync(personal)) writeFileSync(personal, JSON.stringify({ schemaVersion: 1, revision: 'bb-zcode-empty', config: { providerConfigRules: { providerRules: [] } } }), { encoding: 'utf8', mode: 0o600 });
-    const own: NodeJS.ProcessEnv = { HOME: ownHome, TMPDIR: '.', ELECTRON_RUN_AS_NODE: '1', ZCODE_DATA_BASE_DIR: dataRoot, ZCODE_LOG_DIR: logs, ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: builtin, ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE: paths.builtin, ZCODE_PERSONAL_PROVIDER_CONFIG_FILE: personal };
+    // Desktop 3.14.4 packages the builtin outside CLI's fallback search paths.
+    // Supply only its installed location. CLI startup then resolves the active
+    // native revision and Desktop personal config; read both in place.
+    const own: NodeJS.ProcessEnv = { HOME: dependencies.personalHome ?? homedir(), ELECTRON_RUN_AS_NODE: '1', ZCODE_LOG_DIR: logs, ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: paths.builtin };
     const observer = join(root, 'observer.json');
-    own.ZCODE_STORAGE_DIR = dataRoot;
-    own.ZCODE_SESSION_DB_PATH = join(ownHome, '.zcode/cli/db/db.sqlite');
+    own.ZCODE_SESSION_DB_PATH = join(sessionDir, 'db.sqlite');
     Object.assign(own, observerEnvironment(root));
-    const warnings = personalLayer?.warnings ?? [];
-    const launchEnv = { ...childEnvironment(process.env, own), ...execution?.envVars, ...(!service ? { BB_THREAD_ID: threadId } : {}) };
-    return { warnings, auth: sessionAuth, mentionCatalogue: service ? undefined : async side => {
+    const warnings: string[] = [];
+    const launchEnv = { ...childEnvironment({ ...process.env, ...execution?.envVars }, own), ...(!service ? { BB_THREAD_ID: threadId } : {}) };
+    sessionAuth.setNetworkEnvironment(launchEnv, desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown');
+    return { warnings, auth: sessionAuth, knowledgeStore: service ? undefined : join(sessionDir, 'bb-session-knowledge.json'), backgroundTaskStore: service ? undefined : join(sessionDir, 'bb-background-tasks.json'), mentionCatalogue: service ? undefined : async side => {
       try {
         const { stdout } = await promisify(execFile)(paths.executable,
-          [...(pluginPreload ? ['--require', pluginPreload] : []), paths.script, '--json', side, 'list'],
+          [paths.script, '--json', side, 'list'],
           { cwd, env: launchEnv, timeout: 20_000, maxBuffer: 4 * 1024 * 1024, encoding: 'utf8' });
         return JSON.parse(stdout) as unknown;
       } catch { throw Error('Native mention catalogue unavailable. Ordinary messages are still available.'); }
-    }, beforeInput: service ? undefined : async () => {
-      const trust = assertEmptyWorkspaceTrust(ownHome, dataRoot);
-      evidence({ event: 'workspace-hook-trust-guard', records: trust.records, present: trust.present }, operationRoot);
     }, refreshAuth: async child => {
       if (dependencies.configure) { sessionAuth.read('refresh'); return; }
       if (!builtinRevision) throw new Error('Runtime builtin revision unavailable; no auth refresh');
@@ -322,16 +269,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       writeFileSync(bindingFile, JSON.stringify({ threadId, cwd: resolve(cwd), nativeSessionId }), { encoding: 'utf8', mode: 0o600 });
     }, readySession: async (child, id) => {
       if (dependencies.configure) return; // Explicit injected offline setup.
-      await waitNativeMcpReady(logs, child, id, value => evidence(value, operationRoot), 20_000, disabledServerCount);
-      if (pluginStore) {
-        const catalogue = await verifyNativePluginState(logs, child, id, cwd, pluginStore, pluginsOff, value => evidence(value, operationRoot));
-        const isolation = assertOfficialLaunchIsolation(pluginStore, pluginPreload!, catalogue);
-        evidence({ event: 'official-plugin-launch-guard', sessionId: id, ...isolation }, operationRoot);
-        if (isolation.warning) warnings.push(isolation.warning);
-        const trust = assertEmptyWorkspaceTrust(ownHome, dataRoot);
-        evidence({ event: 'workspace-hook-trust-guard', sessionId: id, records: trust.records, present: trust.present }, operationRoot);
-      }
-    }, launch: { executable: paths.executable, args: [...(pluginPreload ? ['--require', pluginPreload] : []), paths.script, 'app-server', '--stdio', '--surface', 'desktop'], cwd,
+      await waitNativeMcpReady(logs, child, id, value => evidence(value, operationRoot));
+    }, launch: { executable: paths.executable, args: [paths.script, 'app-server', '--stdio', '--surface', 'desktop'], cwd,
       onMissingFiles: dependencies.paths ? undefined : () => { resolveZCode(true); },
       env: launchEnv }, configure: async child => {
       children.add(child);
@@ -373,17 +312,18 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     },
     claimDiagnostic: (threadId, code) => claimNotice(root, diagnosticNoticeName(threadId, code), code),
     observe: evidence,
+    memoryEnabled: () => desktopMemoryEnabled(dependencies.personalHome),
     prepare,
     async health(mode = 'cli') {
       const d = detect(), paths = getPaths(); let status: 'not_installed' | 'ready' | 'unauthenticated' | 'unknown' = !d.installed ? 'not_installed' : 'ready';
       let message = status === 'ready' ? `Ready. ZCode: ${paths.script.replace('/Contents/Resources/glm/zcode.cjs', '')}.` : resolveZCode().bundle ? 'ZCode Desktop installation incomplete: repair or reinstall ZCode Desktop.' : resolveZCode().message;
       if (status === 'ready') try { selectedAuth(mode).read('health'); } catch (e) {
         status = e instanceof AuthError && ['unauthenticated', 'missing-key'].includes(e.kind) ? 'unauthenticated' : 'unknown';
-        message = mode === 'coding-plan-key' ? 'Explicit Coding Plan key unavailable or unreadable in protected plugin settings; no CLI fallback.' : status === 'unauthenticated' ? signInHint(paths) : e instanceof AuthError ? e.message : 'CLI store unreadable or unsupported; no fallback.';
+        message = mode === 'coding-plan-key' ? 'Explicit Coding Plan key unavailable or unreadable in protected plugin settings; no automatic sign-in fallback.' : status === 'unauthenticated' ? signInHint(paths) : e instanceof AuthError ? e.message : 'Desktop sign-in store unreadable or unsupported.';
       }
       const context = d.installed ? compatibility().message : null;
       if (context) message += ' ' + context;
-      return providerHealthResultSchema.parse({ supported: true, health: { accountEmail: null, canInstall: false, canUpdate: false, installedVersion: d.version, loginCommand: mode === 'cli' && d.installed ? loginCommand(paths) : null, minimumSupportedVersion: null, planLabel: mode === 'cli' ? 'CLI Coding Plan' : 'Explicit Coding Plan key / gateway', status, statusMessage: message } });
+      return providerHealthResultSchema.parse({ supported: true, health: { accountEmail: null, canInstall: false, canUpdate: false, installedVersion: d.version, loginCommand: null, minimumSupportedVersion: null, planLabel: mode === 'cli' ? 'Desktop Coding Plan' : 'Explicit Coding Plan key / gateway', status, statusMessage: message } });
     },
     async installation() {
       const d = detect(), paths = getPaths();

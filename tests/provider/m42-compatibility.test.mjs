@@ -1,18 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { api } from './helpers.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
+import { createHash } from 'node:crypto';
 const tuple={bb:'0.45.0',installedSdk:'0.6.15',declaredSdk:'0.6.15',desktop:'3.14.4',cli:'0.16.9',runtimeSha256:'a'.repeat(64),
  bbArtifactSha256:'b'.repeat(64),sdkArtifactSha256:'c'.repeat(64),platform:'darwin',arch:'arm64',node:'24.20.0'};
 const table=[{tuple,pluginRevision:'fixture-only',resultRef:'synthetic-level1',evidenceRef:'public SDK fixture',level:'level1'}];
-test('M4.9.1 SDK tuple is recognized and the previously checked tuple remains',()=>{
- const current=api.checkedTuples.find(row=>row.tuple.declaredSdk==='0.6.15');
- assert.ok(current);assert.equal(api.compareCompatibility(current.tuple).known,true);
- assert.equal(current.evidenceRef,'docs/implementation/032-M4.9.1-sdk.md');
- const previous=api.checkedTuples.find(row=>row.tuple.declaredSdk==='0.5.29');
- assert.ok(previous);assert.equal(api.compareCompatibility(previous.tuple).known,true);
+test('current base reference is exact; only evidenced level1 tuples are accepted and old support is removed',()=>{
+ const ref=api.compatibilityReference;
+ assert.equal(ref.bb,'0.47.1');assert.equal(ref.installedSdk,'0.6.79');assert.equal(ref.declaredSdk,'0.6.79');
+ assert.equal(ref.desktop,'3.15.1');assert.equal(ref.node,'24.22.0');assert.match(ref.builtinSha256,/^[a-f0-9]{64}$/);
+ assert.equal(api.checkedTuples.some(row=>row.tuple.bb!=='0.47.1'),false);
+ for(const current of api.checkedTuples){
+  assert.equal(api.compareCompatibility(current.tuple).known,current.level==='level1');
+  assert.match(current.pluginRevision,/^[a-f0-9]{7,40}$/);
+  for(const key of ['runtimeSha256','builtinSha256','sdkArtifactSha256'])assert.equal(api.compareCompatibility({...current.tuple,[key]:'d'.repeat(64)}).known,false);
+ }
+ assert.equal(api.compareCompatibility(tuple,table).message,null);
+});
+test('actual installed tuple matches every declared current identity, including full server and builtin bytes',()=>{
+ const paths={script:'/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs',executable:'/Applications/ZCode.app/Contents/Frameworks/ZCode Helper.app/Contents/MacOS/ZCode Helper'};
+ const current=api.discoverCompatibility(paths,createHash('sha256').update(readFileSync(paths.script)).digest('hex'));
+ for(const [key,value]of Object.entries(current))assert.equal(api.compatibilityReference[key],value,key);
 });
 test('unknown compatibility never masks actual startup/protocol failure or retries create',async()=>{
  const output=[];let prepares=0;

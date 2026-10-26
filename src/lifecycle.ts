@@ -76,7 +76,6 @@ export class SessionLifecycle {
     if (parsed.kind !== 'item.open' || !['backgroundTask', 'delegation'].includes(parsed.item.type)) throw new ProtocolError('invalid-background-shape');
     const id = JSON.stringify([parsed.providerTurnId, parsed.key]);
     if (this.work.has(id)) throw new ProtocolError('duplicate-background-item');
-    if (this.work.size >= 4096 || Buffer.byteLength(JSON.stringify([...this.work.values(), parsed])) > 16 * 1024 * 1024) throw new ProtocolError('background-ledger-limit');
     this.work.set(id, parsed);
     this.deltas([parsed]);
   }
