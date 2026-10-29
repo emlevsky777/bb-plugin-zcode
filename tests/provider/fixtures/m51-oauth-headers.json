@@ -1,0 +1,23 @@
+{
+  "scope": "Individual Z.ai shared Desktop business token, not team or standalone login",
+  "sources": [
+    {
+      "desktop": "3.15.1",
+      "file": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
+      "sha256": "b052a71d50d597aeff4a2f537870cde2a1e2d18495b7de8fa99a09647b92bafd",
+      "customerInfo": "Bearer SYNTHETIC_OAUTH",
+      "apiKeys": "Bearer SYNTHETIC_OAUTH",
+      "accessTokens": "Bearer SYNTHETIC_OAUTH"
+    },
+    {
+      "desktop": "3.16.3",
+      "file": "Contents/Resources/app.asar/out/host/chunk-5YNPFY3L.js",
+      "sha256": "a658c05bc7a05ecdf1937641292ee3a8204c06214345473ae53f58227f7255ed",
+      "case": "dc8abde1dd512be716f25f7c6ff671330062c82ca1b11b95b7df3a5dcb062309",
+      "customerInfo": "SYNTHETIC_OAUTH",
+      "apiKeys": "Bearer SYNTHETIC_OAUTH",
+      "accessTokens": "Bearer SYNTHETIC_OAUTH"
+    }
+  ],
+  "limits": "Source-derived transport expectations; not a claim of server rejection, tolerance or live compatibility."
+}

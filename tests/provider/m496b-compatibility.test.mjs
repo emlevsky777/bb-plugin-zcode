@@ -37,6 +37,35 @@ test('M496b level0 copied CLI mutation identifies precisely the affected depende
   } finally { rmSync(root, { recursive: true }); }
 });
 
+test('M54 moved anchors accept either observed location and reject missing semantics in both', () => {
+  const read = bundleReader('/Applications/ZCode.app');
+  for (const point of registry.touchpoints.filter(p => ['zcode-memory-preference', 'zcode-oauth-project-token'].includes(p.id))) {
+    const anchor = point.anchors.find(a => a.alternativeFiles);
+    const subset = { version: 1, touchpoints: [{ ...point, anchors: [anchor] }] };
+    const installed = [anchor.file, ...anchor.alternativeFiles].find(file => {
+      try { return read(file).includes(anchor.text); } catch { return false; }
+    });
+    assert.ok(installed);
+    const bytes = read(installed);
+    for (const file of [anchor.file, ...anchor.alternativeFiles]) {
+      const root = temp();
+      try {
+        mkdirSync(dirname(join(root, file)), { recursive: true });
+        writeFileSync(join(root, file), bytes, 'latin1');
+        const result = inspectCompatibility(subset, { zcode: root });
+        assert.equal(result.summary.notFound, 0);
+        assert.equal(result.points[0].anchors[0].matchedFile, file);
+        writeFileSync(join(root, file), bytes.replaceAll(anchor.text, 'BROKEN_M54_ANCHOR'), 'latin1');
+        assert.equal(inspectCompatibility(subset, { zcode: root }).summary.notFound, 1);
+      } finally { rmSync(root, { recursive: true }); }
+    }
+    for (const alternativeFiles of [[], ['../escape'], [anchor.file], [anchor.alternativeFiles[0], anchor.alternativeFiles[0]]]) {
+      const invalid = structuredClone(subset); invalid.touchpoints[0].anchors[0].alternativeFiles = alternativeFiles;
+      assert.throws(() => validateRegistry(invalid), /alternative files/);
+    }
+  }
+});
+
 test('M496b ASAR reader handles packed/unpacked/missing entries and truncated archives without execution', () => {
   const root = temp(), archive = join(root, 'Contents/Resources/app.asar');
   try {

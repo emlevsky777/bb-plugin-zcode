@@ -12,7 +12,12 @@ test('current base reference is exact; only evidenced level1 tuples are accepted
  const ref=api.compatibilityReference;
  assert.equal(ref.bb,'0.47.1');assert.equal(ref.installedSdk,'0.6.79');assert.equal(ref.declaredSdk,'0.6.79');
  assert.equal(ref.desktop,'3.15.1');assert.equal(ref.node,'24.22.0');assert.match(ref.builtinSha256,/^[a-f0-9]{64}$/);
- assert.equal(api.checkedTuples.some(row=>row.tuple.bb!=='0.47.1'),false);
+ assert.deepEqual(api.checkedTuples.map(row=>row.tuple.bb),['0.47.1','0.48.0']);
+ const target=api.checkedTuples[1].tuple;
+ assert.equal(target.installedSdk,'0.6.94');assert.equal(target.declaredSdk,'0.6.79');
+ assert.equal(target.desktop,'3.16.3');assert.equal(target.cli,'0.17.0');
+ assert.equal(api.compareCompatibility({...target,desktop:'3.16.4'}).known,false);
+ assert.equal(api.compareCompatibility({...target,node:'24.23.0'}).known,false);
  for(const current of api.checkedTuples){
   assert.equal(api.compareCompatibility(current.tuple).known,current.level==='level1');
   assert.match(current.pluginRevision,/^[a-f0-9]{7,40}$/);
@@ -20,10 +25,17 @@ test('current base reference is exact; only evidenced level1 tuples are accepted
  }
  assert.equal(api.compareCompatibility(tuple,table).message,null);
 });
-test('actual installed tuple matches every declared current identity, including full server and builtin bytes',()=>{
+test('actual installed tuple is discovered without promoting an untested installation to checked support',()=>{
  const paths={script:'/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs',executable:'/Applications/ZCode.app/Contents/Frameworks/ZCode Helper.app/Contents/MacOS/ZCode Helper'};
  const current=api.discoverCompatibility(paths,createHash('sha256').update(readFileSync(paths.script)).digest('hex'));
- for(const [key,value]of Object.entries(current))assert.equal(api.compatibilityReference[key],value,key);
+ assert.equal(current.runtimeSha256,createHash('sha256').update(readFileSync(paths.script)).digest('hex'));
+ assert.equal(current.declaredSdk,'0.6.79');assert.equal(current.platform,process.platform);assert.equal(current.node,process.versions.node);
+ for(const key of ['builtinSha256','bbArtifactSha256','sdkArtifactSha256'])assert.match(current[key],/^[a-f0-9]{64}$/);
+ const match=api.checkedTuples.find(row=>Object.entries(current).every(([key,value])=>value!==null&&row.tuple[key]===value));
+ const compared=api.compareCompatibility(current);
+ assert.equal(compared.known,Boolean(match));
+ if(match)for(const [key,value]of Object.entries(current))assert.equal(match.tuple[key],value,key);
+ else assert.match(compared.message,/has not been checked/);
 });
 test('unknown compatibility never masks actual startup/protocol failure or retries create',async()=>{
  const output=[];let prepares=0;

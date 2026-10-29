@@ -34,7 +34,7 @@ test('Desktop cipher overrides retain every byte, including whitespace-only secr
   } finally { rmSync(dir, { recursive: true }); }
 });
 test('Desktop Bearer prefix normalization applies to transport and cache scope', async () => {
-  const s = service(), resolver = new ProjectTokenResolver(s.send);
+  const s = service(), resolver = new ProjectTokenResolver(s.send, undefined, undefined, '3.15.1');
   const first = await resolver.resolve('account', '  bEaReR SYNTHETIC_OAUTH  ', {}, () => true);
   assert.ok(s.calls.every(call => call.headers.Authorization === 'Bearer SYNTHETIC_OAUTH'));
   const second = await resolver.resolve('account', 'SYNTHETIC_OAUTH', { expectedAccountScope: first.accountScope }, () => true);
@@ -51,7 +51,7 @@ test('valid customer JSON above 64 KiB follows native response handling without 
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
 });
-function service(clock = () => Date.now()) {
+function service(clock = () => Date.now(), createKey = false) {
   const calls = []; let token = 0, fail = false;
   const send = async (path, method, headers, body) => {
     calls.push({ path, method, headers, body });
@@ -63,12 +63,50 @@ function service(clock = () => Date.now()) {
       { organizationId: 'org', organizationName: '默认机构', projects: [
         { projectId: 'team', projectName: '默认项目', projectType: ' 2 ' },
         { projectId: 'project', projectName: '默认项目', projectType: 1 }] }] } };
-    if (path.endsWith('/api_keys')) return { code: '200', data: [{ name: 'zcode-api-key', apiKey: 'key-id' }] };
+    if (path.endsWith('/api_keys')) return { code: '200', data: method === 'POST'
+      ? { name: 'zcode-api-key', apiKey: 'key-id' }
+      : createKey ? [] : [{ name: 'zcode-api-key', apiKey: 'key-id' }] };
     return { code: 0, data: { enable: true, accessToken: 'SYNTHETIC_PROJECT_' + ++token, tokenType: 'Bearer', expiresIn: 600, expiresAt: (clock() + 600000) / 1000 } };
   };
   return { calls, send, fail: () => { fail = true; } };
 }
-test('current Desktop OAuth and manual source selection; headers use a project token, fresh store scope, no writes', async () => {
+const headerFixtures = JSON.parse(readFileSync(new URL('./fixtures/m51-oauth-headers.json', import.meta.url), 'utf8'));
+for (const expected of headerFixtures.sources) {
+  test(`M51 native ${expected.desktop} headers per endpoint, normalization, optional key creation and cache`, async () => {
+    for (const createKey of [false, true]) for (const oauth of ['SYNTHETIC_OAUTH', '  bEaReR SYNTHETIC_OAUTH  ']) {
+      const s = service(undefined, createKey), resolver = new ProjectTokenResolver(s.send, undefined, undefined, expected.desktop);
+      const first = await resolver.resolve('account', oauth, {}, () => true);
+      assert.equal(s.calls[0].headers.Authorization, expected.customerInfo);
+      assert.equal(s.calls[0].method, 'GET');
+      const keyCalls = s.calls.filter(c => c.path.endsWith('/api_keys'));
+      assert.deepEqual(keyCalls.map(c => c.method), createKey ? ['GET', 'POST'] : ['GET']);
+      assert.ok(keyCalls.every(c => c.headers.Authorization === expected.apiKeys));
+      if (createKey) assert.deepEqual(keyCalls[1].body, { name: 'zcode-api-key', usageScene: 1 });
+      const issued = s.calls.at(-1);
+      assert.match(issued.path, /\/key-id\/access_tokens$/); assert.equal(issued.method, 'POST');
+      assert.equal(issued.headers.Authorization, expected.accessTokens);
+      assert.deepEqual(issued.body, { clientType: 'zcode', clientVersion: expected.desktop });
+      assert.equal(s.calls.length, createKey ? 4 : 3);
+      const second = await resolver.resolve('account', 'SYNTHETIC_OAUTH', { expectedAccountScope: first.accountScope }, () => true);
+      assert.deepEqual(second, first); assert.equal(s.calls.length, createKey ? 4 : 3);
+    }
+  });
+}
+test('M51 unobserved versions use latest observed customer format; exact legacy stable plus build metadata retains Bearer', async () => {
+  for (const [version, customer] of [
+    ['unknown', 'SYNTHETIC_OAUTH'], ['', 'SYNTHETIC_OAUTH'], ['invalid', 'SYNTHETIC_OAUTH'],
+    ['3.15.0', 'SYNTHETIC_OAUTH'], ['3.15.2', 'SYNTHETIC_OAUTH'], ['3.16.2', 'SYNTHETIC_OAUTH'],
+    ['3.15.1-rc.1', 'SYNTHETIC_OAUTH'], ['3.16.3-rc.1', 'SYNTHETIC_OAUTH'], ['4.0.0', 'SYNTHETIC_OAUTH'],
+    ['3.15.1+build.7', 'Bearer SYNTHETIC_OAUTH'], ['3.16.3+build.7', 'SYNTHETIC_OAUTH']
+  ]) {
+    const s = service(), resolver = new ProjectTokenResolver(s.send, undefined, undefined, version);
+    await resolver.resolve('account', 'SYNTHETIC_OAUTH', {}, () => true);
+    assert.equal(s.calls[0].headers.Authorization, customer, version);
+    assert.ok(s.calls.slice(1).every(c => c.headers.Authorization === 'Bearer SYNTHETIC_OAUTH'));
+    assert.equal(s.calls.at(-1).body.clientVersion, version); assert.equal(s.calls.length, 3);
+  }
+});
+for (const expected of headerFixtures.sources) test(`Desktop ${expected.desktop} OAuth and manual source selection; fresh store scope, no writes`, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'c1b-oauth-')), file = join(dir, 'credentials.json');
   const store = { [`account-provider:${api.accountProviderId}:identity`]: 'SYNTHETIC_ACCOUNT',
     [`account-provider:${api.accountProviderId}:auth-source`]: 'oauth', 'oauth:zai:access_token': 'SYNTHETIC_OAUTH',
@@ -76,17 +114,18 @@ test('current Desktop OAuth and manual source selection; headers use a project t
   try {
     writeFileSync(file, JSON.stringify(store)); const bytes = readFileSync(file);
     const a = new api.ReadOnlyAuth(file), s = service();
-    a.setNetworkEnvironment({}, '3.15.1'); a.setTokenRequest(s.send);
+    a.setNetworkEnvironment({}, expected.desktop); a.setTokenRequest(s.send);
     assert.equal(a.read().oauth.accessToken, 'SYNTHETIC_OAUTH');
     assert.throws(() => a.headers(params, 'session', '/work', 'GLM-5.3'), /unsupported-mode/);
     const result = await a.runtimeHeaders(params, 'session', '/work', 'GLM-5.3');
     assert.equal(result.requestAuth.apiKey, 'SYNTHETIC_PROJECT_1');
     assert.equal(result.requestAuth.apiKeyId, 'key-id'); assert.match(result.requestAuth.accountScope, /^[a-f0-9]{64}$/);
     assert.equal(s.calls.length, 3);
-    assert.ok(s.calls.every(c => c.headers.Authorization === 'Bearer SYNTHETIC_OAUTH'));
+    assert.equal(s.calls[0].headers.Authorization, expected.customerInfo);
+    assert.ok(s.calls.slice(1).every(c => c.headers.Authorization === expected.apiKeys));
     assert.match(s.calls[1].path, /organization\/org\/projects\/project\/api_keys$/);
     assert.equal(s.calls[2].body.clientType, 'zcode');
-    assert.equal(s.calls[2].body.clientVersion, '3.15.1');
+    assert.equal(s.calls[2].body.clientVersion, expected.desktop);
     assert.equal(s.calls.filter(c => c.path.endsWith('/api_keys') && c.method === 'POST').length, 0);
     await a.runtimeHeaders(params, 'session', '/work', 'GLM-5.3'); assert.equal(s.calls.length, 3);
     assert.deepEqual(readFileSync(file), bytes);
@@ -124,6 +163,7 @@ test('rejected stored sign-in reaches bridge authRequired with Desktop guidance;
     'oauth:zai:access_token': 'SYNTHETIC_EXPIRED' };
   writeFileSync(file, JSON.stringify(store)); const initial = readFileSync(file);
   const auth = new api.ReadOnlyAuth(file), out = [], observed = [], calls = []; let child;
+  auth.setNetworkEnvironment({}, '3.15.1');
   const s = service(); auth.setTokenRequest(async (...args) => {
     calls.push(args[0]);
     if (args[2].Authorization === 'Bearer SYNTHETIC_EXPIRED') return { code: 401, msg: 'SYNTHETIC_PRIVATE_ERROR' };

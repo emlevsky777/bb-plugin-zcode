@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-29",
+  "status": "checked level1; owner accepted M5.4 and authorized registration after successful cheap post-Stop continuation",
+  "runtimeRevision": "7a4aa89",
+  "tuple": {
+    "bb": "0.48.0",
+    "installedSdk": "0.6.94",
+    "declaredSdk": "0.6.79",
+    "desktop": "3.16.3",
+    "cli": "0.17.0",
+    "runtimeSha256": "97490d0f06a7a225d54d47817acf4b4859cdb268b59f2490caaeda982bef063a",
+    "builtinSha256": "361b778f89496a37540d23a9d309efe6cb8fc97d557119cefbffc67df2f93998",
+    "bbArtifactSha256": "0e5c47dd6dc47a59a4ccf8cb4fe6411df04ab99f536eacd5f4b0990d81ff0bf6",
+    "sdkArtifactSha256": "c98d4ebaf5f9605df8ea4cf18d5097cb59b8e0f197c3156e33c29bc257b0f4bf",
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "24.22.0"
+  },
+  "bbArtifacts": [
+    {
+      "file": "Contents/Resources/app.asar/node_modules/bb-app/package.json",
+      "size": 2775,
+      "sha256": "0e5c47dd6dc47a59a4ccf8cb4fe6411df04ab99f536eacd5f4b0990d81ff0bf6"
+    },
+    {
+      "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+      "size": 8617318,
+      "sha256": "c98d4ebaf5f9605df8ea4cf18d5097cb59b8e0f197c3156e33c29bc257b0f4bf"
+    },
+    {
+      "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+      "size": 636312,
+      "sha256": "3d0fa45bed7b022cc211642aba366742e98c9520b1f9dbd6de52795b8bbef617"
+    },
+    {
+      "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/provider-claude-code/dist/host.js",
+      "size": 2195386,
+      "sha256": "aa036b02aedbb91591830711036e0881b752f9b9042fe84691b35143b2a67674"
+    }
+  ],
+  "limits": [
+    "Successful automatic compaction remains not_proven; synthetic context fill was not repeated.",
+    "Stop during compaction was not separately tested in the cheap continuation.",
+    "Known automatic-compaction remainder-of-turn instruction limit and other README limits remain."
+  ],
+  "followup": {
+    "date": "2026-10-29",
+    "inputs": 3,
+    "postStopOrdinaryRead": "passed",
+    "freshStartupUnverifiedNotice": false,
+    "publicPlugin": "v0.1.0 unchanged"
+  }
+}

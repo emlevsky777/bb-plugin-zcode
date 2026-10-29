@@ -28,7 +28,10 @@
           "file": "Contents/Resources/app.asar/out/host/index.js",
           "text": "getSettingsFile",
           "strength": "strong",
-          "reason": "Desktop settings service reads .zcode/v2/setting.json; source identity and chain are recorded in KNOWLEDGE."
+          "reason": "Same settings-service symbol in observed Desktop 3.15.1 index or 3.16.3 chunk; alternative locations are OR, not mandatory AND. Behavior requires live verification.",
+          "alternativeFiles": [
+            "Contents/Resources/app.asar/out/host/chunk-G6XJUBQB.js"
+          ]
         }
       ],
       "code": [
@@ -42,7 +45,8 @@
       "milestones": [
         "M4.9.8b.2b",
         "M4.9.8b.2c",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.4"
       ],
       "sources": [
         "compat/README.md"
@@ -176,13 +180,15 @@
       "code": [
         "README.md",
         "README.ru.md",
-        "src/plugin.ts"
+        "src/plugin.ts",
+        "src/report-cli.ts"
       ],
       "impact": "Users cannot produce a problem report without system CLI installation if embedded-terminal injection changes.",
       "milestones": [
         "M4.9.8",
         "M4.9.8c.1b",
-        "M4.9.8c.2"
+        "M4.9.8c.2",
+        "M5.4"
       ],
       "sources": [
         "compat/README.md"
@@ -191,7 +197,7 @@
     {
       "id": "bb-git-install-build",
       "product": "bb",
-      "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling",
+      "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling; plugin SDK subpaths bundle the plugin-locked zod (4.6.6 after M5.3a), independently of bb-owned zod",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -220,6 +226,7 @@
       ],
       "code": [
         "package.json",
+        "package-lock.json",
         "src/plugin.ts",
         "src/host.ts"
       ],
@@ -228,7 +235,8 @@
         "M4.9.7",
         "M4.9.8c.1b",
         "M4.9.8c.2",
-        "M4.9.10"
+        "M4.9.10",
+        "M5.3a"
       ],
       "sources": [
         "compat/README.md"
@@ -397,7 +405,7 @@
     {
       "id": "bb-host-node",
       "product": "bb",
-      "uses": "Node runtime selection and supported engines",
+      "uses": "Node runtime selection and supported engines; target HostToolchain command/environment delivery checked at the M5.4 owner update checkpoint",
       "anchors": [
         {
           "file": "Contents/Info.plist",
@@ -408,13 +416,16 @@
       ],
       "code": [
         "src/node-version.ts",
-        "package.json"
+        "package.json",
+        "src/process.ts",
+        "src/runtime.ts"
       ],
       "impact": "Host may reject unsupported Node or fail to load TypeScript.",
       "milestones": [
         "M1",
         "M4.2",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.4"
       ],
       "sources": [
         "compat/README.md"
@@ -1183,7 +1194,8 @@
         "M4.1",
         "M4.2",
         "M4.9.8b.2b",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.1"
       ],
       "sources": [
         "compat/README.md"
@@ -2918,7 +2930,7 @@
     {
       "id": "zcode-oauth-project-token",
       "product": "ZCode",
-      "uses": "Shared Desktop OAuth sign-in resolves current individual Coding Plan project access tokens before native model requests.",
+      "uses": "Shared Desktop OAuth resolves individual Coding Plan project access tokens before model requests; customer-info Authorization policy is distinct from key/access-token Bearer headers and uses the selected Desktop version where justified.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/out/host/index.js",
@@ -2936,7 +2948,10 @@
           "file": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
           "text": "clientType:\"zcode\",clientVersion:",
           "strength": "strong",
-          "reason": "Desktop project-token issuance sends its Desktop build version; final live bodies verify the selected bundle version 3.15.1."
+          "reason": "Observed Desktop 3.15.1 and 3.16.3 project-token client locations; exact client version/header behavior requires native review and live evidence.",
+          "alternativeFiles": [
+            "Contents/Resources/app.asar/out/host/chunk-5YNPFY3L.js"
+          ]
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2965,7 +2980,9 @@
       ],
       "impact": "Shared Desktop sign-in stores a normalized business token; repeating the standalone CLI exchange breaks a valid login. Failed token resolution must not dispatch or resend model input.",
       "milestones": [
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.1",
+        "M5.4"
       ],
       "sources": [
         "compat/README.md"

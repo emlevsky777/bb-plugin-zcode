@@ -76,23 +76,29 @@ test('c1 native compact active-chain semantics: manual loss, automatic preserved
   assert.equal(k.prepare('send4', 'changed', 'after auto'), 'after auto');
 });
 
-test('c1 active-chain fixture matches installed .16.9 compact hydration, and native runtime drops real-user prefix', { skip: !existsSync('/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs') }, () => {
+test('c1 active-chain fixture matches pinned .16.9/.17.0 compact hydration, and native runtime drops real-user prefix', { skip: !existsSync('/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs') }, () => {
   const source = readFileSync('/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs', 'utf8');
   const extract = (name, next) => { const start = source.indexOf('function ' + name + '('), end = source.indexOf('function ' + next + '(', start); assert.ok(start >= 0 && end > start); return source.slice(start, end); };
   // Execute only the pinned pure hydration functions; installed bytes are not
   // copied into Git. Runtime token invalidation does not change user content.
-  assert.equal(createHash('sha256').update(source).digest('hex'), 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e');
-  const hydrate = new Function('eht', extract('$vn', 'Wvn') + '; return $vn;')(() => ({}));
+  const digest = createHash('sha256').update(source).digest('hex');
+  const native17 = digest === '97490d0f06a7a225d54d47817acf4b4859cdb268b59f2490caaeda982bef063a';
+  assert.ok(native17 || digest === 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e', 'Unreviewed native compaction implementation');
+  const hydrate = native17
+    ? new Function('qgt', source.slice(source.indexOf('function Qwn('), source.indexOf('var tkn=', source.indexOf('function Qwn('))) + '; return Qwn;')(() => ({}))
+    : new Function('eht', extract('$vn', 'Wvn') + '; return $vn;')(() => ({}));
   const first = { info: { id: 'first', role: 'user' }, parts: [{ type: 'text', text: 'bb block' }] };
   const summary = { info: { id: 'summary', role: 'user' }, parts: [{ type: 'text', text: 'summary' }] };
   for (const preserved of [undefined, { headMessageId: 'first', tailMessageId: 'first', anchorMessageId: 'summary' }]) {
     const boundary = { info: { id: 'boundary', role: 'user' }, parts: [{ type: 'compaction', compactBoundary: { preservedSegment: preserved } }] };
     const messages = [first, boundary, summary]; assert.deepEqual(api.activeNativeMessages(messages), hydrate(messages, 1, true));
   }
-  const prefixCount = new Function('xm', 'jca', 'Bca', 'qu', extract('wT', 'ix') + '; return wT;')(
+  const prefixCount = new Function(...(native17 ? ['Tm', 'Ala', 'Pla', 'Ela'] : ['xm', 'jca', 'Bca', 'qu']),
+    native17 ? extract('PT', 'Ela') + '; return PT;' : extract('wT', 'ix') + '; return wT;')(
     e => e.kind === 'attachment', e => e.message, e => e.metadata, content => content);
   const clone = value => structuredClone(value);
-  const postCompact = new Function('wT', 'mSt', 'zNa', extract('TOo', 'IOo') + '; return TOo;')(prefixCount, clone, clone);
+  const postCompact = new Function(...(native17 ? ['PT', '_kt', 'FLa'] : ['wT', 'mSt', 'zNa']),
+    native17 ? extract('fjo', 'mjo') + '; return fjo;' : extract('TOo', 'IOo') + '; return TOo;')(prefixCount, clone, clone);
   const nativePrefix = { message: { role: 'user', content: 'native context' }, metadata: { source: 'context_prefix' } };
   const bbUser = { message: { role: 'user', content: '[bb session instructions]\nbb block' }, metadata: { source: 'real_user' } };
   const result = postCompact([nativePrefix, bbUser], { message: { role: 'user', content: 'summary' } });

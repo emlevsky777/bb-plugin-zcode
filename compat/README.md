@@ -1,5 +1,13 @@
 # Release compatibility inspection
 
+29 October 2026: the owner accepted M5.4 and its cheap post-Stop continuation.
+The exact bb 0.48.0 / installed SDK 0.6.94 / Desktop 3.16.3 / CLI 0.17.0 /
+Node 24.22.0 tuple is registered as level1 alongside the old combination.
+Ordinary recovery after active Stop and a fresh startup without the unchecked
+warning passed. [Current identities](M5.4-artifacts.json). Successful automatic
+compaction remains unproven; no synthetic auto test was repeated. The records
+below retain their earlier dates and scope.
+
 25 October 2026: the current-base review covers all 72 previous entries and
 the new OAuth/project-token dependency (73 total), including all 15 weak anchors.
 [Artifact identities](M4.9.8c.1b-artifacts.json)
@@ -26,7 +34,12 @@ Weak anchors always appear in `affected`, even when their text is present.
 `touchpoints.schema.json` describes the JSON structure. `validateRegistry` in
 the tool enforces that structure plus unique IDs/dependencies, relative paths
 without traversal, milestone syntax and nonempty descriptions/provenance.
-All anchors of a point are required. SDK anchors use bb's shipped artifacts,
+All semantic anchors of a point are required. An anchor may list explicit
+`alternativeFiles` for observed source moves: its exact text must appear in
+`file` or at least one alternative. These locations are OR alternatives;
+they are not independent mandatory anchors. JSON records every attempted path
+and `matchedFile`, and fails when none contains the required text.
+SDK anchors use bb's shipped artifacts,
 not the repository's pinned npm package. Bundled-away export names are replaced
 with observable schema keys; generic/indirect evidence is marked weak.
 Paths in `code` name product or development files, not upstream symbol offsets.

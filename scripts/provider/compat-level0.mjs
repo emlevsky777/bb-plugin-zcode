@@ -25,8 +25,9 @@ export function validateRegistry(value) {
     if (!p.code.every(safePath) || !p.sources.every(safePath) || !p.milestones.every(v => /^M\d[\d.a-z]*$/.test(v))) fail(p.id + ' paths/milestones');
     if (!Array.isArray(p.anchors) || !p.anchors.length) fail(p.id + ' anchors');
     for (const a of p.anchors) {
-      exact(a, ['file', 'text', 'strength', 'reason'], p.id + ' anchor');
+      exact(a, ['file', 'text', 'strength', 'reason', ...(Object.hasOwn(a, 'alternativeFiles') ? ['alternativeFiles'] : [])], p.id + ' anchor');
       if (!safePath(a.file) || !text(a.text) || !['strong', 'weak'].includes(a.strength) || !text(a.reason)) fail(p.id + ' anchor shape');
+      if (Object.hasOwn(a, 'alternativeFiles') && (!Array.isArray(a.alternativeFiles) || !a.alternativeFiles.length || !a.alternativeFiles.every(safePath) || new Set([a.file, ...a.alternativeFiles]).size !== a.alternativeFiles.length + 1)) fail(p.id + ' alternative files');
     }
     // Exact duplicates must be represented by one point with merged provenance.
     const key = JSON.stringify([p.product, p.anchors]);
@@ -81,10 +82,13 @@ export function inspectCompatibility(registry, { bb = '/Applications/bb.app', zc
   const readers = { bb: bundleReader(bb), ZCode: bundleReader(zcode) };
   const points = registry.touchpoints.map(p => {
     const anchors = p.anchors.map(a => {
-      let found = false, error = null;
-      try { found = readers[p.product === 'SDK' ? 'bb' : p.product](a.file).includes(a.text); }
-      catch (e) { error = e.code ?? e.message; }
-      return { ...a, found, status: a.strength === 'weak' ? 'weak-anchor' : found ? 'found' : 'not-found', error };
+      const attempts = [a.file, ...(a.alternativeFiles ?? [])].map(file => {
+        try { return { file, found: readers[p.product === 'SDK' ? 'bb' : p.product](file).includes(a.text), error: null }; }
+        catch (e) { return { file, found: false, error: e.code ?? e.message }; }
+      });
+      const match = attempts.find(attempt => attempt.found), found = !!match;
+      return { ...a, found, matchedFile: match?.file ?? null, attempts,
+        status: a.strength === 'weak' ? 'weak-anchor' : found ? 'found' : 'not-found', error: found ? null : attempts.find(attempt => attempt.error)?.error ?? null };
     });
     return { id: p.id, product: p.product, uses: p.uses, code: p.code, impact: p.impact, anchors,
       status: anchors.some(a => a.status === 'not-found') ? 'not-found' : anchors.some(a => a.strength === 'weak') ? 'weak-anchor' : 'found' };

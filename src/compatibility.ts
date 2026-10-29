@@ -59,6 +59,21 @@ export const checkedTuples: readonly CheckedTuple[] = [{
   resultRef: 'README.md#compatibility',
   evidenceRef: 'compat/M4.9.8c.1b-artifacts.json',
   level: 'level1',
+}, {
+  // Owner accepted M5.4 and authorized registration after the cheap post-Stop
+  // continuation passed. Automatic-compaction success remains unproven.
+  tuple: {
+    bb: '0.48.0', installedSdk: '0.6.94', declaredSdk: '0.6.79',
+    desktop: '3.16.3', cli: '0.17.0', node: '24.22.0', platform: 'darwin', arch: 'arm64',
+    runtimeSha256: '97490d0f06a7a225d54d47817acf4b4859cdb268b59f2490caaeda982bef063a',
+    builtinSha256: '361b778f89496a37540d23a9d309efe6cb8fc97d557119cefbffc67df2f93998',
+    bbArtifactSha256: '0e5c47dd6dc47a59a4ccf8cb4fe6411df04ab99f536eacd5f4b0990d81ff0bf6',
+    sdkArtifactSha256: 'c98d4ebaf5f9605df8ea4cf18d5097cb59b8e0f197c3156e33c29bc257b0f4bf',
+  },
+  pluginRevision: 'aecaf5a',
+  resultRef: 'README.md#compatibility',
+  evidenceRef: 'compat/M5.4-artifacts.json',
+  level: 'level1',
 }];
 const version = (v: unknown): string | null => typeof v === 'string' && /^\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/.test(v) ? v : null;
 export function desktopVersion(file: string): string | null {
