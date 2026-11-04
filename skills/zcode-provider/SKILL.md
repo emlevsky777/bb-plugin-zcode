@@ -1,9 +1,12 @@
 ---
 name: zcode-provider
-description: Use ZCode in bb, inspect its settings and sign-in, and recover an uncertain native session without blindly repeating a request.
+description: Use ZCode Provider in bb, inspect its settings and sign-in, and recover an uncertain native session without blindly repeating a request.
 ---
 
-# ZCode provider in bb
+# ZCode Provider in bb
+
+Plugin/provider ID: `zcode-provider`. Use a fresh installation and new threads;
+v0.1.x `zcode` threads/settings are not migrated.
 
 Runs installed ZCode Desktop on macOS with the individual Z.ai Coding Plan.
 Use Full permissions. Models and reasoning levels come from the installed
@@ -38,7 +41,7 @@ If a request times out or its
 outcome is unknown, inspect `bb thread show <id> --json`,
 `bb thread log <id> --all --json`, native history and local artifacts before
 resubmitting. Keep the original native session identity for cold resume.
-Never blindly repeat an uncertain send. `bb zcode-report` (or `--json`) prints a
+Never blindly repeat an uncertain send. `bb zcode-provider-report` (or `--json`) prints a
 server-local problem report, not diagnostics of a remote agent host. It uploads
 nothing; credential-file presence does not establish usable sign-in. Record thread/session IDs, the action, observed result and
 artifact paths; distinguish confirmed success from `not_proven`.

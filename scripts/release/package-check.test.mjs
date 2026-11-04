@@ -7,6 +7,15 @@ import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 
 const root = resolve(process.argv[2] ?? '.');
+const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+assert.equal(pkg.name, 'bb-plugin-zcode-provider');
+assert.equal(pkg.version, '0.2.0');
+assert.equal(pkg.bb.name, 'ZCode Provider');
+for (const kind of ['server', 'host']) {
+  const meta = JSON.parse(readFileSync(join(root, 'dist', kind + '.meta.json'), 'utf8'));
+  assert.equal(meta.pluginId, 'zcode-provider');
+  assert.equal(meta.pluginVersion, '0.2.0');
+}
 const result = scan(root, { allow: [/^typescript$/] });
 assert.deepEqual(result.violations, []); assert.deepEqual(result.privateDependencies, []);
 assert.ok(result.files.includes('scripts/provider/build.mjs'));

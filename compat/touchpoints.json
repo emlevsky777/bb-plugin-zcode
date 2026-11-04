@@ -120,7 +120,8 @@
         "M4.9.8b.2b",
         "M4.9.8b.3",
         "M4.9.8c.1b",
-        "M4.9.10"
+        "M4.9.10",
+        "M5.5a"
       ],
       "sources": [
         "compat/README.md"
@@ -188,7 +189,8 @@
         "M4.9.8",
         "M4.9.8c.1b",
         "M4.9.8c.2",
-        "M5.4"
+        "M5.4",
+        "M5.5a"
       ],
       "sources": [
         "compat/README.md"
@@ -197,7 +199,7 @@
     {
       "id": "bb-git-install-build",
       "product": "bb",
-      "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling; plugin SDK subpaths bundle the plugin-locked zod (4.6.6 after M5.3a), independently of bb-owned zod",
+      "uses": "Git ref checkout, production dependency install, SDK engines validation and server/host bundling; plugin SDK subpaths bundle the plugin-locked zod (4.6.6 after M5.3a), independently of bb-owned zod M5.5a: package bb-plugin-zcode-provider derives plugin ID zcode-provider; explicit provider ID zcode-provider / ZCode Provider; fresh per-plugin state, no aliases or old-state migration.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -228,7 +230,8 @@
         "package.json",
         "package-lock.json",
         "src/plugin.ts",
-        "src/host.ts"
+        "src/host.ts",
+        "tests/provider/identity.test.mjs"
       ],
       "impact": "Git installation is rejected or provider bundles fail to build; SDK runtime subpaths must be production dependencies.",
       "milestones": [
@@ -236,7 +239,8 @@
         "M4.9.8c.1b",
         "M4.9.8c.2",
         "M4.9.10",
-        "M5.3a"
+        "M5.3a",
+        "M5.5a"
       ],
       "sources": [
         "compat/README.md"
@@ -599,7 +603,8 @@
         "M4.7",
         "M4.9.8b",
         "M4.9.8c.1",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.5a"
       ],
       "sources": [
         "compat/README.md"
@@ -653,7 +658,7 @@
     {
       "id": "bb-artifact",
       "product": "bb",
-      "uses": "Plugin build metadata/host registration",
+      "uses": "Plugin build metadata/host registration M5.5a: package bb-plugin-zcode-provider derives plugin ID zcode-provider; explicit provider ID zcode-provider / ZCode Provider; fresh per-plugin state, no aliases or old-state migration.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -677,7 +682,8 @@
       "code": [
         "package.json",
         "src/plugin.ts",
-        "src/host.ts"
+        "src/host.ts",
+        "tests/provider/identity.test.mjs"
       ],
       "impact": "Plugin install/load fails.",
       "milestones": [
@@ -693,7 +699,7 @@
     {
       "id": "bb-persistent-data",
       "product": "SDK",
-      "uses": "Bridge/host dataDir and plugin identity",
+      "uses": "Bridge/host dataDir and plugin identity M5.5a: package bb-plugin-zcode-provider derives plugin ID zcode-provider; explicit provider ID zcode-provider / ZCode Provider; fresh per-plugin state, no aliases or old-state migration.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -717,7 +723,9 @@
       "code": [
         "src/host.ts",
         "src/runtime.ts",
-        "src/data-maintenance.ts"
+        "src/data-maintenance.ts",
+        "package.json",
+        "tests/provider/identity.test.mjs"
       ],
       "impact": "Lost persistent binding/checkpoints or repeated discovery/notices.",
       "milestones": [
@@ -726,7 +734,8 @@
         "M4.9.4",
         "M4.9.5",
         "M4.9.8b.2b",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.5a"
       ],
       "sources": [
         "compat/README.md"
@@ -849,7 +858,7 @@
     {
       "id": "bb-settings",
       "product": "SDK",
-      "uses": "Settings and CLI registration; c-2 declarative root zcode-report: SDK .79 defineCli/cliCommand, metadata/help/JSON errors and combined output limit, with explicitly server-local report scope.",
+      "uses": "Settings and CLI registration; c-2 declarative root zcode-provider-report: SDK .79 defineCli/cliCommand, metadata/help/JSON errors and combined output limit, with explicitly server-local report scope. M5.5a: package bb-plugin-zcode-provider derives plugin ID zcode-provider; explicit provider ID zcode-provider / ZCode Provider; fresh per-plugin state, no aliases or old-state migration.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -897,7 +906,9 @@
       "code": [
         "src/plugin.ts",
         "src/problem-report.ts",
-        "src/report-cli.ts"
+        "src/report-cli.ts",
+        "package.json",
+        "tests/provider/identity.test.mjs"
       ],
       "impact": "Settings or CLI help/JSON/report unavailable; oversized output refused. The report must never silently describe the invoking remote host using server-local paths.",
       "milestones": [
@@ -906,7 +917,8 @@
         "M4.9.4",
         "M4.9.5",
         "M4.9.8c.1b",
-        "M4.9.8c.2"
+        "M4.9.8c.2",
+        "M5.5a"
       ],
       "sources": [
         "compat/README.md"
@@ -2752,7 +2764,7 @@
     {
       "id": "zcode-mcp-ready",
       "product": "ZCode",
-      "uses": "Optional native MCP startup logs as diagnostics and bb zcode-report input, without thread warnings; native protocol controls availability",
+      "uses": "Optional native MCP startup logs as diagnostics and bb zcode-provider-report input, without thread warnings; native protocol controls availability",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",

@@ -20,14 +20,14 @@ const options = { ...recorded[0].request.params.options, envVars: {} };
 test('public host imports and registration declare only the connected scope without starting native', async () => {
   assert.equal(host.experimental_host.experimental_apiVersion, 1); assert.equal(typeof host.handleLine, 'function');
   const calls = []; await plugin({ settings: { define: () => ({get:async()=>({authMode:'desktop'}),onChange:()=>{}}) }, providers: { register: value => calls.push(value) } });
-  assert.equal(calls[0].displayName, 'ZCode'); assert.deepEqual(calls[0].capabilities.permissionModes, ['full']);
+  assert.equal(calls[0].id, 'zcode-provider'); assert.equal(calls[0].displayName, 'ZCode Provider'); assert.deepEqual(calls[0].capabilities.permissionModes, ['full']);
   assert.deepEqual(calls[0].models, { scope: 'host' }); assert.ok(calls[0].capabilities.reasoningLevels.includes('medium'));
   assert.equal(api.bridgeCapabilities.approvalEnforcedBy, 'provider');
 });
 test('B17 real product handleLine with supervised fake V4 child passes public canonical conformance', async () => {
   const cwd = root(), output = [], bridge = host.createZCodeBridge(fakeServices(cwd), m => output.push(m)); let drained = 0;
   try {
-    const report = await experimental_runBridgeConformance({ providerId: 'zcode', transport: { send: line => {
+    const report = await experimental_runBridgeConformance({ providerId: 'zcode-provider', transport: { send: line => {
       let m; try { m = JSON.parse(line); } catch { bridge.handleLine(line); return; }
       if (['thread/start', 'thread/resume'].includes(m.method)) {
         m.params.dynamicTools = recorded[0].request.params.dynamicTools; m.params.disallowedTools = [];

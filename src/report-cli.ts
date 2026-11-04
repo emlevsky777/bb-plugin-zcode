@@ -4,7 +4,7 @@ import { problemReport, formatProblemReport, localProblemReport } from './proble
 // Collection is separate so help/usage never touches settings or the filesystem.
 export function reportCli(collect: () => Promise<{ local: ReturnType<typeof localProblemReport>; settings: Record<string, unknown> }>) {
   const summary = 'Print a safe server-local ZCode problem report';
-  const cli = defineCli({ name: 'zcode-report', summary, usageErrorExitCode: 2,
+  const cli = defineCli({ name: 'zcode-provider-report', summary, usageErrorExitCode: 2,
     description: 'Runs on the bb server, not the invoking or remote agent host. No upload. Credential-file presence does not establish sign-in readiness.',
     commands: {}, root: cliCommand({ summary,
       options: { json: { type: 'boolean', description: 'Print the server-local report as JSON' } },
@@ -18,7 +18,7 @@ export function reportCli(collect: () => Promise<{ local: ReturnType<typeof loca
     const result = await cli.run(argv, ctx);
     if (result.exitCode !== 2) return result;
     // SDK usage errors echo supplied argv. Do not expose arbitrary caller text.
-    const message = 'Invalid arguments. Run bb zcode-report --help. Report scope: server-local.';
+    const message = 'Invalid arguments. Run bb zcode-provider-report --help. Report scope: server-local.';
     const scanned = argv.includes('--') ? argv.slice(0, argv.indexOf('--')) : argv;
     const json = scanned.some(value => value === '--json' || value === '--json=true');
     return { exitCode: 2, stderr: message + '\n', ...(json ? {

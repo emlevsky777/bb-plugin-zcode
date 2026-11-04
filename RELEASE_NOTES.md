@@ -1,7 +1,29 @@
-# ZCode for bb v0.1.1
+# ZCode Provider v0.2.0
 
-Updating to **v0.1.1 is recommended for ZCode Desktop 3.16.3 users** because
-its OAuth semantics match that Desktop release. The customer-info request
+## Distinct identity and fresh installation
+
+The product is now **ZCode Provider**, package `bb-plugin-zcode-provider`,
+plugin and provider ID `zcode-provider`. The public repository stays
+`emlevsky777/bb-plugin-zcode`. The diagnostic command is
+`bb zcode-provider-report`; no old command or provider aliases are registered.
+This separates this plugin from other authors' ZCode plugins.
+
+Install afresh from
+`git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0`, then select
+**ZCode Provider** in a new thread. Our existing `^0.1.0` installations stay
+on the v0.1.x line; `bb plugin update zcode` does not perform this transition.
+After verifying the new installation, disable our old `zcode` installation
+through Settings. Retain its data and archived history as needed. Settings,
+secrets, sessions and history are not copied or migrated. Old threads are
+unsupported by the new provider; start new sessions.
+
+Fresh defaults: Desktop sign-in, memory fallback ON, native provider subagents
+enabled, no backup Coding Plan key. Desktop memory preference takes priority.
+The real HOME and shared Desktop sign-in/store remain native and unchanged.
+
+## Retained native behavior
+
+The retained v0.1.1 OAuth adaptation matches ZCode Desktop 3.16.3. The customer-info request
 uses the native endpoint-specific Authorization format; key/access-token
 requests retain Bearer. Server rejection of v0.1.0's older header has not
 been proven.
@@ -21,12 +43,11 @@ been proven.
   the declared SDK stays 0.6.79. Other dependency resolutions are retained
   from the accepted compatibility candidate.
 
-## Installation and limits
+## Limits
 
-Install from source using
-`git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0`.
-Existing range-based installations can use `bb plugin update zcode` after
-this release is published. Exact tag/commit pins do not follow range updates.
+The native-runtime observations above are retained from accepted v0.1.x
+verification. This identity release does not remeasure the full matrix or
+add platform/plan support.
 
 Successful automatic compaction remains **not_proven**. An internal native
 request and the remainder of an automatically compacted turn may lack the

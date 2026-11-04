@@ -1,6 +1,6 @@
 {
-  "name": "bb-plugin-zcode",
-  "version": "0.1.1",
+  "name": "bb-plugin-zcode-provider",
+  "version": "0.2.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -32,7 +32,7 @@
     }
   },
   "bb": {
-    "name": "ZCode",
+    "name": "ZCode Provider",
     "description": "Use your Z.ai GLM Coding Plan in bb through your installed ZCode agent. macOS only.",
     "branding": {
       "icon": "./assets/zcode.svg"

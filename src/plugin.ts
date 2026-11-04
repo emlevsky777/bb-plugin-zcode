@@ -17,7 +17,7 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     backupKey: { type: 'string', label: 'Backup Coding Plan key', secret: true,
       description: 'Used only with coding-plan-key on this Mac. bb stores this secret in a protected file.' },
   });
-  bb.providers.register({ id: 'zcode', displayName: 'ZCode', icon: './assets/zcode.svg',
+  bb.providers.register({ id: 'zcode-provider', displayName: 'ZCode Provider', icon: './assets/zcode.svg',
     experimental_resolvesNativeRoots: true,
     deriveProviderOptions(context) { return { authMode: String(context.settings.authMode ?? 'desktop'), providerSubagentsEnabled: context.settings.subagentsDisabled !== true, memoryEnabled: context.settings.memoryEnabled !== false }; },
     strings: { signInHint: signInHint(),

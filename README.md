@@ -1,4 +1,4 @@
-# ZCode for bb
+# ZCode Provider for bb
 
 Run your installed ZCode coding agent inside [bb](https://getbb.app) with an
 individual Z.ai Coding Plan: files, terminal tools, native skills and commands.
@@ -8,12 +8,17 @@ This early unofficial plugin is unaffiliated with Z.ai, ZCode or bb. The plugin
 uses your installed ZCode to send model requests; the bridge also calls Z.ai
 to obtain short-lived project tokens for shared Desktop sign-in. You are
 responsible for complying with your Coding Plan terms. Version in this tree:
-`v0.1.1`. See [release notes](RELEASE_NOTES.md) and
+`v0.2.0`. See [release notes](RELEASE_NOTES.md) and
 [published releases](https://github.com/emlevsky777/bb-plugin-zcode/releases).
 The source repository is public.
 
-Updating to v0.1.1 is recommended for ZCode Desktop 3.16.3 users because its
-OAuth semantics match that Desktop release. Desktop 3.15.1 support is retained.
+v0.2.0 uses a distinct identity: **ZCode Provider**, package
+`bb-plugin-zcode-provider`, plugin/provider ID `zcode-provider`. Users of our
+v0.1.x line must install this source afresh and create new threads. After
+verifying the new installation, disable the old `zcode` installation through
+Settings. Its settings, secrets, sessions and history are not migrated; old
+threads are unsupported by the new provider. Existing `^0.1.0` installations
+stay on that line. This is separate from other authors' ZCode plugins.
 
 ## Requirements and installation
 
@@ -25,18 +30,18 @@ In bb, open **Settings → Installed plugins** (Plugins), then **New plugin
 options → Install from source**, and paste:
 
 ```text
-git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0
+git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0
 ```
 
-Review and confirm. This source selects stable versions in the `^0.1.0` range.
+Review and confirm. This source selects stable versions in the `^0.2.0` range.
 The same installation is available in bb's terminal:
 
 ```sh
-bb plugin install git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0
+bb plugin install git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0
 ```
 
-bb builds both server and host bundles. Plugin ID: `zcode`. Open a thread, select
-**ZCode**, a model (GLM-5.3 when available), permissions **Full**, and send a
+bb builds both server and host bundles. Plugin and provider ID: `zcode-provider`. Open a thread, select
+**ZCode Provider**, a model (GLM-5.3 when available), permissions **Full**, and send a
 message. bb permissions govern tool access; review commands and project trust.
 
 Complete the first individual Z.ai Coding Plan sign-in in ZCode Desktop.
@@ -52,8 +57,8 @@ fallback search uses `/Applications` and `~/Applications`. System Applications
 is preferred when multiple copies exist.
 
 Stop every ZCode thread with its **Stop** button before updating or removing.
-Open **Settings → Installed plugins → ZCode** to review and apply an offered
-update. To remove it, choose **ZCode actions → Remove from bb**. Updates follow
+Open **Settings → Installed plugins → ZCode Provider** to review and apply an offered
+update. To remove it, choose **ZCode Provider actions → Remove from bb**. Updates follow
 the recorded source and stable range. Exact tags and commits are pinned;
 changing source requires removal and fresh installation. Removal clears settings, secrets and schedules,
 while bb 0.47.1 retains plugin session data.
@@ -64,8 +69,8 @@ its CLI there; your system Terminal does not need a `bb` command:
 
 ```sh
 bb plugin outdated
-bb plugin update zcode --yes
-bb plugin remove zcode
+bb plugin update zcode-provider --yes
+bb plugin remove zcode-provider
 ```
 
 Removal unregisters the plugin and deletes its settings, secrets and schedules.
@@ -74,8 +79,8 @@ artifacts can remain. With the default bb data directory, relevant paths are:
 
 - `~/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>/`
   — the checkout and built bundles for the installed commit.
-- `~/.bb/plugins/zcode/` — plugin data, including `host-data/` and `bridge-data/`.
-- `~/.bb/plugin-host-artifacts/zcode/` — downloaded host bundles.
+- `~/.bb/plugins/zcode-provider/` — plugin data, including `host-data/` and `bridge-data/`.
+- `~/.bb/plugin-host-artifacts/zcode-provider/` — downloaded host bundles.
 
 For optional complete disk cleanup, copy the exact **Source** path from plugin
 details **before** removal. In bb's terminal, `bb status --json` reports `dataDir`;
@@ -86,8 +91,8 @@ Only after that, remove the exact retained directories manually:
 ```sh
 # Replace <commit> with the checkout ID recorded before removal.
 rm -r -- "$HOME/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>"
-rm -r -- "$HOME/.bb/plugins/zcode"
-rm -r -- "$HOME/.bb/plugin-host-artifacts/zcode"
+rm -r -- "$HOME/.bb/plugins/zcode-provider"
+rm -r -- "$HOME/.bb/plugin-host-artifacts/zcode-provider"
 ```
 
 Remove a checkout only when no other installed plugin uses it; do not delete the
@@ -148,7 +153,7 @@ MCP configuration is loaded at session creation. After adding a server in
 Desktop, use a new bb thread or stop and cold-continue the existing thread.
 Complete the first MCP OAuth sign-in in Desktop; initiating it inside bb is
 not established. An individual server's startup failure remains in diagnostics
-and `bb zcode-report`, without a conversation warning or blocking ordinary
+and `bb zcode-provider-report`, without a conversation warning or blocking ordinary
 input. Configured hooks follow native enablement and trust rules; no configured
 hook was available for the B-2 live check. Precise native denylist patterns are
 not guaranteed (`Bash(echo:*)` excluded all Bash; `Agent*` did not exclude Agent).
@@ -160,7 +165,7 @@ apply to the next ordinary turn. Uncertain submissions are not automatically
 resent. Check the thread before retrying. Service failures show reason/code;
 inspect bb's pending retry before sending again. Cold continuation and recovery
 reuse the saved native session; an unknown input outcome needs reconciliation,
-not a blind replay. Use `bb zcode-report` for a shareable diagnostic summary.
+not a blind replay. Use `bb zcode-provider-report` for a shareable diagnostic summary.
 
 An optional **Backup Coding Plan key** belongs only in the protected plugin
 setting. Explicitly select `coding-plan-key`; there is no automatic switch from
@@ -177,7 +182,7 @@ external limitation; this patch does not update bb-owned dependencies.
 
 | Configuration or capability | Status |
 | --- | --- |
-| macOS arm64; bb 0.48.0, installed SDK 0.6.94 (declared 0.6.79), host Node 24.22.0; Desktop 3.16.3 / CLI 0.17.0 | Checked level1 combination, accepted 29 October 2026, including ordinary recovery after active Stop. Desktop OAuth, representative models, cold resume, memory/steer, manual compaction, local-file attachment and native question verified. Successful automatic compaction remains unproven; its remainder-of-turn instruction limit still applies. This v0.1.1 candidate requires a separately published and installed update for existing v0.1.0 users. [Observed identities](compat/M5.4-artifacts.json). |
+| macOS arm64; bb 0.48.0, installed SDK 0.6.94 (declared 0.6.79), host Node 24.22.0; Desktop 3.16.3 / CLI 0.17.0 | Checked level1 combination, accepted 29 October 2026, including ordinary recovery after active Stop. Desktop OAuth, representative models, cold resume, memory/steer, manual compaction, local-file attachment and native question verified. Successful automatic compaction remains unproven; its remainder-of-turn instruction limit still applies. These native-runtime observations are retained from v0.1.x; v0.2.0 requires fresh installation. [Observed identities](compat/M5.4-artifacts.json). |
 | macOS arm64; bb 0.47.1, SDK 0.6.79, host Node 24.22.0; ZCode Desktop 3.15.1 / CLI 0.16.9 | Checked level1 combination, accepted 26 October 2026. Git omit-dev installation and shared Desktop sign-in work with GLM-5.3 and GLM-5.3-Flash. Native Notion reading passes; the known page is blank. [Artifact identities](compat/M4.9.8c.1b-artifacts.json). |
 | Earlier bb/SDK/engine combinations | Historical results remain in their reports; this candidate does not retain old-runtime support. |
 | Later bb/ZCode versions; individual plans other than Lite | Pending verification |
@@ -221,7 +226,7 @@ logs, credentials or authorization links.
 ## Reporting a problem
 
 In a bb thread's right panel, choose **Open new tab → Start terminal** and run
-`bb zcode-report` (text), `bb zcode-report --json`, or `bb zcode-report --help`.
+`bb zcode-provider-report` (text), `bb zcode-provider-report --json`, or `bb zcode-provider-report --help`.
 bb supplies the CLI in this terminal; no system PATH setup is needed.
 The report is **server-local**: it describes the bb server's installation and
 diagnostic events, not a remote agent host or the invoking terminal's directory.
@@ -232,7 +237,7 @@ reported separately from sign-in readiness, which is not checked. Exit codes:
 Attach its reviewed output to a
 [GitHub issue](https://github.com/emlevsky777/bb-plugin-zcode/issues), with steps,
 time/timezone and exact error. It uploads nothing. With multiple installations,
-use `bb plugin run zcode` explicitly. Server logs: `bb plugin logs zcode`.
+use `bb plugin run zcode-provider` explicitly. Server logs: `bb plugin logs zcode-provider`.
 
 ## Development and license
 

@@ -29,7 +29,8 @@ PDF attachments, larger text files and other formats; no delivery date.
 
 macOS on Apple silicon, bb 0.47.1+, Git (Xcode Command Line Tools), installed
 ZCode Desktop and an individual Z.ai Coding Plan sign-in are required.
-Checked: bb 0.47.1 / SDK 0.6.79 / host Node 24.22.0 / Desktop 3.15.1 /
+Checked native runtime: bb 0.48.0 / installed SDK 0.6.94 / host Node 24.22.0 /
+Desktop 3.16.3 / CLI 0.17.0, retained from v0.1.x; also bb 0.47.1 / SDK 0.6.79 / host Node 24.22.0 / Desktop 3.15.1 /
 CLI 0.16.9, individual Lite plan. Other combinations need verification.
 bb supplies Node and build tools; no global npm, Python or Homebrew is needed.
 Browser Use is unsupported; Computer Use is not established.
@@ -48,17 +49,20 @@ automatically. Configured-hook behavior is not live-proven.
 
 ## Getting started
 
-Stable version: `v0.1.0`, in the public repository. In Settings → Installed
+Version: `v0.2.0`, ZCode Provider (ID `zcode-provider`). In Settings → Installed
 plugins → New plugin options → Install from source, paste
-`git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.1.0` and confirm.
+`git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0` and confirm.
 The CLI uses `bb plugin install` with the same source. Complete sign-in in
-Desktop, leave `ZCode sign-in source` at `desktop`, then select ZCode in a
-new thread. Stop all ZCode threads and background work before updates/removal.
+Desktop, leave `ZCode sign-in source` at `desktop`, then select ZCode Provider in a
+new thread. Our v0.1.x users need a fresh install and new threads; settings
+and sessions are not migrated. Verify the new install, then disable the old
+`zcode` installation. Old threads are unsupported by the new provider.
+Stop all ZCode threads and background work before updates/removal.
 
 ## Help
 
-Open new tab → Start terminal in a bb thread and run `bb zcode-report`,
-`bb zcode-report --json` or `bb zcode-report --help`. Reports are server-local,
+Open new tab → Start terminal in a bb thread and run `bb zcode-provider-report`,
+`bb zcode-provider-report --json` or `bb zcode-provider-report --help`. Reports are server-local,
 exclude secrets/session contents/personal paths and upload nothing; they do
 not prove sign-in readiness or diagnose remote hosts.
 
