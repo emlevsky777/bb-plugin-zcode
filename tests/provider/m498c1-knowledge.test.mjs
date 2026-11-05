@@ -76,33 +76,102 @@ test('c1 native compact active-chain semantics: manual loss, automatic preserved
   assert.equal(k.prepare('send4', 'changed', 'after auto'), 'after auto');
 });
 
-test('c1 active-chain fixture matches pinned .16.9/.17.0 compact hydration, and native runtime drops real-user prefix', { skip: !existsSync('/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs') }, () => {
-  const source = readFileSync('/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs', 'utf8');
+const nativeReference = process.env.ZCODE_NATIVE_REFERENCE_SOURCE ?? '/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs';
+test('c1 ordered active-chain fixtures match reviewed native hydration and runtime drops real-user prefix', { skip: !process.env.ZCODE_NATIVE_REFERENCE_SOURCE && !existsSync(nativeReference) }, t => {
+  const source = readFileSync(nativeReference, 'utf8');
   const extract = (name, next) => { const start = source.indexOf('function ' + name + '('), end = source.indexOf('function ' + next + '(', start); assert.ok(start >= 0 && end > start); return source.slice(start, end); };
   // Execute only the pinned pure hydration functions; installed bytes are not
   // copied into Git. Runtime token invalidation does not change user content.
   const digest = createHash('sha256').update(source).digest('hex');
+  const leading = digest === 'd9afd58d694f98a5279bf548cdc7646413c125762e86730605a6071f9e0346d6';
   const native17 = digest === '97490d0f06a7a225d54d47817acf4b4859cdb268b59f2490caaeda982bef063a';
-  assert.ok(native17 || digest === 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e', 'Unreviewed native compaction implementation');
-  const hydrate = native17
-    ? new Function('qgt', source.slice(source.indexOf('function Qwn('), source.indexOf('var tkn=', source.indexOf('function Qwn('))) + '; return Qwn;')(() => ({}))
-    : new Function('eht', extract('$vn', 'Wvn') + '; return $vn;')(() => ({}));
-  const first = { info: { id: 'first', role: 'user' }, parts: [{ type: 'text', text: 'bb block' }] };
-  const summary = { info: { id: 'summary', role: 'user' }, parts: [{ type: 'text', text: 'summary' }] };
-  for (const preserved of [undefined, { headMessageId: 'first', tailMessageId: 'first', anchorMessageId: 'summary' }]) {
-    const boundary = { info: { id: 'boundary', role: 'user' }, parts: [{ type: 'compaction', compactBoundary: { preservedSegment: preserved } }] };
-    const messages = [first, boundary, summary]; assert.deepEqual(api.activeNativeMessages(messages), hydrate(messages, 1, true));
+  assert.ok(leading || native17 || digest === 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e', 'Unreviewed native compaction implementation');
+  const resetName = leading ? 'W_t' : native17 ? 'qgt' : 'eht';
+  const resetStart = source.indexOf('function ' + resetName + '('), resetEnd = source.indexOf('function ', resetStart + 10);
+  assert.ok(resetStart >= 0 && resetEnd > resetStart);
+  const resetTokens = new Function(source.slice(resetStart, resetEnd) + '; return ' + resetName + ';')();
+  // Desktop 3.17.2 WOn..vTt reviewed in M5.7: leading IDs are all-string
+  // arrays on the first concrete compaction part; preserved filtering excludes
+  // IDs from every boundary, and assistant usage is reset. No native code is
+  // vendored. A digest identifies the reviewed source, never replaces review.
+  const hydrate = leading
+    ? new Function('W_t', source.slice(source.indexOf('function WOn('), source.indexOf('var HOn=', source.indexOf('function WOn('))) + '; return WOn;')(resetTokens)
+    : native17
+    ? new Function('qgt', source.slice(source.indexOf('function Qwn('), source.indexOf('var tkn=', source.indexOf('function Qwn('))) + '; return Qwn;')(resetTokens)
+    : new Function('eht', extract('$vn', 'Wvn') + '; return $vn;')(resetTokens);
+  const msg = (id, role = 'user', extra = {}) => ({ info: { id, role, ...extra }, parts: [{ type: 'text', text: id === 'first' ? 'bb block' : id }] });
+  const first = msg('first'), second = msg('second'), summary = msg('summary');
+  const bc = (id = 'boundary', segment, ids) => ({ info: { id, role: 'user' }, parts: [{ type: 'compaction', compactBoundary: { preservedSegment: segment }, metadata: { compactLeadingMessageIds: ids } }] });
+  const segment = { headMessageId: 'first', tailMessageId: 'second', anchorMessageId: 'summary' };
+  const cases = [
+    ['manual', [first, bc(), summary], ['boundary', 'summary']],
+    ['preserved', [first, second, bc('boundary', segment), summary], ['boundary', 'summary', 'first', 'second']],
+    ['missing-anchor', [first, second, bc('boundary', { ...segment, anchorMessageId: 'stale' }), summary], ['boundary', 'first', 'second', 'summary']],
+    ['stale-head', [first, bc('boundary', { ...segment, headMessageId: 'stale' }), summary], ['boundary', 'summary']],
+    ['reversed-segment', [first, second, bc('boundary', { ...segment, headMessageId: 'second', tailMessageId: 'first' }), summary], ['boundary', 'summary']],
+    ['segment-crosses-boundary', [first, bc('boundary', { ...segment, tailMessageId: 'summary' }), summary], ['boundary', 'summary']],
+    ['latest-boundary', [first, bc('earlier'), second, bc(), summary], ['boundary', 'summary']],
+    ['preserved-filters', [first, msg('hidden', 'user', { semantics: { providerVisibility: 'hidden' } }), msg('error', 'assistant', { error: {} }), msg('system', 'system'), bc('earlier'), msg('second', 'assistant', { tokens: { total: 42, input: 20, output: 22, reasoning: 1, cache: { read: 2, write: 3 } } }), bc('boundary', segment), summary], ['boundary', 'summary', 'first', 'second']],
+  ];
+  if (leading) cases.push(
+    ['leading-order-and-dedup', [first, second, bc('boundary', undefined, ['second', 'first', 'first', 'stale', 'summary']), summary], ['first', 'second', 'boundary', 'summary']],
+    ['leading-preserved-overlap', [first, second, bc('boundary', segment, ['first']), summary], ['first', 'boundary', 'summary', 'second']],
+    ['leading-missing-anchor', [first, second, bc('boundary', { ...segment, anchorMessageId: 'stale' }, ['first']), summary], ['first', 'boundary', 'second', 'summary']],
+    ['all-boundaries-exclude-leading', [first, bc('earlier', undefined, ['first']), second, bc('boundary', segment), summary], ['boundary', 'summary', 'second']],
+    ['leading-no-visibility-filter', [msg('first', 'user', { semantics: { providerVisibility: 'hidden' } }), bc('boundary', undefined, ['first']), summary], ['first', 'boundary', 'summary']],
+    ...[undefined, [], ['stale'], ['first', 7], 'first', null, {}].map((ids, i) => ['invalid-or-empty-ids-' + i, [first, bc('boundary', undefined, ids), summary], ['boundary', 'summary']]),
+    ['first-compaction-part-wins', [first, { ...bc(), parts: [...bc().parts, ...bc('ignored', undefined, ['first']).parts] }, summary], ['boundary', 'summary']],
+    ['timeline-only-not-leading', [first, { info: { id: 'boundary' }, parts: [{ type: 'compaction', metadata: { compactLeadingMessageIds: ['first'] } }] }, summary], ['boundary', 'summary']],
+  );
+  const results = [];
+  for (const [label, messages, ids] of cases) {
+    const boundary = messages.findLastIndex(m => m.parts.some(p => p.type === 'compaction' && (p.compactBoundary || !p.timelineStatus)));
+    const actual = api.activeNativeMessages(messages), expected = hydrate(messages, boundary, true);
+    assert.deepEqual(actual, expected, label); assert.deepEqual(actual.map(m => m.info.id), ids, label);
+    results.push({ label, ids });
   }
-  const prefixCount = new Function(...(native17 ? ['Tm', 'Ala', 'Pla', 'Ela'] : ['xm', 'jca', 'Bca', 'qu']),
-    native17 ? extract('PT', 'Ela') + '; return PT;' : extract('wT', 'ix') + '; return wT;')(
+  assert.deepEqual(api.activeNativeMessages([first, { info: { id: 'running' }, parts: [{ type: 'compaction', timelineStatus: 'running' }] }]), [first, { info: { id: 'running' }, parts: [{ type: 'compaction', timelineStatus: 'running' }] }]);
+  if (leading) {
+    const messages = [first, bc('boundary', undefined, ['first']), summary];
+    // Negative control: the pre-M5.7 boundary-only selection loses a retained
+    // block and would ask for a redundant prefix. Ordered native parity catches it.
+    assert.notDeepEqual(messages.slice(1), hydrate(messages, 1, true));
+    const overlap = [first, second, bc('boundary', segment, ['first']), summary];
+    assert.notDeepEqual([first, overlap[2], summary, first, second], hydrate(overlap, 2, true));
+  }
+  t.diagnostic(JSON.stringify({ digest, branch: leading ? '3.17.2' : native17 ? '3.16.3' : '3.15.1', orderedFixtures: results }));
+  const prefixCount = new Function(...(leading ? ['tp', 'f_a', 'm_a', 'Gu'] : native17 ? ['Tm', 'Ala', 'Pla', 'Ela'] : ['xm', 'jca', 'Bca', 'qu']),
+    leading ? extract('DT', 'hx') + '; return DT;' : native17 ? extract('PT', 'Ela') + '; return PT;' : extract('wT', 'ix') + '; return wT;')(
     e => e.kind === 'attachment', e => e.message, e => e.metadata, content => content);
   const clone = value => structuredClone(value);
-  const postCompact = new Function(...(native17 ? ['PT', '_kt', 'FLa'] : ['wT', 'mSt', 'zNa']),
-    native17 ? extract('fjo', 'mjo') + '; return fjo;' : extract('TOo', 'IOo') + '; return TOo;')(prefixCount, clone, clone);
+  const postCompact = new Function(...(leading ? ['DT', 'fUe', 'oza'] : native17 ? ['PT', '_kt', 'FLa'] : ['wT', 'mSt', 'zNa']),
+    leading ? extract('A8o', 'P8o') + '; return A8o;' : native17 ? extract('fjo', 'mjo') + '; return fjo;' : extract('TOo', 'IOo') + '; return TOo;')(prefixCount, clone, clone);
   const nativePrefix = { message: { role: 'user', content: 'native context' }, metadata: { source: 'context_prefix' } };
   const bbUser = { message: { role: 'user', content: '[bb session instructions]\nbb block' }, metadata: { source: 'real_user' } };
   const result = postCompact([nativePrefix, bbUser], { message: { role: 'user', content: 'summary' } });
-  assert.equal(result.length, 2); assert.ok(!JSON.stringify(result).includes('bb block'));
+  assert.equal(result.length, leading ? 1 : 2); assert.ok(!JSON.stringify(result).includes('bb block'));
+});
+
+test('c1 leading retained/missing block reconciliation persists across cold reload without redundant delivery', () => {
+  const dir = mkdtempSync('/tmp/c1-leading-'), file = join(dir, 'state.json');
+  const first = { info: { id: 'first', role: 'user' }, parts: [{ type: 'text', text: 'frozen bb block\n\nfirst input' }] };
+  const boundary = ids => ({ info: { id: 'boundary', role: 'user' }, parts: [{ type: 'compaction', compactBoundary: {}, metadata: { compactLeadingMessageIds: ids } }] });
+  const success = id => ({ rows: { window: [{ kind: 'timelineMarker', rowId: id, turnId: 'compact', marker: { type: 'compact', status: 'success' } }] } });
+  try {
+    let k = new api.SessionKnowledge(file); k.prepare('send1', 'frozen bb block', 'first input');
+    k.observe({ rows: { window: [{ kind: 'turnHeader', sourceCommandId: 'send1' }] } });
+    k.observe(success(1)); k = new api.SessionKnowledge(file); assert.equal(k.needsReconcile, true);
+    assert.equal(k.reconcile([first, boundary(['first'])]), true);
+    k = new api.SessionKnowledge(file); assert.equal(k.delivered, true); assert.equal(k.needsReconcile, false);
+    assert.equal(k.prepare('send2', 'changed', 'retained'), 'retained');
+    k.observe(success(2)); k = new api.SessionKnowledge(file);
+    assert.equal(k.reconcile([first, boundary(['missing'])]), false);
+    k = new api.SessionKnowledge(file); assert.equal(k.delivered, false);
+    assert.equal(k.prepare('send3', 'changed', 'restore'), 'frozen bb block\n\nrestore');
+    k = new api.SessionKnowledge(file); assert.equal(k.prepare('send4', 'changed', 'uncertain'), 'uncertain');
+    k.observe({ rows: { window: [{ kind: 'turnHeader', sourceCommandId: 'send3' }] } });
+    k = new api.SessionKnowledge(file); assert.equal(k.prepare('send5', 'changed', 'acknowledged'), 'acknowledged');
+  } finally { rmSync(dir, { recursive: true }); }
 });
 
 test('c1 actual bridge config timing, ordinary/steer/model changes, process restart/cold resume keep one delivered block', async () => {

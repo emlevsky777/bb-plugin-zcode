@@ -58,20 +58,29 @@ export class SessionKnowledge {
   }
 }
 
-// CLI .16.9 compactActiveSessionMessages / compactPreservedSegmentMessages:
-// the last active boundary replaces older messages, with an optional tail
-// reinserted after its anchor. Full history alone is not active model context.
+// Reviewed CLI .16.9/.17.0 and Desktop 3.17.2 hydration: keep explicitly
+// named leading messages before the latest boundary, then reinsert the optional
+// preserved segment without any boundary's leading IDs. Disk history alone
+// is not active model context. Leading selection itself has no visibility filter.
 export function activeNativeMessages(input: unknown[]): unknown[] {
-  const messages = input as { info: { id: string; role?: string; semantics?: { providerVisibility?: string }; error?: unknown }; parts: { type: string; compactBoundary?: { preservedSegment?: { headMessageId: string; tailMessageId: string; anchorMessageId: string } }; timelineStatus?: string }[] }[];
+  const messages = input as { info: { id: string; role?: string; semantics?: { providerVisibility?: string }; error?: unknown; tokens?: Record<string, unknown> }; parts: { type: string; compactBoundary?: { preservedSegment?: { headMessageId: string; tailMessageId: string; anchorMessageId: string } }; metadata?: { compactLeadingMessageIds?: unknown }; timelineStatus?: string }[] }[];
+  const leadingIds = (message: typeof messages[number]): string[] => {
+    const ids = message.parts.find(p => p.type === 'compaction' && p.compactBoundary)?.metadata?.compactLeadingMessageIds;
+    return Array.isArray(ids) && ids.every(id => typeof id === 'string') ? ids : [];
+  };
   let boundary = -1;
   for (let i = 0; i < messages.length; i++) if (messages[i]!.parts.some(p => p.type === 'compaction' && (p.compactBoundary || !p.timelineStatus))) boundary = i;
   if (boundary < 0) return messages;
-  const active = messages.slice(boundary), segment = messages[boundary]!.parts.find(p => p.type === 'compaction' && p.compactBoundary)?.compactBoundary?.preservedSegment;
+  const leading = new Set(leadingIds(messages[boundary]!));
+  const active = [...messages.slice(0, boundary).filter(m => leading.has(m.info.id)), ...messages.slice(boundary)];
+  const segment = messages[boundary]!.parts.find(p => p.type === 'compaction' && p.compactBoundary)?.compactBoundary?.preservedSegment;
   if (!segment) return active;
   const head = messages.findIndex(m => m.info.id === segment.headMessageId), tail = messages.findIndex(m => m.info.id === segment.tailMessageId);
   if (head < 0 || tail < head || tail >= boundary) return active;
+  const allLeading = new Set(messages.flatMap(leadingIds));
   const preserved = messages.slice(head, tail + 1).filter(m => m.info.semantics?.providerVisibility !== 'hidden' && !m.parts.some(p => p.type === 'compaction') &&
-    !(m.info.role === 'assistant' && m.info.error) && ['user', 'assistant'].includes(m.info.role ?? ''));
-  const anchor = active.findIndex(m => m.info.id === segment.anchorMessageId), position = anchor >= 0 ? anchor + 1 : 1;
+    !(m.info.role === 'assistant' && m.info.error) && ['user', 'assistant'].includes(m.info.role ?? '') && !allLeading.has(m.info.id))
+    .map(m => m.info.role !== 'assistant' ? m : { ...m, info: { ...m.info, tokens: { ...m.info.tokens, total: 0, input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } } } });
+  const anchor = active.findIndex(m => m.info.id === segment.anchorMessageId), position = anchor >= 0 ? anchor + 1 : active.indexOf(messages[boundary]!) + 1;
   return [...active.slice(0, position), ...preserved, ...active.slice(position)];
 }

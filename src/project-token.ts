@@ -1,4 +1,4 @@
-// Adapted from ZCode Desktop 3.15.1/3.16.3 resolveProviderMaterial and
+// Adapted from ZCode Desktop 3.15.1/3.16.3 (reviewed again on 3.17.2) resolveProviderMaterial and
 // ProjectAccessTokenClient/Cache (Apache-2.0). See the dated semantic record.
 // Only individual Z.ai OAuth is used. No credential/configuration writes.
 import { Agent, request } from 'node:https';
@@ -88,7 +88,7 @@ export class ProjectTokenResolver {
     const headers = { ...json, Authorization: `Bearer ${oauth}` };
     // Only stable 3.15.1 is observed with legacy customer Bearer semantics.
     // Build metadata preserves that version; every other version (including
-    // unknown/prerelease) defaults to the latest observed 3.16.3 format.
+    // unknown/prerelease) defaults to the observed 3.16.3/3.17.2 format.
     // This is a fallback policy, not a claim about the first changed release.
     const customerHeaders = { ...json, Authorization: /^3\.15\.1(?:\+[0-9A-Za-z.-]+)?$/.test(this.clientVersion) ? headers.Authorization : oauth };
     const customer = record(data(await send('/api/biz/customer/getCustomerInfo', 'GET', customerHeaders)));

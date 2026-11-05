@@ -8,7 +8,7 @@ This early unofficial plugin is unaffiliated with Z.ai, ZCode or bb. The plugin
 uses your installed ZCode to send model requests; the bridge also calls Z.ai
 to obtain short-lived project tokens for shared Desktop sign-in. You are
 responsible for complying with your Coding Plan terms. Version in this tree:
-`v0.2.0`. See [release notes](RELEASE_NOTES.md) and
+`v0.2.1`. See [release notes](RELEASE_NOTES.md) and
 [published releases](https://github.com/emlevsky777/bb-plugin-zcode/releases).
 The source repository is public.
 
@@ -182,9 +182,10 @@ external limitation; this patch does not update bb-owned dependencies.
 
 | Configuration or capability | Status |
 | --- | --- |
+| macOS arm64; bb 0.48.1, installed SDK 0.6.104 (declared 0.6.79), host Node 24.22.0; Desktop 3.17.2 / CLI 0.17.1 | Limited v0.2.1 representative check, accepted 5 November 2026: Desktop sign-in, Flash/high/Full file/terminal task, cold resume, successful manual compact and one full frozen bb block in the actual next ordinary request. Native history fixtures compare reviewed 3.16.3 and 3.17.2 functions. Live leading-ID occurrence and successful automatic compaction remain unproven. This series does not register a new level1 tuple or repeat the broader feature matrix. |
 | macOS arm64; bb 0.48.0, installed SDK 0.6.94 (declared 0.6.79), host Node 24.22.0; Desktop 3.16.3 / CLI 0.17.0 | Checked level1 combination, accepted 29 October 2026, including ordinary recovery after active Stop. Desktop OAuth, representative models, cold resume, memory/steer, manual compaction, local-file attachment and native question verified. Successful automatic compaction remains unproven; its remainder-of-turn instruction limit still applies. These native-runtime observations are retained from v0.1.x; v0.2.0 requires fresh installation. [Observed identities](compat/M5.4-artifacts.json). |
 | macOS arm64; bb 0.47.1, SDK 0.6.79, host Node 24.22.0; ZCode Desktop 3.15.1 / CLI 0.16.9 | Checked level1 combination, accepted 26 October 2026. Git omit-dev installation and shared Desktop sign-in work with GLM-5.3 and GLM-5.3-Flash. Native Notion reading passes; the known page is blank. [Artifact identities](compat/M4.9.8c.1b-artifacts.json). |
-| Earlier bb/SDK/engine combinations | Historical results remain in their reports; this candidate does not retain old-runtime support. |
+| Earlier bb/SDK/engine combinations | Historical results remain in their reports; this release does not retain old-runtime support. |
 | Later bb/ZCode versions; individual plans other than Lite | Pending verification |
 | Windows, Linux, Intel macOS; Start Plan, Team Coding Plan, off-peak, BigModel | Unsupported |
 | Browser Use | Unsupported: native interaction rejected on the earlier verified base; no new support is claimed |

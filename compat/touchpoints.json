@@ -28,9 +28,10 @@
           "file": "Contents/Resources/app.asar/out/host/index.js",
           "text": "getSettingsFile",
           "strength": "strong",
-          "reason": "Same settings-service symbol in observed Desktop 3.15.1 index or 3.16.3 chunk; alternative locations are OR, not mandatory AND. Behavior requires live verification.",
+          "reason": "Same settings-service symbol in reviewed Desktop 3.15.1, 3.16.3 and 3.17.2; alternatives are OR paths. 5 November 2026 M5.7: installed K6B2OAAG SHA256 2b459cca3d5ad1151cf24f7429f8870e55e00c50b7085b36b00547bca6303760 matches acabe8; service still resolves real HOME/.zcode/v2/setting.json. Source presence alone does not establish live behavior.",
           "alternativeFiles": [
-            "Contents/Resources/app.asar/out/host/chunk-G6XJUBQB.js"
+            "Contents/Resources/app.asar/out/host/chunk-G6XJUBQB.js",
+            "Contents/Resources/app.asar/out/host/chunk-K6B2OAAG.js"
           ]
         }
       ],
@@ -46,7 +47,8 @@
         "M4.9.8b.2b",
         "M4.9.8b.2c",
         "M4.9.8c.1b",
-        "M5.4"
+        "M5.4",
+        "M5.7"
       ],
       "sources": [
         "compat/README.md"
@@ -2123,7 +2125,7 @@
     {
       "id": "zcode-steer",
       "product": "ZCode",
-      "uses": "Guide queue ACK and source command identity; native queue promotion and shutdown behavior",
+      "uses": "Guide queue ACK and source command identity; native guide batching, queue promotion and shutdown behavior",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2151,14 +2153,15 @@
         "src/process.ts",
         "src/catalogue-supervisor.ts"
       ],
-      "impact": "Steer acceptance/correlation fails; no preemption guarantee.",
+      "impact": "Steer acceptance/correlation fails; no preemption guarantee. 5 November 2026: reviewed Desktop 3.17.2 K7o/V7a drains all eligible guides in admission order up to the first reserved guide, unlike the older one-guide drain. Queue/compact/goal inputs are excluded; persisted sourceCommandId remains authoritative. Batching does not add a guide drain between automatic compaction and the next model request, so the G4 instruction gap remains.",
       "milestones": [
         "M4.6.4",
         "M4.7",
         "M4.9.8",
         "M4.9.8b.2b",
         "M4.9.8c.1a",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.7"
       ],
       "sources": [
         "compat/README.md"
@@ -2868,19 +2871,19 @@
     {
       "id": "zcode-compaction-active-history",
       "product": "ZCode",
-      "uses": "Read session/messages after authoritative compact success; reconcile the latest active boundary and optional preserved segment before one frozen-block redelivery",
+      "uses": "Read session/messages after authoritative compact success; reconcile the latest active boundary, its ordered leading messages and optional preserved segment excluding all boundaries' leading IDs before deciding frozen-block redelivery",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
           "text": "compactActiveSessionMessages",
           "strength": "strong",
-          "reason": "Installed active-history hydration semantics, exercised with native pure functions."
+          "reason": "5 November 2026 M5.7 reviewed installed 3.17.2 WOn/w8o/YUa hydration (CLI SHA256 d9afd58d694f98a5279bf548cdc7646413c125762e86730605a6071f9e0346d6). metadata.compactLeadingMessageIds is an all-string array on the first concrete compaction part; preserved messages exclude leading IDs from every boundary. Native-source differential fixtures retain old metadata-absent behavior; leading occurrence in ordinary live sessions requires separate observation."
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
           "text": "buildPostCompactRuntimeEntries",
           "strength": "strong",
-          "reason": "Native compaction preserves context_prefix metadata but drops the injected real_user prefix."
+          "reason": "Reviewed 3.17.2 runtime/hydration regenerates or retains native reminders but drops the injected real_user prefix; that ordinary user message is ineligible for leadingReminderEntries. Earlier context_prefix handling differs."
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2905,11 +2908,12 @@
         "src/session-knowledge.ts",
         "src/bridge.ts"
       ],
-      "impact": "12 October 2026 G4 live: V4 auto success is timely, but native drains one guide per response boundary; preceding user guidance defers the full block to main continuation three. No guide reinjection adopted. Ordinary c-1 reconciliation remains the supported restoration path.",
+      "impact": "Historical 12 October 2026 G4 live used one guide per boundary. Reviewed 3.17.2 drains eligible guides in batches, but still has no guide drain between autoCompactIfNeeded and the next request; the remainder-of-auto-compacted-turn instruction gap remains. No guide reinjection adopted; ordinary reconciliation restores the frozen block. The original bb-bearing real_user message cannot become a leading reminder, so M5.7 supplies native selection parity without a proven everyday redundant-delivery effect. A successful M5.7 manual compact removed the block and actual next requests each carried exactly one restored copy; live leading IDs and automatic-compaction success remain unproven.",
       "milestones": [
         "M4.9.8c.1",
         "M4.9.8c.1a",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.7"
       ],
       "sources": [
         "compat/README.md"
@@ -2960,9 +2964,10 @@
           "file": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
           "text": "clientType:\"zcode\",clientVersion:",
           "strength": "strong",
-          "reason": "Observed Desktop 3.15.1 and 3.16.3 project-token client locations; exact client version/header behavior requires native review and live evidence.",
+          "reason": "5 November 2026 M5.7: installed 3.17.2 D5C6W4UB SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53 matches acabe8. Reviewed customer-info raw business-token Authorization and key/access-token Bearer behavior retain 3.16.3 semantics. Old 3.15.1/3.16.3 paths remain strong OR alternatives; source inspection alone is not live compatibility.",
           "alternativeFiles": [
-            "Contents/Resources/app.asar/out/host/chunk-5YNPFY3L.js"
+            "Contents/Resources/app.asar/out/host/chunk-5YNPFY3L.js",
+            "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js"
           ]
         },
         {
@@ -2994,7 +2999,8 @@
       "milestones": [
         "M4.9.8c.1b",
         "M5.1",
-        "M5.4"
+        "M5.4",
+        "M5.7"
       ],
       "sources": [
         "compat/README.md"

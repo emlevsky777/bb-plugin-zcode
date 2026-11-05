@@ -29,9 +29,10 @@ PDF attachments, larger text files and other formats; no delivery date.
 
 macOS on Apple silicon, bb 0.47.1+, Git (Xcode Command Line Tools), installed
 ZCode Desktop and an individual Z.ai Coding Plan sign-in are required.
-Checked native runtime: bb 0.48.0 / installed SDK 0.6.94 / host Node 24.22.0 /
-Desktop 3.16.3 / CLI 0.17.0, retained from v0.1.x; also bb 0.47.1 / SDK 0.6.79 / host Node 24.22.0 / Desktop 3.15.1 /
-CLI 0.16.9, individual Lite plan. Other combinations need verification.
+Limited checked scope: bb 0.48.1 / installed SDK 0.6.104 / Node 24.22.0 /
+Desktop 3.17.2 / CLI 0.17.1: Flash/high file/terminal task, cold resume,
+manual compact and next-turn instructions. No new level1 tuple or full matrix.
+Older accepted 3.16.3 and 3.15.1 combinations remain in README; individual Lite plan.
 bb supplies Node and build tools; no global npm, Python or Homebrew is needed.
 Browser Use is unsupported; Computer Use is not established.
 
@@ -49,10 +50,13 @@ automatically. Configured-hook behavior is not live-proven.
 
 ## Getting started
 
-Version: `v0.2.0`, ZCode Provider (ID `zcode-provider`). In Settings → Installed
+Version: `v0.2.1`.
+See README for limited Desktop 3.17.2 coverage and history correction.
+
+ZCode Provider (ID `zcode-provider`). In Settings → Installed
 plugins → New plugin options → Install from source, paste
 `git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0` and confirm.
-The CLI uses `bb plugin install` with the same source. Complete sign-in in
+Complete sign-in in
 Desktop, leave `ZCode sign-in source` at `desktop`, then select ZCode Provider in a
 new thread. Our v0.1.x users need a fresh install and new threads; settings
 and sessions are not migrated. Verify the new install, then disable the old

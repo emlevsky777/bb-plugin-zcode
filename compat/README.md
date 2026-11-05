@@ -1,5 +1,15 @@
 # Release compatibility inspection
 
+5 November 2026: accepted v0.2.1 runtime reviews Desktop 3.17.2 leading/preserved
+history and moved memory/OAuth chunks. Both verified 3.16.3 reference and
+installed 3.17.2 Level 0 inspections find all strong anchors; the same 15 weak
+anchors remain. Optional test-only `ZCODE_NATIVE_REFERENCE_SOURCE` selects a
+reviewed CLI source for `tests/provider/m498c1-knowledge.test.mjs`; the default
+is installed source and unknown implementations fail. Final source/export
+comparisons cover both versions. The representative current-tuple live scope
+in [README](../README.md#compatibility) was accepted on 5 November; no new level1
+registration or successful automatic-compaction claim is added.
+
 29 October 2026: the owner accepted M5.4 and its cheap post-Stop continuation.
 The exact bb 0.48.0 / installed SDK 0.6.94 / Desktop 3.16.3 / CLI 0.17.0 /
 Node 24.22.0 tuple is registered as level1 alongside the old combination.
