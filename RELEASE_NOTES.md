@@ -1,4 +1,53 @@
-# ZCode Provider v0.2.1
+# ZCode Provider v0.2.2
+
+## Start Plan models and independent Usage
+
+Entitled Start models now appear alongside Coding Plan models with distinct
+IDs, such as `start-plan/GLM-5.3-Flash`. Select the plan through each thread's
+model picker. Start uses the existing shared ZCode Desktop sign-in; Coding Plan
+key mode remains Coding-only. A requested unavailable Start ID is rejected
+without substituting Coding. bb can retain its last catalogue during refresh;
+after activation, reopen the picker once if the new model has not appeared yet.
+
+Both native Provider Usage views show Coding quota percentages/reset times and
+Start token remaining/total with access expiry independently. Claimed future
+grants show pending activation without early model access. A claimed plan with
+no reported balance stays labelled as claimed, rather than as an absent
+promotion. Catalogue and Usage demand share scoped snapshots, normally for one
+minute; manual refresh may reuse them. Errors and the other plan remain separate.
+
+Optional **Check for Start Plan promotions** is off by default. When enabled,
+selected Desktop claim offers can produce qualified new-thread guidance.
+Claim remains an owner action in Desktop; the plugin never claims, reports
+marketing actions or downloads campaign assets. Claimed quota works with this
+setting off. Server impression/frequency-cap effects remain unknown.
+
+With memory enabled, eligible completed turns also run native project-memory
+extraction against the Start quota, as in Desktop. Desktop's memory setting
+takes priority over the plugin fallback; the plugin adds no extraction loop.
+
+## Verified scope and update
+
+On macOS arm64, bb 0.48.1 / installed SDK 0.6.104 / host Node 24.22.0,
+ZCode Desktop 3.17.2 / CLI 0.17.1, a real Flash promotion was observed pending
+before its effective start and active afterwards. A Flash/high/Full turn
+completed through the Start gateway and a later balance reported a debit.
+Native retry and memory requests are included in the series; exact per-request
+billing and absence of Coding charges from rounded percentages are not proven.
+The final memory request occurred after the last measured balance.
+
+Post-start access with no reported balance bucket and a warm-session transition
+through actual expiry remain unproven. Compact Usage rounds small percentages
+to whole numbers; its token label retains exact remaining units. Existing
+automatic-compaction/instruction-retention limits and the unchecked-combination
+notice remain. No new level1 compatibility tuple is registered.
+
+The existing `git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0`
+source accepts v0.2.2 through ordinary `bb plugin update zcode-provider`.
+Plugin identity, short description, settings, history, dependency resolutions
+and SDK pin are unchanged. No source switch or migration is required.
+
+# ZCode Provider v0.2.1 (previous release)
 
 ## Desktop 3.17.2 history correction
 

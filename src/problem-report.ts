@@ -44,6 +44,8 @@ export function reportEvents(root: string): string[] {
 
 export function settingsReport(settings: Record<string, unknown>) {
   return {
+    planSelection: 'per-model',
+    checkStartPromotions: settings.checkStartPromotions === true,
     authMode: settings.authMode === 'coding-plan-key' ? 'coding-plan-key' : 'desktop',
     backupKey: typeof settings.backupKey === 'string' && !!settings.backupKey ? 'set' : 'not set',
     subagentsDisabled: settings.subagentsDisabled === true,

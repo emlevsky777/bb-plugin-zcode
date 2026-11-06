@@ -13,12 +13,13 @@ export class ProjectTokenError extends Error {
   constructor(code: string, transient = false) { super(code); this.code = code; this.transient = transient; }
 }
 export type TokenRequest = (path: string, method: 'GET' | 'POST', headers: Record<string, string>, body?: unknown) => Promise<unknown>;
-export function tokenRequest(env: NodeJS.ProcessEnv): TokenRequest {
+export function tokenRequest(env: NodeJS.ProcessEnv, onDate?: (date: string | undefined) => void): TokenRequest {
   return (path, method, headers, body) => new Promise((resolve, reject) => {
     const ca = env.ZCODE_AGENT_CA_CERT;
     const agent = new Agent({ proxyEnv: { ...env, ...(env.ZCODE_HTTP_PROXY ? { HTTPS_PROXY: env.ZCODE_HTTP_PROXY, https_proxy: env.ZCODE_HTTP_PROXY } : {}) },
       ...(ca ? { ca: [...rootCertificates, readFileSync(ca, 'utf8')] } : {}) });
     const req = request(new URL(path, 'https://api.z.ai'), { agent, method, headers, signal: AbortSignal.timeout(15000) }, response => {
+      onDate?.(response.headers.date);
       const chunks: Buffer[] = [];
       response.on('data', (chunk: Buffer) => { chunks.push(chunk); });
       response.on('error', reject);

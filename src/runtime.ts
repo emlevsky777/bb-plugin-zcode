@@ -5,9 +5,9 @@ import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
-import { reasoningLevelSchema, providerHealthResultSchema, providerInstallationStatusSchema } from '@get-bb/plugin-sdk/provider-bridge';
-import { ReadOnlyAuth, AuthError, accountProviderId } from './auth.ts';
-import type { AuthMode } from './auth.ts';
+import { reasoningLevelSchema, providerHealthResultSchema, providerInstallationStatusSchema, providerUsageResultSchema } from '@get-bb/plugin-sdk/provider-bridge';
+import { ReadOnlyAuth, AuthError, accountProviderId, nativeAccount, authMode } from './auth.ts';
+import type { AuthMode, AccountPlan } from './auth.ts';
 import { NativeProcess, childEnvironment, MissingExecutableError } from './process.ts';
 import { record, string } from './errors.ts';
 import { scheduleDataMaintenance } from './data-maintenance.ts';
@@ -19,6 +19,11 @@ import { discoverCompatibility, compareCompatibility, createFileIdentityCache, c
 import { nativePaths, signInHint, configureZCodeLocation, resolveZCode } from './applications.ts';
 import { claimNotice, diagnosticNoticeName } from './messages.ts';
 import { desktopMemoryEnabled } from './desktop-memory.ts';
+import { fetchStartEntitlement, fetchStartBalance, decodeStartBalance } from './start-plan.ts';
+import { fetchStartOffer, startOffer, startOfferContext, startClaimGuidance } from './start-offer.ts';
+import { readDiscovery, peekDiscovery, discoveryScope } from './discovery-cache.ts';
+import type { StartEntitlement, StartBalance } from './start-plan.ts';
+import { startModelId } from './model-selection.ts';
 export { nativePaths } from './applications.ts';
 // Match Desktop's installed host/CLI executable identity. The main executable
 // registers CLI/MCP children as dev.zcode.app/Foreground in LaunchServices.
@@ -84,7 +89,8 @@ export function discovery() {
   }
   return cachedDiscovery();
 }
-export function mapNativeModels(value: unknown, nativeDefault?: unknown) {
+export function mapNativeModels(value: unknown, nativeDefault?: unknown, plan: AccountPlan = 'coding-plan') {
+  const accountProviderId = nativeAccount(plan).id;
   if (!Array.isArray(value)) throw new Error('Native catalogue missing');
   const output: { id: string; model: string; displayName: string; description: string; isDefault: boolean;
     defaultReasoningEffort: string; supportedReasoningEfforts: { reasoningEffort: string; description: string }[]; supportsImage?: boolean }[] = [];
@@ -111,30 +117,39 @@ export function mapNativeModels(value: unknown, nativeDefault?: unknown) {
     }
     const inputFormat = record(record(m.properties ?? {}).inputFormat ?? {});
     if (inputFormat.supportsImage !== undefined && typeof inputFormat.supportsImage !== 'boolean') throw new Error('Malformed native image capability');
-    output.push({ id: model, model, displayName: typeof m.label === 'string' ? m.label : model, description: 'ZCode native account Coding Plan model', isDefault: false, defaultReasoningEffort: reasoning.defaultLevel, supportedReasoningEfforts: levels.filter(level => reasoningLevelSchema.safeParse(level).success).map(level => ({ reasoningEffort: level, description: level })), ...(typeof inputFormat.supportsImage === 'boolean' ? { supportsImage: inputFormat.supportsImage } : {}) });
+    output.push({ id: model, model, displayName: typeof m.label === 'string' ? m.label : model, description: `ZCode native account ${nativeAccount(plan).label} model`, isDefault: false, defaultReasoningEffort: reasoning.defaultLevel, supportedReasoningEfforts: levels.filter(level => reasoningLevelSchema.safeParse(level).success).map(level => ({ reasoningEffort: level, description: level })), ...(typeof inputFormat.supportsImage === 'boolean' ? { supportsImage: inputFormat.supportsImage } : {}) });
   }
-  if (!output.length) throw new Error(rejected.size ? 'Native model default reasoning unsupported by bb SDK; no supported models' : 'Native Coding Plan catalogue empty');
+  if (!output.length) throw new Error(rejected.size ? 'Native model default reasoning unsupported by bb SDK; no supported models' : 'Native selected-plan catalogue empty');
   const fallback = record(nativeDefault ?? {});
-  const selected = output.find(m => m.model === 'GLM-5.3') ?? (fallback.providerId === accountProviderId ? output.find(m => m.model === fallback.modelId) : undefined);
-  if (!selected && !rejected.has(String(fallback.modelId)) && !rejected.has('GLM-5.3')) throw new Error('Native Coding Plan default unavailable; no invented fallback');
+  const selected = (plan === 'coding-plan' ? output.find(m => m.model === 'GLM-5.3') : undefined) ?? (fallback.providerId === accountProviderId ? output.find(m => m.model === fallback.modelId) : undefined);
+  if (!selected && !rejected.has(String(fallback.modelId)) && !(plan === 'coding-plan' && rejected.has('GLM-5.3'))) throw new Error('Native selected-plan default unavailable; no invented fallback');
   if (selected) selected.isDefault = true;
   return output;
+}
+function validateEntitlement(value: unknown): StartEntitlement {
+  const e = record(value);
+  if (!Array.isArray(e.modelIds) || !e.modelIds.length || e.modelIds.some(id => typeof id !== 'string') ||
+      typeof e.validUntil !== 'number' || !Number.isFinite(e.validUntil) || e.validUntil <= Date.now()) throw Error('Start entitlement expired or invalid');
+  return { modelIds: e.modelIds, validUntil: e.validUntil };
 }
 export function createNativeServices(initialRoot = join(homedir(), '.local/share/bb-zcode'), dependencies: {
   discovery?: typeof discovery; auth?: ReadOnlyAuth; paths?: ReturnType<typeof nativePaths>;
   configure?: (child: NativeProcess) => Promise<void>;
   catalogueCache?: boolean;
   personalHome?: string;
+  startBalance?: typeof fetchStartEntitlement;
+  startSnapshot?: typeof fetchStartBalance;
+  startOffer?: typeof fetchStartOffer;
   compatibility?: () => ReturnType<typeof compareCompatibility>;
 } = {}) {
   let root = resolve(initialRoot);
   let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
   let explicitKeyPath: string | undefined;
   let catalogueEpoch = 0, stopped = false;
-  type Catalogue = { models: ReturnType<typeof mapNativeModels> };
-  let catalogue: Catalogue | undefined;
-  let catalogueScope: string | undefined;
-  let loading: { epoch: number; promise: Promise<Catalogue> } | undefined;
+  type Catalogue = { models: ReturnType<typeof mapNativeModels>; entitlement?: StartEntitlement };
+  type CatalogueEntry = { scope: string; catalogue?: Catalogue | undefined; loading?: Promise<Catalogue> | undefined };
+  const catalogues = new Map<string, CatalogueEntry>();
+  let balanceLoading: { scope: string; promise: Promise<StartBalance> } | undefined;
   const catalogueLoads = new Set<Promise<Catalogue>>();
   let locationConfigured = false;
   const detect = dependencies.discovery ?? (() => {
@@ -154,23 +169,68 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     mkdirSync(root, { recursive: true, mode: 0o700 });
     appendFileSync(join(root, 'auth-metadata.ndjson'), JSON.stringify({ at: new Date().toISOString(), purpose, generation, fresh: true }) + '\n', { encoding: 'utf8', mode: 0o600 });
   });
-  const selectedAuth = (mode: AuthMode = 'desktop') => dependencies.auth && mode === 'desktop' ? auth : auth.fork(mode, explicitKeyPath);
+  const selectedAuth = (mode: AuthMode = 'desktop', plan: AccountPlan = 'coding-plan') => dependencies.auth && mode === 'desktop' && plan === 'coding-plan' ? auth : auth.fork(mode, explicitKeyPath, plan);
   // A bb maintenance bridge may expire independently of a live thread bridge.
   // Share only the validated public catalogue, never credentials/identity/hash.
   // Pinned account capabilities are public config; authentication is checked
   // independently on every hit and every model request, never part of the key.
   const persistentCatalogue = dependencies.catalogueCache ?? !dependencies.configure;
-  function cacheScope(d: ReturnType<typeof discovery>, mode: AuthMode = 'desktop'): string {
+  function cacheScope(d: ReturnType<typeof discovery>, mode: AuthMode = 'desktop', plan: AccountPlan = 'coding-plan'): string {
     const paths = getPaths();
-    const scope = JSON.stringify({ version: 3, semantics: 'zai-coding-plan-session-create-v1', root, runtime: d.sha256, cli: d.version, mode,
+    const scope = JSON.stringify({ version: 5, semantics: 'zai-selected-plan-session-create-v1', plan, root, runtime: d.sha256, cli: d.version, mode,
       credentialFileIdentity: fileIdentity(mode === 'desktop' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []),
+      desktop: desktopVersion(compatibilityFiles(paths)[3]!), config: fileIdentity([join(dependencies.personalHome ?? homedir(), '.zcode/cli/config.json'), join(dependencies.personalHome ?? homedir(), '.zcode/v2/telemetry-state.json')]),
       builtin: createHash('sha256').update(readFileSync(paths.builtin)).digest('hex') });
-    selectedAuth(mode).read('catalogue-cache-validation');
+    selectedAuth(mode, plan).read('catalogue-cache-validation');
     return scope;
   }
-  async function cachedCatalogue(loadRoot: string, scope: string, epoch: number, mode: AuthMode): Promise<Catalogue> {
+  async function balance(): Promise<StartBalance> {
+    const d = detect(), paths = getPaths(), scope = cacheScope(d, 'desktop', 'start-plan');
+    // Desktop access cadence, shared across catalogue/thread/Usage bridges.
+    // No timer or per-turn offer probe; usage maintenance has no refresh reason.
+    if (balanceLoading?.scope === scope) return balanceLoading.promise;
+    const epoch = catalogueEpoch;
+    const promise = (async () => {
+      const builtin = JSON.parse(readFileSync(paths.builtin, 'utf8'));
+      const ids = [...new Set<string>(JSON.stringify(builtin).match(/"GLM-[^"\\]+"/g)?.map(s => JSON.parse(s)) ?? [])];
+      const fresh = selectedAuth('desktop', 'start-plan'), version = desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown';
+      const env = { ...process.env, ...observerEnvironment(root) };
+      const value = await readDiscovery(root, 'balance', discoveryScope(scope), 60_000, async () => {
+      evidence({ event: 'start-balance-request' });
+        return dependencies.startBalance
+          ? { entitlement: await dependencies.startBalance(fresh, version, ids, env, dependencies.personalHome), usage: { status: 'error' as const, message: 'Injected entitlement has no quota amount.', accountEmail: null, planLabel: 'Start Plan' } }
+          : await (dependencies.startSnapshot ?? fetchStartBalance)(fresh, version, ids, env, dependencies.personalHome);
+      }, decodeStartBalance, v => v.validUntil ?? v.entitlement?.validUntil ?? Infinity,
+      () => !stopped && epoch === catalogueEpoch && cacheScope(detect(), 'desktop', 'start-plan') === scope);
+      if (stopped || epoch !== catalogueEpoch || cacheScope(detect(), 'desktop', 'start-plan') !== scope) throw Error('Balance scope changed; retry an independent operation.');
+      evidence({ event: 'start-balance-result', modelIds: value.entitlement?.modelIds ?? [], validUntil: value.entitlement?.validUntil ?? null, usageStatus: value.usage.status });
+      return value;
+    })().finally(() => { if (balanceLoading?.promise === promise) balanceLoading = undefined; });
+    balanceLoading = { scope, promise };
+    return promise;
+  }
+  function checkStartPromotions() {
+    try { return record(JSON.parse(readFileSync(join(root, 'account-selection.json'), 'utf8'))).checkStartPromotions === true; }
+    catch { return false; }
+  }
+  function offerScope() {
+    const version = desktopVersion(compatibilityFiles(getPaths())[3]!) ?? 'unknown';
+    return discoveryScope(JSON.stringify({ semantics: 'marketing-claim-delivery-v2', root,
+      credentialFileIdentity: fileIdentity([auth.path]),
+      ...startOfferContext(version, process.env, dependencies.personalHome) }));
+  }
+  async function offer() {
+    const scope = offerScope(), version = desktopVersion(compatibilityFiles(getPaths())[3]!) ?? 'unknown';
+    return readDiscovery(root, 'claim-offer', scope, 10 * 60_000, async () => {
+      if (!checkStartPromotions()) throw Error('Start promotion checks are off');
+      evidence({ event: 'start-offer-request' });
+      return (dependencies.startOffer ?? fetchStartOffer)(selectedAuth('desktop', 'start-plan'), version,
+        { ...process.env, ...observerEnvironment(root) }, dependencies.personalHome);
+    }, startOffer, () => Infinity, () => !stopped && checkStartPromotions() && scope === offerScope(), 10 * 60_000);
+  }
+  async function cachedCatalogue(loadRoot: string, scope: string, epoch: number, mode: AuthMode, plan: AccountPlan): Promise<Catalogue> {
     mkdirSync(loadRoot, { recursive: true, mode: 0o700 });
-    const file = join(loadRoot, 'catalogue-v2.json');
+    const file = join(loadRoot, `catalogue-v3-${plan}.json`);
     let invalid: string | undefined;
     const readCache = (): Catalogue | undefined => {
       try {
@@ -188,12 +248,15 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       if (!Array.isArray(models)) throw new Error('Catalogue cache invalid');
       const normalized = mapNativeModels(models.map(model => {
         const m = record(model);
-        return { label: m.displayName, ref: { providerId: accountProviderId, modelId: m.model }, properties: { inputFormat: { supportsImage: m.supportsImage } }, reasoning: { defaultLevel: m.defaultReasoningEffort,
+        return { label: m.displayName, ref: { providerId: nativeAccount(plan).id, modelId: m.model }, properties: { inputFormat: { supportsImage: m.supportsImage } }, reasoning: { defaultLevel: m.defaultReasoningEffort,
           levels: Array.isArray(m.supportedReasoningEfforts) ? m.supportedReasoningEfforts.map(e => ({ value: record(e).reasoningEffort })) : [] } };
-      }), { providerId: accountProviderId, modelId: record(models.find(m => record(m).isDefault === true)).model });
-      if (JSON.stringify(raw) !== JSON.stringify({ models: normalized })) throw new Error('Catalogue cache shape changed');
+      }), { providerId: nativeAccount(plan).id, modelId: record(models.find(m => record(m).isDefault === true)).model }, plan);
+      const entitlement = plan === 'start-plan' ? validateEntitlement(raw.entitlement) : undefined;
+      const result = { models: normalized, ...(entitlement ? { entitlement } : {}) };
+      if (entitlement && normalized.some(m => !entitlement.modelIds.includes(m.model))) throw Error('Stale Start models');
+      if (JSON.stringify(raw) !== JSON.stringify(result)) throw new Error('Catalogue cache shape changed');
       evidence({ event: 'catalogue-shared-cache-hit' }, loadRoot);
-      return { models: normalized };
+      return result;
       } catch (error) {
         invalid = 'invalid-public-cache'; return;
       }
@@ -201,8 +264,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     const hit = readCache(); if (hit) return hit;
     if (invalid) evidence({ event: 'catalogue-cache-recovery', reason: invalid,
       action: 'Reloading validated catalogue from ZCode; session/history retained' }, loadRoot);
-    const value = await loadCatalogue(loadRoot, mode);
-    if (stopped || epoch !== catalogueEpoch || root !== loadRoot || cacheScope(detect(), mode) !== scope)
+    const value = await loadCatalogue(loadRoot, mode, plan);
+    if (stopped || epoch !== catalogueEpoch || root !== loadRoot || cacheScope(detect(), mode, plan) !== scope)
       throw new Error('Catalogue root changed or runtime/config scope changed; retry after reconciliation');
     const temp = file + '.' + randomUUID() + '.tmp';
     try {
@@ -213,7 +276,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     } finally { try { if (existsSync(temp)) unlinkSync(temp); } catch { /* Optional cache cleanup. */ } }
     return value;
   }
-  async function prepare(cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }, service = false, serviceMode: AuthMode = 'desktop'): Promise<RuntimeSetup> {
+  async function prepare(cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }, service = false, serviceMode: AuthMode = 'desktop', servicePlan: AccountPlan = 'coding-plan', serviceEntitlement?: StartEntitlement): Promise<RuntimeSetup> {
     const operationRoot = root;
     // Identity and binding checks precede discovery, auth and writes.
     const threadId = identity?.threadId;
@@ -234,7 +297,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       throw new Error('Existing native identity requires resume; no create fallback. Attach the original bb thread with its saved native ID. If creation is pending, ask the provider maintainer to reconcile it; keep binding/session/history files.');
     const d = detect(), paths = getPaths();
     if (!d.installed) throw new MissingExecutableError(resolveZCode().message);
-    const sessionAuth = selectedAuth(execution?.authMode ?? serviceMode);
+    const sessionAuth = selectedAuth(execution?.authMode ?? serviceMode, execution?.accountPlan ?? servicePlan);
     sessionAuth.read('prepare');
     let builtinRevision: string | null = null;
     const generationRoot = join(root, 'generations', randomUUID()), logs = join(generationRoot, 'logs');
@@ -245,6 +308,13 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     // Supply only its installed location. CLI startup then resolves the active
     // native revision and Desktop personal config; read both in place.
     const own: NodeJS.ProcessEnv = { HOME: dependencies.personalHome ?? homedir(), ELECTRON_RUN_AS_NODE: '1', ZCODE_LOG_DIR: logs, ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: paths.builtin };
+    const appVersion = desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown';
+    own.ZCODE_APP_VERSION = appVersion;
+    const overlay = async () => {
+      const plan = sessionAuth.accountPlan();
+      const entitlement = plan === 'start-plan' ? (serviceEntitlement ?? (await services.models(undefined, sessionAuth.source(), plan) as Catalogue).entitlement) : undefined;
+      return sessionAuth.overlay(`bb-${randomUUID()}`, builtinRevision!, entitlement?.modelIds);
+    };
     const observer = join(root, 'observer.json');
     own.ZCODE_SESSION_DB_PATH = join(sessionDir, 'db.sqlite');
     Object.assign(own, observerEnvironment(root));
@@ -261,8 +331,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     }, refreshAuth: async child => {
       if (dependencies.configure) { sessionAuth.read('refresh'); return; }
       if (!builtinRevision) throw new Error('Runtime builtin revision unavailable; no auth refresh');
-      await child.request('provider/updateAccountConfig', sessionAuth.overlay(`bb-${randomUUID()}`, builtinRevision));
-      evidence({ event: 'auth-overlay-refresh', source: sessionAuth.source(), route: 'coding-plan-gateway', pid: child.child.pid }, operationRoot);
+      await child.request('provider/updateAccountConfig', await overlay());
+      evidence({ event: 'auth-overlay-refresh', source: sessionAuth.source(), route: sessionAuth.account().route, accountPlan: sessionAuth.accountPlan(), pid: child.child.pid }, operationRoot);
     }, markCreatePending: service ? undefined : () => {
       writeFileSync(bindingFile, JSON.stringify({ threadId, cwd, nativeSessionId: null, creationPending: true }), { encoding: 'utf8', mode: 0o600 });
     }, bindSession: service ? undefined : (nativeSessionId: string) => {
@@ -298,7 +368,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       }
       if (!revision) throw new Error('Runtime builtin revision unavailable; no entitlement overlay');
       builtinRevision = revision;
-      await child.request('provider/updateAccountConfig', sessionAuth.overlay(`bb-${randomUUID()}`, revision));
+      await child.request('provider/updateAccountConfig', await overlay());
       evidence({ event: 'overlay-ack-only', runtimeBuiltinRevision: revision }, operationRoot);
     } };
   }
@@ -314,55 +384,123 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     observe: evidence,
     memoryEnabled: () => desktopMemoryEnabled(dependencies.personalHome),
     prepare,
-    async health(mode = 'desktop') {
+    invalidateCatalogue() { catalogueEpoch++; catalogues.clear(); balanceLoading = undefined; for (const name of ['catalogue-v3-start-plan.json', 'catalogue-v3-coding-plan.json', 'discovery-balance.json']) try { unlinkSync(join(root, name)); } catch { /* optional cache */ } },
+    startGuidance() {
+      if (!checkStartPromotions()) return null;
+      try {
+        const scope = discoveryScope(cacheScope(detect(), 'desktop', 'start-plan'));
+        const b = peekDiscovery(root, 'balance', scope, decodeStartBalance);
+        if (!b || b.granted || b.entitlement) return null;
+        const p = peekDiscovery(root, 'claim-offer', offerScope(), startOffer);
+        return p ? startClaimGuidance(p) : null;
+      } catch { return null; }
+    },
+    async health(mode, plan) {
+      let selection: Record<string, unknown> = {};
+      const file = join(root, 'account-selection.json');
+      if (existsSync(file)) selection = record(JSON.parse(readFileSync(file, 'utf8')));
+      mode = authMode(mode ?? selection.authMode); plan = 'coding-plan';
       const d = detect(), paths = getPaths(); let status: 'not_installed' | 'ready' | 'unauthenticated' | 'unknown' = !d.installed ? 'not_installed' : 'ready';
       let message = status === 'ready' ? `Ready. ZCode: ${paths.script.replace('/Contents/Resources/glm/zcode.cjs', '')}.` : resolveZCode().bundle ? 'ZCode Desktop installation incomplete: repair or reinstall ZCode Desktop.' : resolveZCode().message;
-      if (status === 'ready') try { selectedAuth(mode).read('health'); } catch (e) {
+      if (status === 'ready') try {
+        try { selectedAuth(mode, plan).read('health'); } catch (error) {
+          if (mode !== 'desktop') throw error;
+          try { selectedAuth('desktop', 'start-plan').read('health'); } catch { throw error; }
+          plan = 'start-plan';
+        }
+      } catch (e) {
         status = e instanceof AuthError && ['unauthenticated', 'missing-key'].includes(e.kind) ? 'unauthenticated' : 'unknown';
         message = mode === 'coding-plan-key' ? 'Explicit Coding Plan key unavailable or unreadable in protected plugin settings; no automatic sign-in fallback.' : status === 'unauthenticated' ? signInHint(paths) : e instanceof AuthError ? e.message : 'Desktop sign-in store unreadable or unsupported.';
       }
       const context = d.installed ? compatibility().message : null;
       if (context) message += ' ' + context;
-      return providerHealthResultSchema.parse({ supported: true, health: { accountEmail: null, canInstall: false, canUpdate: false, installedVersion: d.version, loginCommand: null, minimumSupportedVersion: null, planLabel: mode === 'desktop' ? 'Desktop Coding Plan' : 'Explicit Coding Plan key / gateway', status, statusMessage: message } });
+      return providerHealthResultSchema.parse({ supported: true, health: { accountEmail: null, canInstall: false, canUpdate: false, installedVersion: d.version, loginCommand: null, minimumSupportedVersion: null, planLabel: mode === 'desktop' ? `Desktop ${nativeAccount(plan).label}` : 'Explicit Coding Plan key / gateway', status, statusMessage: message } });
     },
     async installation() {
       const d = detect(), paths = getPaths();
       return providerInstallationStatusSchema.parse({ currentVersion: d.version, executableName: 'zcode', executablePath: d.installed ? paths.script : null, installAction: null, installSource: d.installed ? 'external' : 'notInstalled', installed: d.installed, latestVersion: null, minimumSupportedVersion: null, needsUpdate: false, npmGlobalPackageVersion: null, npmPackageName: null, versionUnsupported: false });
     },
-    async models(_cwd, mode = 'desktop') {
+    async models(_cwd, mode = 'desktop', plan = 'coding-plan') {
       if (stopped) throw new Error('Native services closed');
       // Unknown versions run; the actual catalogue/protocol still validates.
       const d = detect();
       if (!d.installed) throw new MissingExecutableError(resolveZCode().message);
       // Authentication is fresh even for an in-memory public catalogue hit.
-      selectedAuth(mode).read('catalogue-ready');
-      const scope = persistentCatalogue ? cacheScope(d, mode) : JSON.stringify({ mode, credentials: fileIdentity(mode === 'desktop' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []) });
-      if (catalogueScope !== scope) { catalogueEpoch++; catalogue = undefined; loading = undefined; catalogueScope = scope; }
-      if (catalogue) { evidence({ event: 'catalogue-cache-hit', epoch: catalogueEpoch }); return structuredClone(catalogue); }
-      if (!loading) {
-        const epoch = catalogueEpoch, loadRoot = root;
-        const promise = (!persistentCatalogue ? loadCatalogue(loadRoot, mode) : cachedCatalogue(loadRoot, scope, epoch, mode)).then(value => {
-          if (stopped || epoch !== catalogueEpoch) throw new Error('Catalogue root changed or services closed; retry on current root');
-          catalogue = value;
+      selectedAuth(mode, plan).read('catalogue-ready');
+      // Recheck demand-cached availability even when the native catalogue is warm.
+      const entitlement = plan === 'start-plan' ? (await balance()).entitlement : undefined;
+      if (plan === 'start-plan' && !entitlement) throw Error('Start Plan has no entitled native models (missing, expired or exhausted plan).');
+      const scope = persistentCatalogue ? cacheScope(d, mode, plan) : JSON.stringify({ mode, plan, credentials: fileIdentity(mode === 'desktop' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []) });
+      const key = `${mode}/${plan}`;
+      let entry = catalogues.get(key);
+      if (!entry || entry.scope !== scope) { entry = { scope }; catalogues.set(key, entry); }
+      if (entry.catalogue?.entitlement && (entry.catalogue.entitlement.validUntil <= Date.now() ||
+          JSON.stringify(entry.catalogue.entitlement.modelIds) !== JSON.stringify(entitlement?.modelIds))) {
+        entry.catalogue = undefined;
+        try { unlinkSync(join(root, 'catalogue-v3-start-plan.json')); } catch { /* optional public cache */ }
+      }
+      if (entry.catalogue) { evidence({ event: 'catalogue-cache-hit', plan }); return structuredClone(entry.catalogue); }
+      if (!entry.loading) {
+        const epoch = catalogueEpoch, loadRoot = root, currentEntry = entry;
+        const promise = (!persistentCatalogue ? loadCatalogue(loadRoot, mode, plan) : cachedCatalogue(loadRoot, scope, epoch, mode, plan)).then(value => {
+          if (stopped || epoch !== catalogueEpoch || catalogues.get(key) !== currentEntry) throw new Error('Catalogue root changed or services closed; retry on current root');
+          // A persisted Start catalogue cannot restore a removed grant/model.
+          if (entitlement && JSON.stringify(value.entitlement?.modelIds) !== JSON.stringify(entitlement.modelIds)) {
+            try { unlinkSync(join(root, 'catalogue-v3-start-plan.json')); } catch { /* optional public cache */ }
+            return loadCatalogue(loadRoot, mode, plan).then(fresh => { currentEntry.catalogue = fresh; return fresh; });
+          }
+          currentEntry.catalogue = value;
           return value;
-        }).finally(() => { if (loading?.epoch === epoch) loading = undefined; });
-        loading = { epoch, promise };
+        }).finally(() => { if (currentEntry.loading === promise) currentEntry.loading = undefined; });
+        entry.loading = promise;
         catalogueLoads.add(promise);
         void promise.then(() => catalogueLoads.delete(promise), () => catalogueLoads.delete(promise));
       }
-      return structuredClone(await loading.promise);
+      return structuredClone(await entry.loading);
     },
-    async validateSelection(model, reasoning, mode = 'desktop') {
-      const available = record(await services.models(undefined, mode)).models as ReturnType<typeof mapNativeModels>;
+    async catalogue(cwd, mode = 'desktop') {
+      const models: ReturnType<typeof mapNativeModels> = [];
+      const errors: unknown[] = [];
+      try { models.push(...(await services.models(cwd, mode, 'coding-plan') as Catalogue).models); } catch (e) { errors.push(e); }
+      if (mode === 'desktop') try {
+        const snapshot = await balance();
+        if (!snapshot.entitlement) {
+          if (!snapshot.granted && checkStartPromotions()) try { await offer(); } catch { evidence({ event: 'start-offer-unavailable' }); }
+          if (models.length) return { models };
+          throw errors[0] ?? Error('No available ZCode models. Check Desktop sign-in.');
+        }
+        const start = await services.models(cwd, mode, 'start-plan') as Catalogue;
+        models.push(...start.models.map(m => ({ ...m, id: startModelId(m.model), model: startModelId(m.model),
+          displayName: `${m.displayName} · Start Plan`, isDefault: models.length ? false : m.isDefault })));
+      } catch (e) { errors.push(e); evidence({ event: 'start-catalogue-unavailable' }); }
+      if (!models.length) throw errors[0] ?? Error('No available ZCode models. Check Desktop sign-in.');
+      return { models };
+    },
+    async usage() {
+      if (!detect().installed) return { supported: true, usage: { status: 'not_installed' } };
+      let usage: StartBalance['usage'];
+      try { usage = (await balance()).usage; }
+      catch (e) { usage = e instanceof AuthError && e.kind === 'unauthenticated' ? { status: 'unauthenticated' }
+        : { status: 'error', accountEmail: null, planLabel: 'Start Plan', message: 'Start Plan balance unavailable; check Desktop sign-in and retry refresh. Coding Plan is separate.' }; }
+      return providerUsageResultSchema.parse({ supported: true, usage });
+    },
+    async validateSelection(model, reasoning, mode = 'desktop', plan = 'coding-plan') {
+      const available = record(await services.models(undefined, mode, plan)).models as ReturnType<typeof mapNativeModels>;
       const selected = model ? available.find(m => m.model === model) : available.find(m => m.isDefault);
       const effort = reasoning || selected?.defaultReasoningEffort;
       if (!selected || !effort || !selected.supportedReasoningEfforts.some(e => e.reasoningEffort === effort)) throw new Error('Selected model/reasoning unavailable; models with a default reasoning level unsupported by bb SDK cannot be used. No fallback');
       return { model: selected.model, reasoning: effort };
     },
   };
-  async function loadCatalogue(loadRoot: string, mode: AuthMode = 'desktop'): Promise<Catalogue> {
+  async function loadCatalogue(loadRoot: string, mode: AuthMode = 'desktop', plan: AccountPlan = 'coding-plan'): Promise<Catalogue> {
       const cwd = join(loadRoot, 'catalogue-scratch'); mkdirSync(cwd, { recursive: true, mode: 0o700 });
-      const setup = await prepare(cwd, undefined, undefined, true, mode);
+      const paths = getPaths();
+      let entitlement: StartEntitlement | undefined;
+      if (plan === 'start-plan') {
+        entitlement = (await balance()).entitlement;
+        if (!entitlement) throw Error('Start Plan has no entitled native models (missing, expired or exhausted plan).');
+      }
+      const setup = await prepare(cwd, undefined, undefined, true, mode, plan, entitlement);
       const launch = setup.launch;
       const child = new NativeProcess(launch, 1, null, m => {
         if (m.method === 'session/requestRuntimePreferences') child.write({ jsonrpc: '2.0', id: m.id, result: runtimePreferences });
@@ -373,8 +511,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
         await setup.configure(child);
         const snapshot = record(await child.request('session/create', { workspace: { workspacePath: cwd, workspaceKey: cwd }, mode: 'yolo', persistence: 'deferred', titleGenerationEnabled: false }));
         const model = record(record(snapshot.settings).model);
-        const models = mapNativeModels(model.available, model.current);
-        evidence({ event: 'actual-catalogue', models, nativeDefault: model.current, source: 'session/create' }, loadRoot); return { models };
+        const models = mapNativeModels(model.available, model.current, plan);
+        evidence({ event: 'actual-catalogue', models, nativeDefault: model.current, source: 'session/create', plan }, loadRoot); return { models, ...(entitlement ? { entitlement } : {}) };
       } catch (e) { primary = e; throw e; }
       finally {
         try {
@@ -387,11 +525,11 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
         }
       }
   }
-  return { services, setSecretRoot(path: string) { explicitKeyPath = join(resolve(path), 'backupKey'); }, setRoot(path: string) { const next = resolve(path); configureZCodeLocation(next, evidence); if (next !== root) { root = next; catalogueEpoch++; catalogue = undefined; loading = undefined; }
+  return { services, setSecretRoot(path: string) { explicitKeyPath = join(resolve(path), 'backupKey'); }, setRoot(path: string) { const next = resolve(path); configureZCodeLocation(next, evidence); if (next !== root) { root = next; catalogueEpoch++; catalogues.clear(); balanceLoading = undefined; }
     // Maintenance starts only after bb supplies this installation's owned data root.
     scheduleDataMaintenance(root);
     maintenanceTimer ??= setInterval(() => scheduleDataMaintenance(root), 24 * 60 * 60 * 1000);
     maintenanceTimer.unref();
   }, root: () => root, metadata: () => ({ reads: auth.reads, freshReadGeneration: auth.generation }),
-    async close() { clearInterval(maintenanceTimer); stopped = true; catalogueEpoch++; catalogue = undefined; loading = undefined; await Promise.allSettled([...catalogueLoads]); const results = await Promise.all([...children].map(child => child.close())); if (results.some(Boolean)) throw new Error('Owned service process remains'); } };
+    async close() { clearInterval(maintenanceTimer); stopped = true; catalogueEpoch++; catalogues.clear(); await Promise.allSettled([...catalogueLoads, ...(balanceLoading ? [balanceLoading.promise] : [])]); const results = await Promise.all([...children].map(child => child.close())); if (results.some(Boolean)) throw new Error('Owned service process remains'); } };
 }

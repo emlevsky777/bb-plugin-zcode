@@ -8,14 +8,34 @@ import { join, dirname, basename } from 'node:path';
 import { experimental_nativeRootsHostContract } from '@get-bb/plugin-sdk/host';
 import type { PluginRpcContract } from '@get-bb/plugin-sdk';
 import { configureZCodeLocation } from './applications.ts';
+import { codingHostContract, usageMeasurement } from './usage-source.ts';
+import { collectCodingUsage } from './coding-usage.ts';
+import { discovery } from './runtime.ts';
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { observerEnvironment } from './observer.ts';
 export { createZCodeBridge } from './bridge.ts';
 
 assertHostNode();
 // Keep the native-root SDK validators; settings travel per command.
 // SDK .79's exported Zod contract and host StandardSchema failure result
 // declarations differ; retain the original runtime validators unchanged.
-export const experimental_host = experimental_defineHostEntry({ contract: experimental_nativeRootsHostContract as unknown as PluginRpcContract,
+export const experimental_host = experimental_defineHostEntry({ contract: { ...experimental_nativeRootsHostContract, ...codingHostContract } as unknown as PluginRpcContract,
   handlers: {
+    async codingUsage(input, context) {
+      const root = join(context.experimental_paths.dataDir, 'coding-usage');
+      const pluginRoot = dirname(context.experimental_paths.dataDir);
+      // Same host-owned plugin layout as the existing bridge secret lookup.
+      const keyPath = basename(context.experimental_paths.dataDir) === 'host-data'
+        ? join(pluginRoot, 'secrets', 'backupKey') : undefined;
+      const value = await collectCodingUsage({ root, mode: (input as { mode: string }).mode,
+        ...(keyPath ? { keyPath } : {}), version: discovery().tuple?.desktop ?? 'unknown',
+        env: { ...process.env, ...observerEnvironment(join(pluginRoot, 'bridge-data/zcode')) },
+        beforeRead(endpoint) {
+          mkdirSync(root, { recursive: true });
+          appendFileSync(join(root, 'read-ledger.ndjson'), JSON.stringify({ at: new Date().toISOString(), endpoint, method: 'GET' }) + '\n');
+        } });
+      return usageMeasurement(value.usage as unknown as Record<string, unknown>, value.observedAt);
+    },
     resolveNativeRoots(input, context) {
       configureZCodeLocation(join(context.experimental_paths.dataDir, 'zcode'));
       return resolveNativeRootsCached((input as { cwd: string | null }).cwd,

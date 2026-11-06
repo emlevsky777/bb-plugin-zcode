@@ -133,20 +133,36 @@ test('B08 request rejection uses typed authRequired alone; B07 launch rejection 
     await rpcHarness(missing, async rpc => { const response = await rpc('thread/start', { threadId: 'own', cwd, options, instructionMode: 'append' }); assert.equal(response.error.code, -32004); });
   } finally { rmSync(cwd, { recursive: true }); }
 });
-test('B08 midturn auth loss emits notification and unauthorized delta with no error.data recovery', async () => {
+async function waitForAuthRecovery(output, timeoutMs = 2000) {
+  const deadline = performance.now() + timeoutMs;
+  while (!output.some(m => m.method === 'provider/recovery')) {
+    assert.ok(performance.now() < deadline, 'B08 recovery notification deadline exceeded');
+    await delay(10);
+  }
+}
+for (const arrivalDelay of [0, 250]) test(`B08 midturn auth loss emits notification and unauthorized delta with no error.data recovery (delay ${arrivalDelay} ms)`, async () => {
   const cwd = root(), services = fakeServices(cwd);
+  let child;
   services.models = async () => ({ models: [{ model: 'GLM-5.3' }] }); // admitted fixture model; auth loss is the variable under test
-  services.prepare = async () => ({ launch: launch(cwd, 'v4', cwd + '/sessions.json'), auth: new api.ReadOnlyAuth(cwd + '/missing'), configure: async child => { await child.request('runtime/capabilities', {}); setTimeout(() => { void child.request('auth-bad', {}).catch(() => {}); }, 100); } });
+  services.prepare = async () => ({ launch: launch(cwd, 'v4', cwd + '/sessions.json'), auth: new api.ReadOnlyAuth(cwd + '/missing'), configure: async p => { child = p; await p.request('runtime/capabilities', {}); } });
   try { await rpcHarness(services, async (rpc, output) => {
     const start = await rpc('thread/start', { threadId: 'own', cwd, options, instructionMode: 'append' }); assert.ok(start.result);
-    await rpc('turn/start', { threadId: 'own', providerThreadId: start.result.providerThreadId, options,
+    const turn = await rpc('turn/start', { threadId: 'own', providerThreadId: start.result.providerThreadId, options,
       clientRequestId: 'creq_2222222222', input: [{ type: 'text', text: '/wait-for-interrupt', mentions: [] }] });
-    await delay(200);
+    assert.ok(turn.result);
+    assert.equal(output.some(m => m.method === 'provider/recovery'), false);
+    // The fake's ACK precedes asynchronous auth processing. Observe the event,
+    // including arrival after the former fixed 200 ms observation window.
+    const injection = delay(arrivalDelay).then(() => child.request('auth-bad', {}));
+    try { await waitForAuthRecovery(output); } finally { await injection; }
     const recovery = output.filter(m => m.method === 'provider/recovery'); assert.equal(recovery.length, 1);
     providerRecoveryNotificationSchema.parse(recovery[0].params);
     assert.equal(output.flatMap(m => m.params?.deltas ?? []).filter(d => d.kind === 'provider.error' && d.category === 'unauthorized').length, 1);
     assert.equal(output.some(m => m.error?.data?.recovery), false);
   }); } finally { rmSync(cwd, { recursive: true }); }
+});
+test('B08 missing recovery fails within the observation deadline', async () => {
+  await assert.rejects(waitForAuthRecovery([], 50), /B08 recovery notification deadline exceeded/);
 });
 for (const [providerId, mode, accountType, label] of [
   ['account:zai-start-plan', 'start-plan', 'zai', 'Start Plan'],
@@ -163,7 +179,7 @@ for (const [providerId, mode, accountType, label] of [
     await delay(100);
     const errors = output.flatMap(m => m.params?.deltas ?? []).filter(d => d.kind === 'provider.error');
     assert.equal(errors.length, 1); assert.equal(errors[0].category, 'bad-request'); assert.ok(errors[0].message.includes(label));
-    assert.match(errors[0].message, /only the individual Coding Plan from Z.ai/);
+    assert.match(errors[0].message, /supports Z.ai individual Coding Plan and Start Plan/);
     assert.equal(output.some(m => m.method === 'provider/recovery'), false);
     const turn = await rpc('turn/start', { threadId: 'own', providerThreadId: start.result.providerThreadId, options, clientRequestId: 'creq_2222222222', input: [{ type: 'text', text: 'ordinary next turn', mentions: [] }] }); assert.ok(turn.result);
   }); } finally { rmSync(cwd, { recursive: true }); }

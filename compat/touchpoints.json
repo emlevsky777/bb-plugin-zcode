@@ -826,7 +826,7 @@
     {
       "id": "sdk-warning",
       "product": "SDK",
-      "uses": "Thread warning transport",
+      "uses": "Thread warning transport; M5.13 delivers qualified manual-claim guidance at fresh Desktop-auth thread startup from an already collected discovery snapshot, without a provider call.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
@@ -3001,6 +3001,459 @@
         "M5.1",
         "M5.4",
         "M5.7"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-start-plan-auth",
+      "product": "ZCode",
+      "uses": "M5.10 native Start account and fresh Desktop JWT runtime auth; M5.11 derives the plan from a distinct bb model ID, translating to unchanged native model/provider IDs. Ordinary switches and active-steer retention.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "createAccountProviderRequestAuthService",
+          "strength": "strong",
+          "reason": "5 November 2026 Desktop 3.17.2: Start branch returns OAuth token set zcodeJwtToken directly; Coding Plan project-token material is a different branch."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "zcodejwttoken",
+          "strength": "strong",
+          "reason": "Shared credential key; actual values are never part of the registry or receipt."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "account:zai-start-plan",
+          "strength": "strong",
+          "reason": "Native provider identity observed in owner session, own catalogue, auth callback and successful model request."
+        }
+      ],
+      "code": [
+        "src/auth.ts",
+        "src/bridge.ts",
+        "src/runtime.ts",
+        "src/options.ts",
+        "src/plugin.ts",
+        "src/model-selection.ts"
+      ],
+      "impact": "Start must select the intended account and JWT branch; hardcoded Coding Plan selection or project-token resolution rejects/misroutes Start. Existing Coding Plan semantics remain separate.",
+      "milestones": [
+        "M5.10",
+        "M5.11"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-start-promotion-discovery",
+      "product": "ZCode",
+      "uses": "M5.13 owner amendment: optional native marketing claim-delivery discovery on absent catalogue access; off by default, fixed en-US, shared 10min snapshot with credential-file identity scope and cached new-thread guidance. Off suppresses reads and notices independently of balance/Usage. Possible server impression consumption remains unknown. Static product preview is not queried; no automatic claim, report/action POST or asset fetch.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "createMarketingTouchService",
+          "strength": "strong",
+          "reason": "6 November 2026: _q query GET runtime marketing/touch with fresh JWT, existing device, language and version; DI uses the shared Desktop token."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js",
+          "text": "parseMarketingTouchResponse",
+          "strength": "weak",
+          "reason": "6 November 2026: code/data validation and first valid delivery per resource position; relocate version-specific chunk on update."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/renderer/assets/styles-Dv5E6Odo.js",
+          "text": "claim_zcode_plan",
+          "strength": "weak",
+          "reason": "6 November 2026: selected banner/popup action; success_popup is post-action content, not a current offer. Claim still performs verification and can fail."
+        }
+      ],
+      "code": [
+        "src/start-offer.ts",
+        "src/runtime.ts",
+        "src/bridge.ts",
+        "src/discovery-cache.ts"
+      ],
+      "impact": "Speculative discovery could announce an unavailable grant, multiply provider requests or keep an absent catalogue after external claim. Unknown states must remain distinct from absence; no model offer before granted entitlement.",
+      "milestones": [
+        "M5.13"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-start-plan-balance",
+      "product": "ZCode",
+      "uses": "Start availability and native model overlay from billing balance, expiry/capability/association and source headers. M5.13 shares normalized public balance across bridge processes with a 60s access and failure attempt gate; no timer, per-turn offer probe or synthetic entitlement. Expired cached grants fail locally until the next eligible access.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "fetchZaiStartPlanBalanceEnvelope",
+          "strength": "strong",
+          "reason": "Native GET /api/v1/zcode-plan/billing/balance?app_version=; own request returned HTTP 200 after adding existing Desktop X-Device-Mid."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "resolveZaiStartPlanBalanceModelIds",
+          "strength": "strong",
+          "reason": "Entitled capability model IDs differ from the broader static builtin list. Observed entitlement contains only Flash."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "normalizeStartPlanExpiry",
+          "strength": "strong",
+          "reason": "Native time and plan-to-balance association rules; actual expiry is not yet a live-tested plugin behavior."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "readExistingDeviceMid",
+          "strength": "strong",
+          "reason": "Desktop reads existing real HOME/.zcode/v2/telemetry-state.json deviceMid without inventing another device identity."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ModelNotFound",
+          "strength": "weak",
+          "reason": "CLI 0.17.1 maps business 3006 to ModelNotFound/invalid_request. Enum text alone cannot prove that mapping; the branch was read and fake rejection tests cover invalidation."
+        }
+      ],
+      "code": [
+        "src/auth.ts",
+        "src/runtime.ts",
+        "src/start-plan.ts",
+        "src/service-errors.ts",
+        "src/discovery-cache.ts"
+      ],
+      "impact": "Wrong headers fail balance; stale grants can advertise unavailable models. Authentication/grant rejection (including native 3006 ModelNotFound) invalidates availability; generic model 5xx and busy errors keep their existing recovery path. Actual backend expiry remains unproven.",
+      "milestones": [
+        "M5.10",
+        "M5.11",
+        "M5.13"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-desktop-source-version",
+      "product": "ZCode",
+      "uses": "M5.10 native launch and balance headers use the detected installed Desktop app version rather than CLI version fallback.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "ZCODE_APP_VERSION",
+          "strength": "strong",
+          "reason": "Installed native environment override used by source header resolver; value must come from detected Desktop."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveAppVersionForHeaders",
+          "strength": "strong",
+          "reason": "Three own inputs: CLI-version default was blocked with HTTP 405; Desktop-version inputs succeeded, including app-version-only override. Not a universal WAF diagnosis."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js",
+          "text": "buildZCodeSourceHeadersFromContext",
+          "strength": "strong",
+          "reason": "Desktop reference source-header builder on 3.17.2, SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/process.ts",
+        "src/start-plan.ts"
+      ],
+      "impact": "A correct Start JWT and provider selection can still receive backend rejection when the native child identifies itself with CLI metadata instead of Desktop metadata.",
+      "milestones": [
+        "M5.10"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-maintenance-plan-selection",
+      "product": "bb",
+      "uses": "bb 0.48.1 maintenance does not call deriveProviderOptions. Explicit authMode needs contributed request env for the catalogue fingerprint and an own account-selection.json projection for health. M5.13 adds the independent checkStartPromotions boolean to that projection/fingerprint; missing or false disables promotion reads/notices. No plan field remains.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "resolveCatalogLaunch",
+          "strength": "strong",
+          "reason": "Installed model catalog fingerprint includes contributed environment; source-map content reviewed 5 November 2026."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js.map",
+          "text": "cwdAndStaticProviderOptions",
+          "strength": "strong",
+          "reason": "Installed adapter sends envVars for model/list, but static options only for provider/health. Process environment is not the per-request env."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/plugin-sdk-runtime.js.map",
+          "text": "experimental_contributeEnv",
+          "strength": "strong",
+          "reason": "Public SDK contribution resolver used without changing provider registration or native HOME/configuration."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/bridge.ts",
+        "src/runtime.ts"
+      ],
+      "impact": "Maintenance can ignore explicit Coding key mode and show Desktop health/catalogue instead. Focused source-projection tests and live host catalogue checks are required; text anchors alone do not certify propagation.",
+      "milestones": [
+        "M5.10",
+        "M5.11",
+        "M5.13"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-start-plan-quota",
+      "product": "ZCode",
+      "uses": "M5.11 Start Usage amount mapping from associated token balance buckets; total_units, used_units, remaining_units and native expiry, without treating available and remaining as universally identical. M5.15 distinguishes claimed pending/unreported plans from available models, applies associated starts_at/effective_at and bucket period_start/period_end, and verifies a real pending-to-active Flash grant, completed Start gateway turn and later token debit. Post-effective empty-bucket Desktop access did not occur and remains unproven.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "normalizeZaiStartPlanBalanceLimits",
+          "strength": "strong",
+          "reason": "Desktop 3.17.2 maps native amount fields, unit and expires_at into quota limits; reviewed 5 November UTC / 6 November local 2026."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "used_units",
+          "strength": "weak",
+          "reason": "Field presence is only a search aid; association/unit/percentage semantics need focused mapping tests and live evidence."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "effective_at",
+          "strength": "weak",
+          "reason": "6 November 2026 M5.15: claim projection and real post-claim balance expose entitlement activation; real plan-only fixture and association tests are required beyond this anchor."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/renderer/assets/styles-Dv5E6Odo.js",
+          "text": "periodStart",
+          "strength": "weak",
+          "reason": "6 November 2026 M5.15: reviewed Ydt filters lower-inclusive periodStart and upper-exclusive periodEnd/nextResetTime, consumed by Qdt with server time plus elapsed time. Generic anchor requires semantic review."
+        }
+      ],
+      "code": [
+        "src/start-plan.ts",
+        "src/runtime.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Wrong bucket association or unit can display a false amount or expiry; unavailable quota must not break the independent Coding path.",
+      "milestones": [
+        "M5.11",
+        "M5.15"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-provider-usage-window",
+      "product": "SDK",
+      "uses": "M5.11 provider/usage response and native bb Usage surface: label, usedPercent, resetsAt, planLabel and expired status; token counts in label, no USD cost substitution. M5.12 explicitly tracks expiredHint consumers: Usage renders it for expired entitlement, whereas builtin providers define it for session expiry. Reinspect all consumers on bb updates; our health never returns expired.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-usage/dist/app.js",
+          "text": "usedPercent",
+          "strength": "strong",
+          "reason": "Installed bb 0.48.1 Usage window renderer and schema; actual amount/date readability requires stand UI verification."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-usage/dist/app.js",
+          "text": "Reset time not reported",
+          "strength": "strong",
+          "reason": "The native surface treats resetsAt as reset time; quota label must identify Start expiry explicitly."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-usage/dist/app.js",
+          "text": "expiredHint",
+          "strength": "weak",
+          "reason": "Directly reviewed 6 November 2026: expired status renders provider expiredHint; error renders measurement.message. Field presence does not prove consumer semantics or detect additional consumers; inspect usages on each bb update."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "provider.usage",
+          "strength": "strong",
+          "reason": "Installed demand-based maintenance usage call; inspected usage-limits.ts uses a 10-second successful-result cache."
+        }
+      ],
+      "code": [
+        "src/plugin.ts",
+        "src/bridge.ts",
+        "src/runtime.ts",
+        "src/usage-source.ts"
+      ],
+      "impact": "Usage may be unavailable or misleading if the response/status/time contract changes; expired windows are replaced by expiredHint, not shown with their old token fields.",
+      "milestones": [
+        "M5.11",
+        "M5.12"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-usage-resource-discovery",
+      "product": "bb",
+      "uses": "bb 0.48.1 Usage discovers provider-usage.v1 resources. M5.14 lists two stable host/plan resources with null accountKey, avoiding account deduplication. Inventory reads metadata only; Start relays public sdk.system.usageLimits and Coding uses the owning host RPC. Error measurements are rejected by bb, which retains its last successful value and marks failed refresh; successful absence uses empty windows and explicit planLabel. Settings and compact collectors share underlying host reads.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-usage/dist/server.js",
+          "text": "provider-usage.v1.listResources",
+          "strength": "strong",
+          "reason": "Actual installed Usage collection discovers this protocol; maintenance.usage alone produced no own resource in the first M5.11 live attempt."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/server.js",
+          "text": "provider-usage.v1.getResource",
+          "strength": "strong",
+          "reason": "Builtin Codex reference inventories host-local resources and relays collection through sdk.system.usageLimits."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-usage/dist/server.js",
+          "text": "Usage could not be refreshed.",
+          "strength": "weak",
+          "reason": "Inspected 6 November 2026: fetchResource throws on usage.status error before caching its value; inspect the condition and stale-value handling, not just this text anchor."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "discoverable RPC requires Standard JSON Schema export support",
+          "strength": "strong",
+          "reason": "Public Standard Schema RPC input/output must also export JSON Schema for discovery; no extra schema dependency is installed."
+        }
+      ],
+      "code": [
+        "src/usage-source.ts",
+        "src/plugin.ts"
+      ],
+      "impact": "A working bridge Usage response stays invisible in the native UI if the resource source is not discoverable or its normalization changes. Inventory must not collect balance; requests must stay resource-scoped.",
+      "milestones": [
+        "M5.11",
+        "M5.12",
+        "M5.14"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-coding-plan-usage",
+      "product": "ZCode",
+      "uses": "Personal Z.ai Coding Usage: existing selected key or OAuth project-token resolver; raw authorization on api.z.ai subscription/list and quota/limit GETs. Successful subscription absence avoids an unnecessary quota read; unknown subscription does not hide valid quota. Demand-only 60s success and 30s failure sharing derive from Desktop access freshness and first backoff; bb does not expose manual refresh reasons. Native percentage/reset fields identify five-hour/weekly model limits and distinct monthly tools, never a duration-derived token total. No dashboard statistics or official-MCP reads.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "BigModelUsageQuotaProvider",
+          "strength": "strong",
+          "reason": "6 November 2026: installed getSnapshotForRequest, resolveAuthorization and fetchQuota inspected; target SHA matches accepted M5.13."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "/api/monitor/usage/quota/limit",
+          "strength": "strong",
+          "reason": "Native Coding quota route; not the Start balance or marketing origin/auth path."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "normalizeLimits",
+          "strength": "weak",
+          "reason": "Projection retains numeric amount/percentage/reset fields; generic anchor needs semantic review of renderer selectors before mapping units."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "fetchPersonalCodingPlanEntitlement",
+          "strength": "strong",
+          "reason": "6 November 2026: successful array, Coding product, VALID/inCurrentPeriod; unknown is not absence."
+        },
+        {
+          "file": "Contents/Resources/app.asar/out/host/index.js",
+          "text": "/api/biz/subscription/list",
+          "strength": "strong",
+          "reason": "Independent native subscription GET on the same personal Coding origin and auth family."
+        }
+      ],
+      "code": [
+        "src/coding-usage.ts",
+        "src/auth.ts",
+        "src/host.ts",
+        "src/usage-source.ts"
+      ],
+      "impact": "Coding quota can be mislabeled or unavailable; isolate its errors from granted Start balance, model selection and Usage. Reinspect auth, schema, renderer units and lifecycle before changing transport or cadence.",
+      "milestones": [
+        "M5.14"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-coding-usage-host-rpc",
+      "product": "bb",
+      "uses": "Public owning-plugin host client routes Coding collection to persistent plugin-scoped host-data, independent of Start maintenance. Existing host-data/bridge-data sibling layout resolves the same plugin secrets/backupKey as the bridge and its inert own-stand observer. No remote account identity is inferred. Standard Schema exports validate both ends.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "experimental_client",
+          "strength": "weak",
+          "reason": "Public SDK host API; presence alone does not prove contract/client routing. M5.14 real getResource traversed it."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
+          "text": "host-data",
+          "strength": "weak",
+          "reason": "Host-owned plugin data path convention, as used by the existing bridge secrets lookup. Reinspect layout on host/runtime changes."
+        }
+      ],
+      "code": [
+        "src/host.ts",
+        "src/usage-source.ts"
+      ],
+      "impact": "Coding Usage may fail on an offline host or changed host/secret layout; Start remains independent. No model send is needed to test routing.",
+      "milestones": [
+        "M5.14"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-missing-model-recovery",
+      "product": "bb",
+      "uses": "M5.11 shared-catalogue expiry depends on bb catalogue refresh and composer recovery when a previously selected Start model disappears; plugin must not rewrite a directly requested unavailable ID.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "lacksRequiredModel",
+          "strength": "strong",
+          "reason": "Installed provider-model-catalog-store.ts has stale-while-refresh behavior and required-model validation; source presence alone is not an exact expiry guarantee."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/app/dist/assets/ExecutionControls-0oyK1j2B.js",
+          "text": "isUnavailableModelRecovery",
+          "strength": "weak",
+          "reason": "bb 0.48.1 renderer recovers a missing selection to default/first available. M5.11 controlled own-stand catalogue removal confirmed the composer change and subsequent Coding UI send. Asset filename is release-specific and must be rediscovered on updates; this is not actual backend expiry."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/bridge.ts",
+        "README.md",
+        "README.ru.md"
+      ],
+      "impact": "A refreshed composer may show Coding after Start expiry while the stored thread override remains old; stale catalogue entries may persist on refresh failure. Report the selected model and reject a stale explicit Start request without plugin fallback.",
+      "milestones": [
+        "M5.11"
       ],
       "sources": [
         "compat/README.md"

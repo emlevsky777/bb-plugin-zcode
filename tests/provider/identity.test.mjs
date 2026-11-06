@@ -9,7 +9,7 @@ import { plugin } from './helpers.mjs';
 test('distinct manifest identity registers one provider/CLI and reads only its own plugin state with fresh defaults', async () => {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
   assert.equal(pkg.name, 'bb-plugin-zcode-provider');
-  assert.equal(pkg.version, '0.2.1');
+  assert.equal(pkg.version, '0.2.2');
   assert.equal(pkg.bb.name, 'ZCode Provider');
   // Installed bb derives the ID from the final package-name component.
   const pluginId = pkg.name.split('/').at(-1).replace(/^bb-plugin-/, '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
@@ -36,7 +36,7 @@ test('distinct manifest identity registers one provider/CLI and reads only its o
       assert.equal(result.exitCode, 0);
       const report = JSON.parse(result.stdout);
       assert.deepEqual(report.events, [expected]);
-      assert.deepEqual(report.settings, { authMode: 'desktop', memoryEnabled: true, subagentsDisabled: false, backupKey: 'not set' });
+      assert.deepEqual(report.settings, { planSelection: 'per-model', checkStartPromotions: false, authMode: 'desktop', memoryEnabled: true, subagentsDisabled: false, backupKey: 'not set' });
     }
   } finally {
     for (const harness of hosts) harness.dispose();

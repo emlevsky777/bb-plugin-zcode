@@ -58,3 +58,13 @@ export function serviceError(value: unknown): ServiceError | undefined {
   return { kind: 'provider.error', category, errorInfo: { category, providerCode, httpStatusCode },
     message: (messages[category] ?? 'Z.ai request failed. Check your Z.ai account and retry; contact support if it persists.') + label };
 }
+
+export function invalidatesEntitlement(value: unknown): boolean {
+  const failure = serviceError(value);
+  if (!failure) return false;
+  // Installed CLI 0.17.1 maps 3006 to ModelNotFound. A changed model grant
+  // must rebuild the entitlement snapshot; generic model 5xx/busy errors do not.
+  return ['unauthorized', 'billing'].includes(failure.category ?? '') ||
+    [401, 403].includes(failure.errorInfo?.httpStatusCode ?? 0) ||
+    failure.errorInfo?.providerCode === '3006' || object(value).code === 'model_not_found';
+}

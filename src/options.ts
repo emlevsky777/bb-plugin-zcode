@@ -1,6 +1,7 @@
 import { record } from './errors.ts';
 import { isAbsolute } from 'node:path';
-import { authMode } from './auth.ts';
+import { authMode, validatePlanSource } from './auth.ts';
+import { selectedModel } from './model-selection.ts';
 
 // ADR-022: SDK validates full/user-null policy; this layer decides execution.
 export function executionOptions(value: unknown, instructionMode = 'append', disallowed: unknown = []) {
@@ -32,9 +33,10 @@ export function executionOptions(value: unknown, instructionMode = 'append', dis
     envVars[key] = val;
   }
   if (o.model !== undefined && (typeof o.model !== 'string' || !o.model.trim())) throw new Error('Invalid explicit model');
-  const model = typeof o.model === 'string' ? o.model : '';
+  const { model, accountPlan: selectedPlan } = selectedModel(typeof o.model === 'string' ? o.model : '');
+  validatePlanSource(selectedPlan, selectedAuthMode);
   if (o.reasoningLevel !== undefined && (typeof o.reasoningLevel !== 'string' || !o.reasoningLevel.trim())) throw new Error('Invalid explicit reasoning');
   const reasoning = typeof o.reasoningLevel === 'string' ? o.reasoningLevel : ''; // native default sentinel
-  return { model, reasoning, instructions, envVars, authMode: selectedAuthMode, providerSubagentsEnabled, memoryEnabled,
+  return { model, reasoning, instructions, envVars, authMode: selectedAuthMode, accountPlan: selectedPlan, providerSubagentsEnabled, memoryEnabled,
     toolDenylist, signature: JSON.stringify([instructions, Object.entries(envVars).sort(), toolDenylist, memoryEnabled]) };
 }

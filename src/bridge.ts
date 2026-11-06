@@ -11,9 +11,9 @@ import { FrameDecoder } from './framing.ts';
 import { ConversationState } from './state.ts';
 import { SessionLifecycle } from './lifecycle.ts';
 import { CommandCorrelation } from './correlation.ts';
-import { ReadOnlyAuth, authRecovery, accountProviderId, AuthError, authMode, UnsupportedPlanError } from './auth.ts';
+import { ReadOnlyAuth, authRecovery, nativeAccount, AuthError, authMode, UnsupportedPlanError } from './auth.ts';
 import { signInHint } from './applications.ts';
-import type { AuthMode } from './auth.ts';
+import type { AuthMode, AccountPlan } from './auth.ts';
 import { record, string } from './errors.ts';
 import { NativeRequestTimeout } from './process.ts';
 import type { Snapshot } from './native.ts';
@@ -30,6 +30,7 @@ import { createDiagnosticReporter } from './messages.ts';
 import { SessionKnowledge } from './session-knowledge.ts';
 import { ProjectTokenError } from './project-token.ts';
 import { bbOnlySkills, skillsBlock } from './bb-skills.ts';
+import { serviceError, invalidatesEntitlement } from './service-errors.ts';
 import type { SkillRoot, BbSkill } from './bb-skills.ts';
 
 export const runtimePreferences = { nativeSearchEnhancementsEnabled: true, memoryEnabled: true,
@@ -43,12 +44,16 @@ export interface BridgeServices {
   compatibility?: () => { message: string | null };
   compatibilityWarning?: () => string | null;
   claimDiagnostic?: (threadId: string, code: string) => boolean;
+  startGuidance?: () => string | null;
   observe?: (value: Record<string, unknown>) => void;
   prepare: (cwd: string, execution?: ReturnType<typeof executionOptions>, identity?: { threadId: string; providerThreadId?: string }) => Promise<RuntimeSetup>;
-  health: (mode?: AuthMode) => Promise<unknown>;
+  health: (mode?: AuthMode, plan?: AccountPlan) => Promise<unknown>;
+  invalidateCatalogue?: () => void;
   installation: () => Promise<unknown>;
-  models: (cwd?: string, mode?: AuthMode) => Promise<unknown>;
-  validateSelection: (model: string, reasoning: string, mode?: AuthMode) => Promise<void | { model: string; reasoning: string }>;
+  usage?: () => Promise<unknown>;
+  catalogue?: (cwd?: string, mode?: AuthMode) => Promise<unknown>;
+  models: (cwd?: string, mode?: AuthMode, plan?: AccountPlan) => Promise<unknown>;
+  validateSelection: (model: string, reasoning: string, mode?: AuthMode, plan?: AccountPlan) => Promise<void | { model: string; reasoning: string }>;
 }
 export interface RuntimeSetup { warnings?: readonly string[] | undefined; beforeInput?: (() => Promise<void>) | undefined }
 export interface RuntimeSetup { mentionCatalogue?: ((side: 'skills' | 'commands') => Promise<unknown>) | undefined; backgroundTaskStore?: string | undefined }
@@ -78,6 +83,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   }
   const io = createBridgeIo({ write: line => write(JSON.parse(line)) });
   const sessions = new Map<string, Session>();
+  const rejectedEntitlements = new WeakMap<Session, string>();
   let skillRoots: SkillRoot[] = [];
   const operations = new Map<string, Promise<void>>();
   let generation = 0;
@@ -95,6 +101,11 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   function project(s: Session): void {
     const snapshot = s.state.snapshot;
     if (!snapshot || !s.lifecycle) return;
+    const failure = serviceError(record(snapshot.control ?? {}).lastError);
+    if (failure && invalidatesEntitlement(record(snapshot.control ?? {}).lastError)) {
+      const key = JSON.stringify([snapshot.rows.window.filter(r => r.kind === 'turnHeader').at(-1)?.turnId, failure.errorInfo]);
+      if (rejectedEntitlements.get(s) !== key) { rejectedEntitlements.set(s, key); services.invalidateCatalogue?.(); }
+    }
     s.knowledge.observe(snapshot);
     const execution = inspectExecution(snapshot, warning(s.threadId));
     s.child.activity(!execution.known ? 'unknown' : execution.active || execution.waiting ? 'active' : 'idle');
@@ -166,16 +177,17 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     } else if (m.method === 'interaction/requestProviderRuntimeHeaders') {
       const params = record(m.params);
       services.observe?.({ event: 'runtime-headers-request', sessionId: s.id, requestId: params.requestId,
-        generation: g, readsBefore: s.auth.reads, source: s.auth.source(), route: 'coding-plan-gateway', model: record(params.modelSelection).modelId });
+        generation: g, readsBefore: s.auth.reads, source: s.auth.source(), route: s.auth.account().route, accountPlan: s.auth.accountPlan(), providerId: s.auth.account().id, model: record(params.modelSelection).modelId });
       let headersApplied = false;
       void (async () => { try {
-        const models = record(await services.models(s.cwd, s.auth.source())).models;
+        const models = record(await services.models(s.cwd, s.auth.source(), s.auth.accountPlan())).models;
         const available = Array.isArray(models) ? models.map(m => string(record(m).model)) : [];
         if (!current(s, g) || s.closing) return;
         const result = await s.auth.runtimeHeaders(m.params, s.id, s.cwd, s.model, s.reasoning, available);
         if (!current(s, g) || s.closing) return;
         s.child.write({ jsonrpc: '2.0', id: m.id, result }); headersApplied = true; }
       catch (e) {
+        if (e instanceof AuthError || e instanceof ProjectTokenError && ['project_token_login_failed', 'project_token_scope_invalidated'].includes(e.code)) services.invalidateCatalogue?.();
         if (!current(s, g) || s.closing) return;
         const missingLogin = (e instanceof AuthError && e.kind === 'unauthenticated') || (e instanceof ProjectTokenError && e.code === 'project_token_login_failed');
         s.child.write({ jsonrpc: '2.0', id: m.id, result: { headersApplied: false,
@@ -185,7 +197,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
           category: e instanceof UnsupportedPlanError ? 'bad-request' : 'unknown', message: e instanceof UnsupportedPlanError ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input; inspect configuration' })] });
       }
       services.observe?.({ event: 'runtime-headers-result', sessionId: s.id, requestId: params.requestId,
-        generation: g, readsAfter: s.auth.reads, source: s.auth.source(), route: 'coding-plan-gateway', headersApplied });
+        generation: g, readsAfter: s.auth.reads, source: s.auth.source(), route: s.auth.account().route, accountPlan: s.auth.accountPlan(), providerId: s.auth.account().id, headersApplied });
       })();
     } else if (m.method === 'v4/conversation/frame') {
       const f = s.decoder.ingest(m.params);
@@ -322,7 +334,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     if (sessions.has(threadId)) throw new Error('Thread already attached');
     if (!resume && createdIdentities.has(threadId)) throw new Error('Created native identity requires recovery/resume; no duplicate create');
     const setup = await services.prepare(cwd, execution, { threadId, ...(resume ? { providerThreadId: string(p.providerThreadId) } : {}) });
-    Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode));
+    Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode, execution.accountPlan));
     const { model, reasoning } = execution;
     if (closing) throw new Error('Bridge is shutting down; resume required');
     const g = ++generation;
@@ -365,6 +377,8 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       send('thread/delta', { threadId, deltas: [{ kind: 'session.reset' }] });
       const compatibilityMessage = services.compatibilityWarning ? services.compatibilityWarning() : services.compatibility?.().message;
       if (compatibilityMessage) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: compatibilityMessage }] });
+      const startGuidance = !resume && execution.authMode === 'desktop' ? services.startGuidance?.() : null;
+      if (startGuidance) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: startGuidance }] });
       await s.child.request('v4/conversation/subscribe', { topic: `conversation/${s.id}`, connectionId: randomUUID(),
         clientMode: 'desktop-continuous', workspace: { workspacePath: cwd, workspaceKey: cwd } });
       await waitSnapshot(s);
@@ -438,12 +452,17 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       for (const s of sessions.values()) if (!s.knowledge.started) s.skillRoots = structuredClone(skillRoots);
       return { ok: true };
     }
-    if (method === 'provider/health') return services.health(authMode(record(record(value).providerOptions ?? {}).authMode));
+    if (method === 'provider/health') {
+      const options = record(record(value).providerOptions ?? {});
+      return services.health(options.authMode === undefined ? undefined : authMode(options.authMode));
+    }
     if (method === 'provider/installation/status') return services.installation();
+    if (method === 'provider/usage') return services.usage ? services.usage() : { supported: false };
     if (method === 'provider/installation/run') return { available: false, message: 'Install ZCode Desktop yourself; no automatic updates' };
     if (method === 'model/list') {
       const p = modelListParamsSchema.parse(value), options = record(p.providerOptions ?? {});
-      const result = record(await services.models(p.cwd, authMode(options.authMode)));
+      const env = record(p.envVars ?? {});
+      const result = record(await (services.catalogue ?? services.models)(p.cwd, authMode(options.authMode ?? env.BB_ZCODE_AUTH_MODE)));
       return { ...result, selectedOnlyModels: [] };
     }
     if (method === 'thread/start') return attach(threadStartParamsSchema.parse(value), false);
@@ -461,11 +480,11 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       // Like Codex, steer keeps the active turn's execution settings. New
       // composer options take effect on the next ordinary turn/start.
       const options = { ...executionOptions(s.construction.options, s.instructionMode, s.construction.disallowedTools),
-        model: s.model, reasoning: s.reasoning, authMode: s.auth.source() };
+        model: s.model, reasoning: s.reasoning, authMode: s.auth.source(), accountPlan: s.auth.accountPlan() };
       if (s.steerRequests.has(p.clientRequestId)) throw new Error('Duplicate steer request');
       const converted = convertAttachments(await mentionInput(s, p.input, p.clientRequestId), s.cwd);
       if (converted.attachments.some(a => a.kind === 'image')) {
-        const models = record(await services.models(s.cwd, options.authMode)).models;
+        const models = record(await services.models(s.cwd, options.authMode, options.accountPlan)).models;
         requireImageCapability(Array.isArray(models) ? models : [], options.model);
       }
       await s.beforeInput?.();
@@ -481,7 +500,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         composerModel: p.options.model, composerReasoning: p.options.reasoningLevel });
       const ack = await command(s, 'sendText', { text: converted.text, ...(refs.length ? { attachments: refs } : {}),
         requestedDelivery: 'guide', mode: 'yolo', planEnabled: false,
-        modelSelection: { providerId: accountProviderId, modelId: options.model, options: { reasoningLevel: options.reasoning } } }, id);
+        modelSelection: { providerId: nativeAccount(options.accountPlan).id, modelId: options.model, options: { reasoningLevel: options.reasoning } } }, id);
       const admitted = record(ack.result);
       if (admitted.type !== 'inputAccepted' || admitted.inputId !== id || !['queue', 'startNow'].includes(String(admitted.delivery)))
         throw new Error('Native steer ACK identity is unconfirmed; not sent again');
@@ -511,7 +530,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       const execution = currentExecution(reconciledOptions, s.instructionMode, s.construction.disallowedTools);
       if (execution.envVars.BB_THREAD_ID !== undefined && execution.envVars.BB_THREAD_ID !== p.threadId)
         throw new Error('Environment thread identity conflict');
-      Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode));
+      Object.assign(execution, await services.validateSelection(execution.model, execution.reasoning, execution.authMode, execution.accountPlan));
       if (execution.signature !== s.options) {
         const construction = s.construction, id = s.id, before = s.state.snapshot;
         await stop(s, 'release');
@@ -531,9 +550,9 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
           contextLost: false, showRuntimeNote: true });
       }
       // Source selection is per turn, never a credential in launch options.
-      s.auth.setMode(execution.authMode);
+      s.auth.setMode(execution.authMode, execution.accountPlan);
       const previousExecution = executionOptions(previous, s.instructionMode, s.construction.disallowedTools);
-      if (execution.authMode !== previousExecution.authMode ||
+      if (execution.authMode !== previousExecution.authMode || execution.accountPlan !== previousExecution.accountPlan ||
           execution.model !== s.model || execution.reasoning !== s.reasoning) s.mentionCatalogues.clear();
       try { await s.beforeInput?.(); } catch (error) { await stop(s, 'release'); throw error; }
       await s.refreshAuth?.(s.child);
@@ -546,7 +565,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       s.construction = { ...s.construction, options: reconciledOptions };
       const converted = convertAttachments(await mentionInput(s, p.input, p.clientRequestId), s.cwd);
       if (converted.attachments.some(a => a.kind === 'image')) {
-        const models = record(await services.models(s.cwd, execution.authMode)).models;
+        const models = record(await services.models(s.cwd, execution.authMode, execution.accountPlan)).models;
         requireImageCapability(Array.isArray(models) ? models : [], execution.model);
       }
       const attachmentRefs = await createAttachmentRefs(converted.attachments, s.id, (method, params) => s.child.request(method, params));
@@ -574,7 +593,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         const block = [execution.instructions ? '[bb session instructions]\n' + execution.instructions : '', skillsBlock(s.bbSkills)].filter(Boolean).join('\n\n');
         const text = s.knowledge.prepare(id, block, converted.text, s.bbSkills);
         await command(s, 'sendText', { text, ...(attachmentRefs.length ? { attachments: attachmentRefs } : {}), requestedDelivery: 'startNow', mode: 'yolo', planEnabled: false,
-          modelSelection: { providerId: accountProviderId, modelId: execution.model, options: { reasoningLevel: execution.reasoning } } }, id);
+          modelSelection: { providerId: nativeAccount(execution.accountPlan).id, modelId: execution.model, options: { reasoningLevel: execution.reasoning } } }, id);
       } catch (e) {
         if ((e as { rejected?: boolean }).rejected) {
           s.knowledge.rejected(id);

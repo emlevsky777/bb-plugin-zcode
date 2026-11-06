@@ -138,6 +138,7 @@ test('M494 source and settings contain no Cyrillic product text', async () => {
   }
   let descriptors;
   await plugin({ settings: { define: d => { descriptors = d; return { get: async () => ({ authMode: 'desktop' }), onChange() {} }; } }, providers: { register() {} } });
-  assert.equal(Object.keys(descriptors).length, 4);
+  assert.equal(Object.keys(descriptors).length, 5);
+  assert.equal(descriptors.checkStartPromotions.default, false);
   for (const d of Object.values(descriptors)) { assert.ok(d.label && d.description); assert.doesNotMatch(d.label + d.description, /[\u0410-\u042f\u0430-\u044f\u0401\u0451]/); }
 });

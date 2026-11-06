@@ -41,7 +41,7 @@ test('M493 complete command quotes all paths; no PATH zcode; all login surfaces 
     assert.equal(registration.experimental_bridgeOptions, undefined);
     assert.equal(registration.deriveProviderOptions({ settings: {} }).authMode, 'desktop');
     assert.equal(registration.strings.signInHint, api.signInHint()); assert.match(descriptors.authMode.description, /existing Desktop sign-in/);
-    assert.ok(registration.strings.expiredHint.includes(api.signInHint()));
+    assert.match(registration.strings.expiredHint, /Start Plan access has expired/);
     assert.equal(api.authRecovery().recovery.message, api.signInHint());
   } finally { rmSync(root, { recursive: true }); }
 });
@@ -75,7 +75,7 @@ const plans = [ ['account:zai-start-plan', 'start-plan', 'zai', 'Z.ai Start Plan
 for (const [providerId, mode, accountType, label] of plans) test(`M493 unsupported native modelSelection: ${label}`, () => {
   const auth = new api.ReadOnlyAuth('/never-read');
   const params = { providerId, accountAccess: { type: 'zhipu-account', mode, accountType, entitled: true }, modelSelection: { providerId, modelId: 'GLM-5.3' }, workspace: {} };
-  assert.throws(() => auth.headers(params, 'session', '/workspace', 'GLM-5.3'), e => e instanceof api.UnsupportedPlanError && e.plan === label && /only the individual Coding Plan from Z.ai/.test(e.message));
+  assert.throws(() => auth.headers(params, 'session', '/workspace', 'GLM-5.3'), e => e instanceof api.UnsupportedPlanError && e.plan === label && /supports Z.ai individual Coding Plan and Start Plan/.test(e.message));
   assert.equal(auth.reads, 0);
 });
 test('M493 unsupported shared-store identities return named health refusal before catalogue launch', async () => {

@@ -12,6 +12,20 @@ import { ProjectTokenResolver, ProjectTokenError, tokenRequest } from './project
 import type { TokenRequest } from './project-token.ts';
 
 export const accountProviderId = 'account:zai-individual-coding-plan';
+export type AccountPlan = 'coding-plan' | 'start-plan';
+export function accountPlan(value: unknown): AccountPlan {
+  if (value === undefined || value === 'coding-plan') return 'coding-plan';
+  if (value === 'start-plan') return value;
+  throw new AuthError('unsupported-mode');
+}
+export function nativeAccount(plan: AccountPlan) {
+  return plan === 'start-plan'
+    ? { id: 'account:zai-start-plan', mode: 'start-plan', route: 'start-plan-gateway', label: 'Start Plan' }
+    : { id: accountProviderId, mode: 'individual-coding-plan', route: 'coding-plan-gateway', label: 'Coding Plan' };
+}
+export function validatePlanSource(plan: AccountPlan, mode: AuthMode) {
+  if (plan === 'start-plan' && mode !== 'desktop') throw new Error('Start Plan requires Desktop sign-in; a Coding Plan key cannot authenticate Start Plan.');
+}
 export type AuthMode = 'desktop' | 'coding-plan-key';
 export function authMode(value: unknown): AuthMode {
   if (value === undefined || value === 'desktop') return 'desktop';
@@ -27,7 +41,7 @@ export class UnsupportedPlanError extends AuthError {
   constructor(plan: string) {
     super('unsupported-mode');
     this.plan = plan;
-    this.message = `${plan} is not supported. This plugin supports only the individual Coding Plan from Z.ai.`;
+    this.message = `${plan} is unavailable for the selected model's account plan. This plugin supports Z.ai individual Coding Plan and Start Plan; choose a model offered by that plan.`;
   }
 }
 export function unsupportedPlan(value: unknown): string | undefined {
@@ -68,19 +82,22 @@ export class ReadOnlyAuth {
   private key: Buffer;
   private onFresh: (purpose: string, generation: number) => void;
   private mode: AuthMode = 'desktop';
+  private plan: AccountPlan = 'coding-plan';
   private explicitKeyPath: string | undefined;
   private projectTokens: ProjectTokenResolver | undefined;
   private network: TokenRequest = tokenRequest(process.env);
   private clientVersion = 'unknown';
   constructor(path = `${homedir()}/.zcode/v2/credentials.json`, key = credentialCipherKey(), onFresh = (_purpose: string, _generation: number) => {}) { this.path = path; this.key = key; this.onFresh = onFresh; }
-  fork(mode: AuthMode, explicitKeyPath?: string): ReadOnlyAuth {
+  fork(mode: AuthMode, explicitKeyPath?: string, plan: AccountPlan = 'coding-plan'): ReadOnlyAuth {
     const fresh = new ReadOnlyAuth(this.path, this.key, this.onFresh);
-    fresh.explicitKeyPath = explicitKeyPath; fresh.setMode(mode); return fresh;
+    fresh.explicitKeyPath = explicitKeyPath; fresh.setMode(mode, plan); return fresh;
   }
-  setMode(mode: AuthMode): void { this.mode = authMode(mode); this.projectTokens?.clear(); }
+  setMode(mode: AuthMode, plan: AccountPlan = 'coding-plan'): void { validatePlanSource(plan, mode); this.plan = accountPlan(plan); this.mode = authMode(mode); this.projectTokens?.clear(); }
   setNetworkEnvironment(env: NodeJS.ProcessEnv, clientVersion: string) { this.network = tokenRequest(env); this.clientVersion = clientVersion; this.projectTokens = undefined; }
   setTokenRequest(send: TokenRequest) { this.network = send; this.projectTokens = undefined; }
   source(): AuthMode { return this.mode; }
+  accountPlan(): AccountPlan { return this.plan; }
+  account() { return nativeAccount(this.plan); }
   read(purpose = 'read'): { apiKey: string; generation: number; oauth?: { identity: string; accessToken: string } } {
     this.reads++;
     if (this.mode === 'coding-plan-key') {
@@ -101,6 +118,12 @@ export class ReadOnlyAuth {
     let store: Record<string, unknown>;
     try { store = record(JSON.parse(readFileSync(this.path, 'utf8'))); }
     catch (e) { throw new AuthError((e as NodeJS.ErrnoException).code === 'ENOENT' ? 'unauthenticated' : 'invalid-store'); }
+    if (this.plan === 'start-plan') {
+      if (!store.zcodejwttoken) throw new AuthError('unauthenticated');
+      const apiKey = decrypt(store.zcodejwttoken, this.key);
+      if (!apiKey) throw new AuthError('unauthenticated');
+      this.onFresh(purpose, ++this.generation); return { apiKey, generation: this.generation };
+    }
     const rawIdentity = store[`account-provider:${accountProviderId}:identity`];
     if (!rawIdentity) {
       for (const provider of ['account:zai-start-plan', 'account:zai-team-coding-plan', 'account:bigmodel-start-plan', 'account:bigmodel-team-coding-plan', 'account:bigmodel-individual-coding-plan'])
@@ -124,18 +147,29 @@ export class ReadOnlyAuth {
     this.onFresh(purpose, ++this.generation);
     return { apiKey, generation: this.generation };
   }
-  overlay(revision: string, builtin: string): Record<string, unknown> {
+  overlay(revision: string, builtin: string, modelIds?: string[]): Record<string, unknown> {
     this.read('overlay');
     return { revision, basedOnZCodeBuiltinRevision: builtin,
-      providers: { [accountProviderId]: { access: { type: 'zhipu-account', entitled: true } } },
-      states: { [accountProviderId]: { availability: 'available', entitled: true, current: true } } };
+      providers: { [this.account().id]: { access: { type: 'zhipu-account', entitled: true }, ...(modelIds ? { builtinModelIds: modelIds } : {}) } },
+      states: { [this.account().id]: { availability: 'available', entitled: true, current: true } } };
+  }
+  async usageAuthorization(): Promise<string> {
+    const fresh = this.read('coding-usage');
+    if (!fresh.oauth) return fresh.apiKey;
+    this.projectTokens ??= new ProjectTokenResolver(this.network, undefined, undefined, this.clientVersion);
+    const original = fresh.oauth;
+    const material = await this.projectTokens.resolve(original.identity, original.accessToken, {}, () => {
+      const current = this.read('coding-usage-scope').oauth;
+      return current?.identity === original.identity && current.accessToken === original.accessToken;
+    });
+    return material.apiKey;
   }
   private validateHeaders(value: unknown, sessionId: string, workspace: string, selectedModel: string, selectedReasoning: string | undefined, availableModels: readonly string[]): Record<string, unknown> {
     const p = record(value), access = record(p.accountAccess), model = record(p.modelSelection), ws = record(p.workspace);
     const plan = unsupportedPlan(p);
-    if (plan) throw new UnsupportedPlanError(plan);
-    if (p.providerId !== accountProviderId || access.type !== 'zhipu-account' || access.mode !== 'individual-coding-plan' ||
-        access.accountType !== 'zai' || access.entitled !== true || model.providerId !== accountProviderId ||
+    if (plan && !(this.plan === 'start-plan' && plan === 'Z.ai Start Plan')) throw new UnsupportedPlanError(plan);
+    if (p.providerId !== this.account().id || access.type !== 'zhipu-account' || access.mode !== this.account().mode ||
+        access.accountType !== 'zai' || access.entitled !== true || model.providerId !== this.account().id ||
         !selectedModel || typeof model.modelId !== 'string' || !availableModels.includes(model.modelId) ||
         (model.modelId === selectedModel && model.options !== undefined && selectedReasoning !== undefined && record(model.options).reasoningLevel !== selectedReasoning)) throw new AuthError('unsupported-mode');
     if (p.sessionId !== sessionId || p.reason !== 'model-request' || typeof p.requestId !== 'string' ||

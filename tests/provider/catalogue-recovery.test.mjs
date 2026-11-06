@@ -60,14 +60,14 @@ for (const corrupt of ['{', '{"scope":"unknown","catalogue":{},"future":true}', 
 test('corrupt/unknown/stale shared cache: concurrent actual services, <=N loads, atomic publication and cold warm hit: ' + corrupt, async () => {
   const root = setup(), active = [];
   try {
-    writeFileSync(join(root, 'shared/catalogue-v2.json'), corrupt, 'utf8');
+    writeFileSync(join(root, 'shared/catalogue-v3-coding-plan.json'), corrupt, 'utf8');
     const legacy = join(root, 'shared/catalogue-v1.json.lock'); writeFileSync(legacy, 'OLD_INERT', 'utf8');
     for (let i = 0; i < 4; i++) active.push(run(root));
     for (const result of await Promise.all(active.map(x => x.done))) { assert.equal(result.code, 0, result.errors); assert.equal(JSON.parse(result.output).models.length, 2); }
     const loads = events(root).filter(e => e.event === 'native-startup').length;
     assert.ok(loads >= 1 && loads <= 4);
     assert.ok(events(root).some(e => e.event === 'catalogue-cache-recovery'));
-    assert.equal(JSON.parse(readFileSync(join(root, 'shared/catalogue-v2.json'), 'utf8')).catalogue.models.length, 2);
+    assert.equal(JSON.parse(readFileSync(join(root, 'shared/catalogue-v3-coding-plan.json'), 'utf8')).catalogue.models.length, 2);
     assert.equal(readFileSync(legacy, 'utf8'), 'OLD_INERT');
     assert.equal(readdirSync(join(root, 'shared')).filter(f => f.endsWith('.tmp')).length, 0);
     const warm = run(root); active.push(warm); assert.equal((await warm.done).code, 0);
