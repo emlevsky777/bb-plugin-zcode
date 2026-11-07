@@ -44,9 +44,10 @@ export class MissingExecutableError extends Error { readonly code = -32004; cons
 export class NativeRequestTimeout extends Error {
   constructor() { super('Native request timeout; outcome unknown. The native process remains available; this request was not sent again.'); }
 }
-export function childEnvironment(parent: NodeJS.ProcessEnv, own: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function childEnvironment(parent: NodeJS.ProcessEnv, own: NodeJS.ProcessEnv, explicit: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const clean = sanitizeInheritedChildProcessEnv({ env: parent });
-  const env: NodeJS.ProcessEnv = { ...clean };
+  // bb sanitizes inherited state before applying the resolved thread environment.
+  const env: NodeJS.ProcessEnv = { ...clean, ...explicit };
   // Storage belongs to the user, as in Desktop. Only session/login/log paths
   // are owned overrides; never inherit an obsolete isolated storage override.
   delete env.ZCODE_STORAGE_DIR;

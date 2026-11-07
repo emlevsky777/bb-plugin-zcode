@@ -29,7 +29,13 @@ test('O138 preparation leaves user configuration and instructions unchanged; sim
     const legacy = api.sessionDataDir(data, cwd, 'legacy'), binding = join(legacy, 'bb-binding.json');
     mkdirSync(legacy, { recursive: true }); writeFileSync(binding, JSON.stringify({ threadId: 'legacy', cwd: realpathSync(cwd), nativeSessionId: 'native-legacy' }));
     const db = join(legacy, 'db.sqlite'); mkdirSync(dirname(db), { recursive: true }); writeFileSync(db, 'OLD_HISTORY');
-    const setup = await rt.services.prepare(cwd, api.executionOptions({ ...options, instructions: 'BB_PRIVATE' }), { threadId: 'legacy', providerThreadId: 'native-legacy' });
+    // bb 0.49.0's resolved thread environment, observed on the own live stand.
+    const envVars = { BB_THREAD_ID: 'legacy', BB_PROJECT_ID: 'proj_fixture', BB_ENVIRONMENT_ID: 'env_fixture',
+      BB_THREAD_STORAGE: '/bb/thread-storage', BB_CLI: '/bb/bin/bb', BB_SERVER_URL: 'http://127.0.0.1:12345',
+      BB_HOST_DAEMON_PORT: '12346', ZCODE_STORAGE_DIR: '/obsolete' };
+    const setup = await rt.services.prepare(cwd, api.executionOptions({ ...options, instructions: 'BB_PRIVATE', envVars }), { threadId: 'legacy', providerThreadId: 'native-legacy' });
+    for (const [key, value] of Object.entries(envVars).filter(([key]) => key.startsWith('BB_')))
+      assert.equal(setup.launch.env[key], value, `explicit thread environment ${key}`);
     assert.equal(setup.launch.env.HOME, home); assert.equal(setup.launch.env.ZCODE_SESSION_DB_PATH, db);
     assert.equal(setup.launch.env.ZCODE_DATA_BASE_DIR, undefined, 'MCP OAuth must use the shared Desktop credential store');
     assert.equal(readFileSync(db, 'utf8'), 'OLD_HISTORY');

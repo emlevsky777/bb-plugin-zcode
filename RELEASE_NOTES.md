@@ -1,3 +1,31 @@
+# ZCode Provider v0.2.3
+
+## bb thread context in native tools
+
+Explicit environment supplied by bb is now applied after inherited-process
+cleanup. Native terminal tools retain the project/environment IDs, thread
+storage and bb CLI connection metadata. Previously `bb status` could identify
+the thread while returning no project. Canonical thread identity, real HOME,
+shared Desktop sign-in and native session/log paths are retained.
+
+The bb 0.49.0 installed-source retry fixture now follows its continuation
+argument, and the compatibility checker locates the moved renderer anchor.
+No dependency or SDK pin changes are required.
+
+## Verified scope and update
+
+macOS arm64, bb 0.49.0 / installed SDK 0.6.132 / host Node 24.22.2,
+ZCode Desktop 3.17.2 / CLI 0.17.1: Desktop-sign-in Coding Flash/high/Full
+file/terminal work, correct bb CLI project/thread context and cold continuation.
+This is a limited representative check, not a new Level 1 tuple. Existing
+automatic-compaction/instruction-retention, Usage and actual-expiry limits
+remain; the unchecked-combination notice is retained.
+
+The existing `git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0`
+source accepts v0.2.3 through normal `bb plugin update zcode-provider`.
+Identity, settings, dependency resolutions and shared history layout are
+unchanged. No reinstall, source switch or migration is required.
+
 # ZCode Provider v0.2.2
 
 ## Start Plan models and independent Usage

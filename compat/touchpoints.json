@@ -171,22 +171,30 @@
     {
       "id": "bb-user-cli-path",
       "product": "bb",
-      "uses": "Embedded terminal provides bundled bb CLI for the local problem report",
+      "uses": "Embedded terminal provides bundled bb CLI for the local problem report; native tools receive bb's resolved thread/project/environment and CLI connection metadata after inherited-process sanitization.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/bb",
           "text": "BB_CLI",
           "strength": "weak",
           "reason": "Bundled entrypoint; embedded-terminal live execution is the behavioral proof."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js.map",
+          "text": "buildThreadShellEnvironment",
+          "strength": "strong",
+          "reason": "bb 0.49.0 shared agent runtime builds explicit BB project/thread/environment/storage entries after base shell state. Explicit request env must be merged after inherited sanitization, as in the built-in provider process environment. Reviewed 7 November 2026."
         }
       ],
       "code": [
         "README.md",
         "README.ru.md",
         "src/plugin.ts",
-        "src/report-cli.ts"
+        "src/report-cli.ts",
+        "src/runtime.ts",
+        "src/process.ts"
       ],
-      "impact": "Users cannot produce a problem report without system CLI installation if embedded-terminal injection changes.",
+      "impact": "Users cannot produce a problem report without system CLI installation if embedded-terminal injection changes. Dropping explicit BB entries loses CLI project/environment/storage or server/daemon context even when the thread ID remains correct.",
       "milestones": [
         "M4.9.8",
         "M4.9.8c.1b",
@@ -3440,9 +3448,12 @@
         },
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/app/dist/assets/ExecutionControls-0oyK1j2B.js",
+          "alternativeFiles": [
+            "Contents/Resources/app.asar.unpacked/node_modules/bb-app/app/dist/assets/plugin-frontend-0dkOuthv.js"
+          ],
           "text": "isUnavailableModelRecovery",
           "strength": "weak",
-          "reason": "bb 0.48.1 renderer recovers a missing selection to default/first available. M5.11 controlled own-stand catalogue removal confirmed the composer change and subsequent Coding UI send. Asset filename is release-specific and must be rediscovered on updates; this is not actual backend expiry."
+          "reason": "bb 0.48.1 renderer recovers a missing selection to default/first available. M5.11 controlled own-stand catalogue removal confirmed the composer change and subsequent Coding UI send. The bb 0.49.0 anchor moved to plugin-frontend; this remains a weak code-location check, not actual backend expiry."
         }
       ],
       "code": [

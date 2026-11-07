@@ -319,7 +319,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     own.ZCODE_SESSION_DB_PATH = join(sessionDir, 'db.sqlite');
     Object.assign(own, observerEnvironment(root));
     const warnings: string[] = [];
-    const launchEnv = { ...childEnvironment({ ...process.env, ...execution?.envVars }, own), ...(!service ? { BB_THREAD_ID: threadId } : {}) };
+    const launchEnv = { ...childEnvironment(process.env, own, execution?.envVars), ...(!service ? { BB_THREAD_ID: threadId } : {}) };
     sessionAuth.setNetworkEnvironment(launchEnv, desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown');
     return { warnings, auth: sessionAuth, knowledgeStore: service ? undefined : join(sessionDir, 'bb-session-knowledge.json'), backgroundTaskStore: service ? undefined : join(sessionDir, 'bb-background-tasks.json'), mentionCatalogue: service ? undefined : async side => {
       try {
