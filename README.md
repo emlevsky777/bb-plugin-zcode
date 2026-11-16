@@ -79,6 +79,26 @@ without restarting bb. `zcode` need not be on PATH. Spotlight locates renamed bu
 fallback search uses `/Applications` and `~/Applications`. System Applications
 is preferred when multiple copies exist.
 
+Recent Desktop sign-ins can omit the legacy per-provider identity entry. For an
+active Z.ai OAuth login, the plugin can use the shared user-info record to bind
+the account scope; login tokens are still read fresh from Desktop's store.
+
+Desktop `enc:v2` credentials are supported through the existing macOS Keychain
+entry or the native managed-secret source. Encryption keys obtained from
+Keychain stay in process memory and are shared by Coding/Start readers in the
+same worker. Separate workers or a later restart can request access again. The
+plugin does not create Keychain entries, persist those keys, or rewrite Desktop
+credentials. Cancellation, timeout or a failed key read blocks further Keychain
+attempts for that store in the worker. To retry, stop affected ZCode threads,
+unlock/allow the intended Keychain access, reload ZCode Provider, and continue
+the saved thread. A new encryption-key fingerprint invalidates the cached key;
+stale fingerprints cannot reopen repeated prompts.
+
+Provider error `3009` indicates a simultaneous-request limit. Let another model
+request finish before retrying, or explicitly select a different available
+model/plan. The plugin preserves the selected plan and does not switch it
+automatically after this error.
+
 Stop every ZCode thread with its **Stop** button before updating or removing.
 Open **Settings → Installed plugins → ZCode Provider** to review and apply an offered
 update. To remove it, choose **ZCode Provider actions → Remove from bb**. Updates follow
@@ -165,10 +185,12 @@ native history and restores the original bb block once if it was folded away.
 Native automatic compaction can make an internal model request before this
 hook; the remainder of that turn can run without the full bb block. Continuous
 instruction/skill preservation within that turn is unsupported.
-The G4 experiment found that native guide restores the block in request two
-when no earlier user guide is pending, but in request three when a user guide
-precedes it. It also produces a visible assistant response to the service block.
-Automatic guide reinjection is therefore not enabled.
+The historical G4 experiment observed delayed guide delivery and a visible
+assistant response to the service block. Reviewed newer native guide code drains
+multiple eligible guides together, up to a reserved guide, but still has no
+guide drain between automatic compaction and the next model request. Automatic
+guide reinjection therefore remains unsupported; next-ordinary-turn restoration
+is the supported boundary.
 There is no provider-specific 64 KiB instruction or skill-file limit. The
 attachment limits above apply only to uploaded attachments.
 

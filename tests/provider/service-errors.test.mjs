@@ -49,3 +49,18 @@ for (const outcome of ['completedSuccess', 'failed']) test(`apiRetry → ${outco
   assert.deepEqual(restored.project(final, 1), []);
   assert.deepEqual(t.project(final, 1), []);
 });
+
+test('3009 identifies a Start concurrency limit without claiming a token reset or exposing provider text', async () => {
+  const { serviceError } = await import('../../src/service-errors.ts');
+  const failure = serviceError({ code: '3009', message: 'SYNTHETIC_PRIVATE_PROVIDER_BODY',
+    attribution: { providerId: 'account:zai-start-plan', providerErrorCode: '3009', statusCode: 429, reason: 'rate_limited' } });
+  assert.equal(failure.category, 'rate-limit');
+  assert.equal(failure.errorInfo.providerCode, '3009');
+  assert.equal(failure.errorInfo.httpStatusCode, 429);
+  assert.match(failure.message, /Start Plan simultaneous-request limit/);
+  assert.doesNotMatch(failure.message, /reset|PRIVATE/);
+  const fallback = serviceError({ code: '3009', attribution: { providerId: 'SYNTHETIC_PRIVATE_PROVIDER' } });
+  assert.equal(fallback.category, 'rate-limit');
+  assert.match(fallback.message, /^Z.ai simultaneous-request limit/);
+  assert.doesNotMatch(fallback.message, /PRIVATE/);
+});

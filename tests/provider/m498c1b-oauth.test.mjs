@@ -227,3 +227,27 @@ test('native token expiry, rejected fingerprint, scope changes and transient ref
   valid = false; finish({ code: 0, data: { accessToken: 'SYNTHETIC_LATE' } });
   await assert.rejects(pending, /scope_invalidated/);
 });
+
+test('Keychain cancellation recovery reaches native auth response and visible bridge error without private details', async () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'keychain-recovery-'))), out = [], observed = [];
+  const auth = new api.ReadOnlyAuth(join(dir, 'missing')); let child;
+  auth.runtimeHeaders = async () => { throw new api.KeychainAuthError(); };
+  const bridge = api.createZCodeBridge({ prepare: async () => ({ auth,
+    launch: { executable: process.execPath, args: [resolve('tests/provider/fake-v4.mjs'), 'v4'], cwd: dir, env: api.childEnvironment(process.env, {}) },
+    configure: async p => { child = p; } }), models: async () => ({ models: [{ model: 'GLM-5.3' }] }),
+    validateSelection: async () => {}, health: async () => ({}), installation: async () => ({}), observe: e => observed.push(e) }, e => out.push(e));
+  try {
+    bridge.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'thread/start', params: { threadId: 'keychain-recovery', cwd: dir, instructionMode: 'append',
+      options: { model: 'GLM-5.3', reasoningLevel: 'high', permissionMode: 'full', permissionScope: 'full', approvalReviewer: null, permissionEscalation: null } } }));
+    for (let i = 0; i < 500 && !out.some(e => e.id === 1); i++) await delay(5);
+    assert.ok(out.find(e => e.id === 1)?.result, JSON.stringify(out));
+    await child.request('auth-bad', {});
+    for (let i = 0; i < 500 && !observed.some(e => e.event === 'runtime-headers-result'); i++) await delay(5);
+    const error = out.flatMap(e => e.params?.deltas ?? []).find(d => d.kind === 'provider.error');
+    assert.equal(error.category, 'unknown');
+    assert.match(error.message, /Stop affected ZCode threads/);
+    assert.match(error.message, /Reload ZCode Provider/);
+    assert.ok(observed.some(e => e.event === 'runtime-headers-result' && e.headersApplied === false));
+    assert.equal(out.filter(e => e.method === 'provider/recovery').length, 0);
+  } finally { await bridge.close(); rmSync(dir, { recursive: true }); }
+});

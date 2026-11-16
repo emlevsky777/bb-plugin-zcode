@@ -51,12 +51,17 @@ export function serviceError(value: unknown): ServiceError | undefined {
   const category: Category = businessCode && !knownBusiness.has(businessCode) ? 'unknown'
     : providerCode && billing.has(providerCode) ? 'billing'
     : providerCode && budget.has(providerCode) ? 'budget-exceeded'
+    : providerCode === '3009' ? 'rate-limit'
     : (reason ? reasons[reason] : undefined) ?? (nativeCode ? nativeCodes[nativeCode] : undefined) ?? 'unknown';
   const status = attribution.statusCode;
   const httpStatusCode = Number.isInteger(status) && Number(status) >= 100 && Number(status) <= 599 ? Number(status) : null;
   const label = providerCode ? ` (code: ${providerCode})` : '';
-  return { kind: 'provider.error', category, errorInfo: { category, providerCode, httpStatusCode },
-    message: (messages[category] ?? 'Z.ai request failed. Check your Z.ai account and retry; contact support if it persists.') + label };
+  const plan = attribution.providerId === 'account:zai-start-plan' ? 'Z.ai Start Plan'
+    : attribution.providerId === 'account:zai-individual-coding-plan' ? 'Z.ai Coding Plan' : 'Z.ai';
+  const message = providerCode === '3009'
+    ? `${plan} simultaneous-request limit reached. Let another model request finish, then retry this turn.`
+    : messages[category] ?? 'Z.ai request failed. Check your Z.ai account and retry; contact support if it persists.';
+  return { kind: 'provider.error', category, errorInfo: { category, providerCode, httpStatusCode }, message: message + label };
 }
 
 export function invalidatesEntitlement(value: unknown): boolean {

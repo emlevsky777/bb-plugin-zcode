@@ -83,18 +83,23 @@ test('c1 ordered active-chain fixtures match reviewed native hydration and runti
   // Execute only the pinned pure hydration functions; installed bytes are not
   // copied into Git. Runtime token invalidation does not change user content.
   const digest = createHash('sha256').update(source).digest('hex');
-  const leading = digest === 'd9afd58d694f98a5279bf548cdc7646413c125762e86730605a6071f9e0346d6';
+  const desktop3182 = digest === '08726b5ef69e1e9072828baa4656713cb3aac93bb096938681278c5600312b2c';
+  const leading = desktop3182 || digest === 'd9afd58d694f98a5279bf548cdc7646413c125762e86730605a6071f9e0346d6';
   const native17 = digest === '97490d0f06a7a225d54d47817acf4b4859cdb268b59f2490caaeda982bef063a';
   assert.ok(leading || native17 || digest === 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e', 'Unreviewed native compaction implementation');
-  const resetName = leading ? 'W_t' : native17 ? 'qgt' : 'eht';
+  const resetName = desktop3182 ? 'uwt' : leading ? 'W_t' : native17 ? 'qgt' : 'eht';
   const resetStart = source.indexOf('function ' + resetName + '('), resetEnd = source.indexOf('function ', resetStart + 10);
   assert.ok(resetStart >= 0 && resetEnd > resetStart);
   const resetTokens = new Function(source.slice(resetStart, resetEnd) + '; return ' + resetName + ';')();
   // Desktop 3.17.2 WOn..vTt reviewed in M5.7: leading IDs are all-string
   // arrays on the first concrete compaction part; preserved filtering excludes
   // IDs from every boundary, and assistant usage is reset. No native code is
-  // vendored. A digest identifies the reviewed source, never replaces review.
-  const hydrate = leading
+  // vendored. Desktop 3.18.2 m6n retains the same reviewed leading/preserved
+  // semantics and uwt resets assistant usage; sS excludes metadata user prefixes.
+  // A digest identifies the reviewed source, never replaces review.
+  const hydrate = desktop3182
+    ? new Function('uwt', source.slice(source.indexOf('function m6n('), source.indexOf('var g6n=', source.indexOf('function m6n('))) + '; return m6n;')(resetTokens)
+    : leading
     ? new Function('W_t', source.slice(source.indexOf('function WOn('), source.indexOf('var HOn=', source.indexOf('function WOn('))) + '; return WOn;')(resetTokens)
     : native17
     ? new Function('qgt', source.slice(source.indexOf('function Qwn('), source.indexOf('var tkn=', source.indexOf('function Qwn('))) + '; return Qwn;')(resetTokens)
@@ -139,13 +144,13 @@ test('c1 ordered active-chain fixtures match reviewed native hydration and runti
     const overlap = [first, second, bc('boundary', segment, ['first']), summary];
     assert.notDeepEqual([first, overlap[2], summary, first, second], hydrate(overlap, 2, true));
   }
-  t.diagnostic(JSON.stringify({ digest, branch: leading ? '3.17.2' : native17 ? '3.16.3' : '3.15.1', orderedFixtures: results }));
-  const prefixCount = new Function(...(leading ? ['tp', 'f_a', 'm_a', 'Gu'] : native17 ? ['Tm', 'Ala', 'Pla', 'Ela'] : ['xm', 'jca', 'Bca', 'qu']),
-    leading ? extract('DT', 'hx') + '; return DT;' : native17 ? extract('PT', 'Ela') + '; return PT;' : extract('wT', 'ix') + '; return wT;')(
+  t.diagnostic(JSON.stringify({ digest, branch: desktop3182 ? '3.18.2' : leading ? '3.17.2' : native17 ? '3.16.3' : '3.15.1', orderedFixtures: results }));
+  const prefixCount = new Function(...(desktop3182 ? ['Lu', 'fRa', 'mRa', 'Zu'] : leading ? ['tp', 'f_a', 'm_a', 'Gu'] : native17 ? ['Tm', 'Ala', 'Pla', 'Ela'] : ['xm', 'jca', 'Bca', 'qu']),
+    desktop3182 ? extract('sS', 'Ax') + '; return sS;' : leading ? extract('DT', 'hx') + '; return DT;' : native17 ? extract('PT', 'Ela') + '; return PT;' : extract('wT', 'ix') + '; return wT;')(
     e => e.kind === 'attachment', e => e.message, e => e.metadata, content => content);
   const clone = value => structuredClone(value);
-  const postCompact = new Function(...(leading ? ['DT', 'fUe', 'oza'] : native17 ? ['PT', '_kt', 'FLa'] : ['wT', 'mSt', 'zNa']),
-    leading ? extract('A8o', 'P8o') + '; return A8o;' : native17 ? extract('fjo', 'mjo') + '; return fjo;' : extract('TOo', 'IOo') + '; return TOo;')(prefixCount, clone, clone);
+  const postCompact = new Function(...(desktop3182 ? ['sS', 'J5e', 'XYa'] : leading ? ['DT', 'fUe', 'oza'] : native17 ? ['PT', '_kt', 'FLa'] : ['wT', 'mSt', 'zNa']),
+    desktop3182 ? extract('xHo', 'THo') + '; return xHo;' : leading ? extract('A8o', 'P8o') + '; return A8o;' : native17 ? extract('fjo', 'mjo') + '; return fjo;' : extract('TOo', 'IOo') + '; return TOo;')(prefixCount, clone, clone);
   const nativePrefix = { message: { role: 'user', content: 'native context' }, metadata: { source: 'context_prefix' } };
   const bbUser = { message: { role: 'user', content: '[bb session instructions]\nbb block' }, metadata: { source: 'real_user' } };
   const result = postCompact([nativePrefix, bbUser], { message: { role: 'user', content: 'summary' } });

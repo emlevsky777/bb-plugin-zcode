@@ -32,7 +32,8 @@ async function fixture(run) {
     await rpc('turn/start',{...params,clientRequestId:'creq_2222222222',input:text('/wait-for-interrupt')});
     for(let i=0;i<100&&!deltas().some(d=>d.kind==='turn.open');i++)await delay(10);
     const expectedTurnId=session().rows.window.find(r=>r.kind==='turnHeader').turnId;
-    await run({rpc,params,expectedTurnId,session,deltas,root,armBoundary:()=>{completeBeforeSend=true;}});
+    await run({rpc,params,expectedTurnId,session,deltas,root,armBoundary:()=>{completeBeforeSend=true;},
+      settleFrames:()=>child.request('runtime/capabilities',{})});
   } finally {await bridge.close();rmSync(root,{recursive:true,force:true});}
 }
 test('M464 inject validates turn before native send; ordinary start survives refusal',()=>fixture(async f=>{
@@ -64,14 +65,18 @@ for(const kind of ['guided','queue','boundary']) test('M464 ACK acceptance once 
   }
   if(kind==='boundary')f.armBoundary();
   assert.ok((await f.rpc('turn/steer',p)).result);
-  await delay(180);
+  const expectedHeaders=kind==='guided'?1:2;
+  // Observe completion instead of assuming a loaded CI host finishes in 180ms.
+  // The reply barrier follows the fixture's duplicate terminal frames on stdout.
+  for(let i=0;i<400&&f.deltas().filter(d=>d.kind==='turn.boundary').length<expectedHeaders;i++)await delay(10);
+  await f.settleFrames();
   const accepted=f.deltas().filter(d=>d.kind==='input.accepted'&&d.clientRequestId===p.clientRequestId);
   assert.equal(accepted.length,1);assert.equal(accepted[0].providerTurnId,f.expectedTurnId);threadDeltaSchema.parse(accepted[0]);
   assert.ok((await f.rpc('turn/steer',p)).error);
   assert.equal(f.session().steerCommands.length,1);
   assert.equal(f.session().steerCommands[0].payload.requestedDelivery,'guide');
   const headers=f.session().rows.window.filter(r=>r.kind==='turnHeader');
-  assert.equal(headers.length,kind==='guided'?1:2);
+  assert.equal(headers.length,expectedHeaders);
   const terminals=f.deltas().filter(d=>d.kind==='turn.boundary');
   assert.equal(terminals.length,headers.length,JSON.stringify(f.deltas()));
   assert.ok(terminals.every(d=>d.status==='completed'));
