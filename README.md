@@ -79,6 +79,26 @@ without restarting bb. `zcode` need not be on PATH. Spotlight locates renamed bu
 fallback search uses `/Applications` and `~/Applications`. System Applications
 is preferred when multiple copies exist.
 
+Recent Desktop sign-ins can omit the legacy per-provider identity entry. For an
+active Z.ai OAuth login, the plugin can use the shared user-info record to bind
+the account scope; login tokens are still read fresh from Desktop's store.
+
+Desktop `enc:v2` credentials are supported through the existing macOS Keychain
+entry or the native managed-secret source. Encryption keys obtained from
+Keychain stay in process memory and are shared by Coding/Start readers in the
+same worker. Separate workers or a later restart can request access again. The
+plugin does not create Keychain entries, persist those keys, or rewrite Desktop
+credentials. Cancellation, timeout or a failed key read blocks further Keychain
+attempts for that store in the worker. To retry, stop affected ZCode threads,
+unlock/allow the intended Keychain access, reload ZCode Provider, and continue
+the saved thread. A new encryption-key fingerprint invalidates the cached key;
+stale fingerprints cannot reopen repeated prompts.
+
+Provider error `3009` indicates a simultaneous-request limit. Let another model
+request finish before retrying, or explicitly select a different available
+model/plan. The plugin preserves the selected plan and does not switch it
+automatically after this error.
+
 Stop every ZCode thread with its **Stop** button before updating or removing.
 Open **Settings → Installed plugins → ZCode Provider** to review and apply an offered
 update. To remove it, choose **ZCode Provider actions → Remove from bb**. Updates follow

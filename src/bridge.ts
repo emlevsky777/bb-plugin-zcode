@@ -11,7 +11,7 @@ import { FrameDecoder } from './framing.ts';
 import { ConversationState } from './state.ts';
 import { SessionLifecycle } from './lifecycle.ts';
 import { CommandCorrelation } from './correlation.ts';
-import { ReadOnlyAuth, authRecovery, nativeAccount, AuthError, authMode, UnsupportedPlanError } from './auth.ts';
+import { ReadOnlyAuth, authRecovery, nativeAccount, AuthError, authMode, UnsupportedPlanError, KeychainAuthError } from './auth.ts';
 import { signInHint } from './applications.ts';
 import type { AuthMode, AccountPlan } from './auth.ts';
 import { record, string } from './errors.ts';
@@ -191,10 +191,10 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         if (!current(s, g) || s.closing) return;
         const missingLogin = (e instanceof AuthError && e.kind === 'unauthenticated') || (e instanceof ProjectTokenError && e.code === 'project_token_login_failed');
         s.child.write({ jsonrpc: '2.0', id: m.id, result: { headersApplied: false,
-          errorMessage: missingLogin ? signInHint() : e instanceof UnsupportedPlanError ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input' } });
+          errorMessage: missingLogin ? signInHint() : (e instanceof UnsupportedPlanError || e instanceof KeychainAuthError) ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input' } });
         if (missingLogin) authFailed(s);
         else send('thread/delta', { threadId: s.threadId, deltas: [threadDeltaSchema.parse({ kind: 'provider.error',
-          category: e instanceof UnsupportedPlanError ? 'bad-request' : 'unknown', message: e instanceof UnsupportedPlanError ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input; inspect configuration' })] });
+          category: e instanceof UnsupportedPlanError ? 'bad-request' : 'unknown', message: (e instanceof UnsupportedPlanError || e instanceof KeychainAuthError) ? e.message : e instanceof ProjectTokenError ? e.code : 'Unsupported or invalid native auth input; inspect configuration' })] });
       }
       services.observe?.({ event: 'runtime-headers-result', sessionId: s.id, requestId: params.requestId,
         generation: g, readsAfter: s.auth.reads, source: s.auth.source(), route: s.auth.account().route, accountPlan: s.auth.accountPlan(), providerId: s.auth.account().id, headersApplied });
