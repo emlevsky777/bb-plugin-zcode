@@ -30,7 +30,17 @@ test('actual installed tuple is discovered without promoting an untested install
  const current=api.discoverCompatibility(paths,createHash('sha256').update(readFileSync(paths.script)).digest('hex'));
  assert.equal(current.runtimeSha256,createHash('sha256').update(readFileSync(paths.script)).digest('hex'));
  assert.equal(current.declaredSdk,'0.6.79');assert.equal(current.platform,process.platform);assert.equal(current.node,process.versions.node);
- for(const key of ['builtinSha256','bbArtifactSha256','sdkArtifactSha256'])assert.match(current[key],/^[a-f0-9]{64}$/);
+ assert.match(current.builtinSha256,/^[a-f0-9]{64}$/);
+ // A plain Node test runner has no containing bb.app. Missing BB artifacts
+ // must remain null and untrusted, rather than inferring the local app path.
+ for(const key of ['bbArtifactSha256','sdkArtifactSha256']) {
+  if(api.bbBundle()===null) assert.equal(current[key],null);
+  else assert.match(current[key],/^[a-f0-9]{64}$/);
+ }
+ if(api.bbBundle()===null) {
+  assert.equal(current.bb,null);assert.equal(current.installedSdk,null);
+  assert.equal(api.compareCompatibility(current).known,false);
+ }
  const match=api.checkedTuples.find(row=>Object.entries(current).every(([key,value])=>value!==null&&row.tuple[key]===value));
  const compared=api.compareCompatibility(current);
  assert.equal(compared.known,Boolean(match));

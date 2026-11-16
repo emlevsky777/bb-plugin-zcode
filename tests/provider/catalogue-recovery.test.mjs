@@ -28,7 +28,7 @@ test('abrupt parent death: hanging EOF/TERM-ignore native-shaped child and desce
   const owner = spawn(process.execPath, [resolve('tests/provider/catalogue-orphan-worker.mjs'), root], { env: process.env, stdio: ['pipe', 'pipe', 'pipe'] });
   owner.stdout.resume(); owner.stderr.resume(); const done = new Promise(r => owner.on('close', r)); let group;
   try {
-    await wait(join(root, 'descendant.json')); await wait(join(root, 'group.json'));
+    await Promise.all(['child.json', 'descendant.json', 'group.json'].map(file => wait(join(root, file))));
     group = JSON.parse(readFileSync(join(root, 'group.json'), 'utf8')).pid;
     const children = ['child.json', 'descendant.json'].map(f => JSON.parse(readFileSync(join(root, f), 'utf8')));
     owner.kill('SIGKILL'); await done;

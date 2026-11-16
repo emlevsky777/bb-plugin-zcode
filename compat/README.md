@@ -1,5 +1,29 @@
 # Release compatibility inspection
 
+## Desktop 3.18.2 source coverage
+
+The native CLI digest
+`08726b5ef69e1e9072828baa4656713cb3aac93bb096938681278c5600312b2c`
+identifies the reviewed source used by the synthetic compaction-parity tests.
+The tests execute only extracted pure hydration and unlocked guide-drain
+functions with synthetic history and stubbed side effects. They preserve the
+ordered leading/preserved-message, usage-reset, guide identity/reservation and
+completion-before-replacement assertions. The guide wrapper's permission and
+active-turn admission guards are outside this extracted-drain coverage.
+
+Current native hydration matches the provider's history projection. Native
+automatic compaction still proceeds to its next request without draining guides;
+this source review does not remove the documented remaining-turn limitation.
+The memory settings, OAuth request and source-header anchors include their
+new vendor chunk locations. The plugin discovery anchor covers the legacy sync
+entry point and the current adapter method while retaining the other required
+plugin-scope anchors. All old extraction branches remain supported.
+
+These bounded source checks do not register a new Level 1 compatibility tuple.
+The unchecked-combination notice and unknown-source failure guard remain.
+When tests run under plain Node, BB app metadata is deliberately unavailable
+rather than inferred from a machine-specific installation path.
+
 5 November 2026: accepted v0.2.1 runtime reviews Desktop 3.17.2 leading/preserved
 history and moved memory/OAuth chunks. Both verified 3.16.3 reference and
 installed 3.17.2 Level 0 inspections find all strong anchors; the same 15 weak

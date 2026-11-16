@@ -185,10 +185,12 @@ native history and restores the original bb block once if it was folded away.
 Native automatic compaction can make an internal model request before this
 hook; the remainder of that turn can run without the full bb block. Continuous
 instruction/skill preservation within that turn is unsupported.
-The G4 experiment found that native guide restores the block in request two
-when no earlier user guide is pending, but in request three when a user guide
-precedes it. It also produces a visible assistant response to the service block.
-Automatic guide reinjection is therefore not enabled.
+The historical G4 experiment observed delayed guide delivery and a visible
+assistant response to the service block. Reviewed newer native guide code drains
+multiple eligible guides together, up to a reserved guide, but still has no
+guide drain between automatic compaction and the next model request. Automatic
+guide reinjection therefore remains unsupported; next-ordinary-turn restoration
+is the supported boundary.
 There is no provider-specific 64 KiB instruction or skill-file limit. The
 attachment limits above apply only to uploaded attachments.
 

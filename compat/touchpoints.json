@@ -28,10 +28,11 @@
           "file": "Contents/Resources/app.asar/out/host/index.js",
           "text": "getSettingsFile",
           "strength": "strong",
-          "reason": "Same settings-service symbol in reviewed Desktop 3.15.1, 3.16.3 and 3.17.2; alternatives are OR paths. 5 November 2026 M5.7: installed K6B2OAAG SHA256 2b459cca3d5ad1151cf24f7429f8870e55e00c50b7085b36b00547bca6303760 matches acabe8; service still resolves real HOME/.zcode/v2/setting.json. Source presence alone does not establish live behavior.",
+          "reason": "Same settings-service symbol in reviewed Desktop 3.15.1, 3.16.3 and 3.17.2; alternatives are OR paths. 5 November 2026 M5.7: installed K6B2OAAG SHA256 2b459cca3d5ad1151cf24f7429f8870e55e00c50b7085b36b00547bca6303760 matches acabe8; service still resolves real HOME/.zcode/v2/setting.json. Source presence alone does not establish live behavior. Desktop 3.18.2 moves the same settings-service symbol to O6MP7ZHZ; source presence still does not establish live compatibility.",
           "alternativeFiles": [
             "Contents/Resources/app.asar/out/host/chunk-G6XJUBQB.js",
-            "Contents/Resources/app.asar/out/host/chunk-K6B2OAAG.js"
+            "Contents/Resources/app.asar/out/host/chunk-K6B2OAAG.js",
+            "Contents/Resources/app.asar/out/host/chunk-O6MP7ZHZ.js"
           ]
         }
       ],
@@ -1966,9 +1967,9 @@
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "discoverPluginsSync",
+          "text": "discoverPlugins",
           "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+          "reason": "Shared discovery entry-point prefix: older discoverPluginsSync and the current adapter discoverPlugins method. Both are paired with the enabled-plugin, declared-MCP and overview anchors below; source presence is not behavior proof."
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2972,10 +2973,11 @@
           "file": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
           "text": "clientType:\"zcode\",clientVersion:",
           "strength": "strong",
-          "reason": "5 November 2026 M5.7: installed 3.17.2 D5C6W4UB SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53 matches acabe8. Reviewed customer-info raw business-token Authorization and key/access-token Bearer behavior retain 3.16.3 semantics. Old 3.15.1/3.16.3 paths remain strong OR alternatives; source inspection alone is not live compatibility.",
+          "reason": "5 November 2026 M5.7: installed 3.17.2 D5C6W4UB SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53 matches acabe8. Reviewed customer-info raw business-token Authorization and key/access-token Bearer behavior retain 3.16.3 semantics. Old 3.15.1/3.16.3 paths remain strong OR alternatives; source inspection alone is not live compatibility. Desktop 3.18.2 retains this access-token request shape in IEBWXNOE; the endpoint remains subject to the existing semantic checks.",
           "alternativeFiles": [
             "Contents/Resources/app.asar/out/host/chunk-5YNPFY3L.js",
-            "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js"
+            "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js",
+            "Contents/Resources/app.asar/out/host/chunk-IEBWXNOE.js"
           ]
         },
         {
@@ -3167,7 +3169,10 @@
           "file": "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js",
           "text": "buildZCodeSourceHeadersFromContext",
           "strength": "strong",
-          "reason": "Desktop reference source-header builder on 3.17.2, SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53."
+          "reason": "Desktop reference source-header builder on 3.17.2, SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53. Desktop 3.18.2 moves the same builder to IEBWXNOE; no checked compatibility tuple is added.",
+          "alternativeFiles": [
+            "Contents/Resources/app.asar/out/host/chunk-IEBWXNOE.js"
+          ]
         }
       ],
       "code": [
