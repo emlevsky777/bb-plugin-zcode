@@ -47,6 +47,7 @@ export interface BridgeServices {
   memoryEnabled?: () => boolean | undefined;
   compatibility?: () => { message: string | null };
   compatibilityWarning?: () => string | null;
+  pluginUpdateWarning?: (candidate: unknown) => string | null;
   claimDiagnostic?: (threadId: string, code: string) => boolean;
   startGuidance?: () => string | null;
   observe?: (value: Record<string, unknown>) => void;
@@ -93,6 +94,10 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     return execution;
   }
   const io = createBridgeIo({ write: line => write(JSON.parse(line)) });
+  const compatibilityMessage = () => services.compatibilityWarning
+    ? services.compatibilityWarning() : services.compatibility?.().message;
+  const pluginUpdateMessage = (params: unknown) => services.pluginUpdateWarning?.(
+    (params as { options?: { providerOptions?: { pluginUpdateCandidate?: unknown } } } | null)?.options?.providerOptions?.pluginUpdateCandidate);
   const sessions = new Map<string, Session>();
   const rejectedEntitlements = new WeakMap<Session, string>();
   let skillRoots: SkillRoot[] = [];
@@ -448,16 +453,23 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       s.contextUsage.reset();
       if (bbToolsWarning) send('thread/delta', {threadId,deltas:[{kind:'provider.warning',category:'general',
         summary:`BB plugin tools are unavailable in this session. ${bbToolsWarning} Native MCP configuration is unchanged; ordinary ZCode work remains available.`}]});
-      const compatibilityMessage = services.compatibilityWarning ? services.compatibilityWarning() : services.compatibility?.().message;
-      if (compatibilityMessage) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: compatibilityMessage }] });
       const startGuidance = !resume && execution.authMode === 'desktop' ? services.startGuidance?.() : null;
       if (startGuidance) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: startGuidance }] });
       await s.child.request('v4/conversation/subscribe', { topic: `conversation/${s.id}`, connectionId: randomUUID(),
         clientMode: 'desktop-continuous', workspace: { workspacePath: cwd, workspaceKey: cwd } });
       await waitSnapshot(s);
       await setup.readySession?.(s.child, s.id);
-      for (const summary of setup.warnings ?? []) send('thread/delta', { threadId,
-        deltas: [{ kind: 'provider.warning', category: 'general', summary }] });
+      if (!resume) {
+        const notices: string[] = [];
+        for (const read of [compatibilityMessage, () => pluginUpdateMessage(p)]) {
+          try { const message = read(); if (message) notices.push(message); }
+          catch { /* Optional local information must not prevent the first input. */ }
+        }
+        if (notices.length) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: notices.join(' ') }] });
+      }
+      for (const summary of setup.warnings ?? []) {
+        if (summary) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary }] });
+      }
       return { providerThreadId: s.id };
     } catch (e) {
       if (s.id) send('error', { threadId, providerThreadId: s.id, message: 'Native attach failed; preserve identity and reconcile binding before retry' });
@@ -735,20 +747,16 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
             io.sendResult(r.id, result);
           }
           catch (e) {
-            if (e instanceof AuthError && e.kind === 'unauthenticated') throw authRecovery();
             if (e instanceof UnsupportedPlanError) {
               if (key) send('thread/delta', { threadId: key, deltas: [threadDeltaSchema.parse({ kind: 'provider.error', category: 'bad-request', message: e.message })] });
               io.sendError(r.id, -32602, e.message); return;
             }
-            if (e instanceof MissingExecutableError) { io.sendError(r.id, -32004, e.message); return; }
             if ((e as Error).name === 'ZodError') { io.sendError(r.id, -32602, 'Invalid params'); return; }
             const code = (e as { code?: number }).code;
             if (code === -32601) { io.sendError(r.id, code, 'Method not found'); return; }
-            // Keep the actual failure object/kind/code. Compatibility adds
-            // context only; it never converts failure into unsupported/success.
-            const context = services.compatibility?.().message;
-            if (context && e instanceof Error) e.message += ' ' + context;
-            throw e;
+            const error = e instanceof AuthError && e.kind === 'unauthenticated' ? authRecovery() : e;
+            if (error instanceof MissingExecutableError) { io.sendError(r.id, -32004, error.message); return; }
+            throw error;
           }
         };
         if (key && r.method !== 'thread/stop' && r.method !== 'thread/discard') {

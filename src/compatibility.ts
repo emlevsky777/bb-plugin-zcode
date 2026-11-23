@@ -85,13 +85,35 @@ export function desktopVersion(file: string): string | null {
     { encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).trim()); }
   catch { return null; }
 }
+// The v0.2.4 deployment and compatibility report verified these app releases.
+// Advance after a representative live check, independently of exact Level 1 records.
+const testedAppVersions = [
+  { field: 'bb', name: 'BB', tested: '0.50.1' },
+  { field: 'desktop', name: 'ZCode Desktop', tested: '4.0.0' },
+] as const;
+
+function appUpdateMessage(tuple: CompatibilityTuple): string | null {
+  const updates = testedAppVersions.flatMap(({ field, name, tested }) => {
+    const installed = version(tuple[field]);
+    const release = installed?.split(/[-+]/, 1)[0];
+    return release && release.localeCompare(tested, 'en', { numeric: true }) > 0
+      ? [{ tested: `${name} ${tested}`, installed: `${name} ${installed}` }]
+      : [];
+  });
+  if (!updates.length) return null;
+  const format = new Intl.ListFormat('en', { type: 'conjunction' });
+  const tested = format.format(updates.map(update => update.tested));
+  const installed = format.format(updates.map(update => update.installed));
+  return `ZCode Provider was tested with ${tested}. Your installation uses ${installed}. The maintainer has not yet verified the plugin with the newer release${updates.length === 1 ? '' : 's'}.`;
+}
+
 export function compareCompatibility(tuple: CompatibilityTuple, table: readonly CheckedTuple[] = checkedTuples) {
   const keys = Object.keys(tuple) as (keyof CompatibilityTuple)[];
   const match = table.find(row => row.level === 'level1' && row.resultRef && row.evidenceRef && row.pluginRevision &&
     keys.every(key => tuple[key] !== null && tuple[key] === row.tuple[key]));
   const known = Boolean(match);
   return { known, resultRef: match?.resultRef ?? null, tuple,
-    message: known ? null : `This version combination has not been checked: bb ${tuple.bb ?? 'unknown'}, SDK ${tuple.installedSdk ?? 'unknown'} (declared ${tuple.declaredSdk}), ZCode Desktop ${tuple.desktop ?? 'unknown'}, CLI ${tuple.cli ?? 'unknown'}. You can continue. If startup or conversation fails, contact the plugin maintainer.` };
+    message: known ? null : appUpdateMessage(tuple) };
 }
 export function discoverCompatibility(paths: { executable: string; script: string }, runtimeSha256: string | null): CompatibilityTuple {
   const safe = <T>(fn: () => T): T | null => { try { return fn(); } catch { return null; } };

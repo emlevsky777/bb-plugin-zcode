@@ -35,7 +35,7 @@ test('actual installed tuple is discovered without promoting an untested install
  const compared=api.compareCompatibility(current);
  assert.equal(compared.known,Boolean(match));
  if(match)for(const [key,value]of Object.entries(current))assert.equal(match.tuple[key],value,key);
- else assert.match(compared.message,/has not been checked/);
+ if(current.bb==='0.50.1'&&current.desktop==='4.0.0')assert.equal(compared.message,null);
 });
 test('unknown compatibility never masks actual startup/protocol failure or retries create',async()=>{
  const output=[];let prepares=0;
@@ -45,16 +45,31 @@ test('unknown compatibility never masks actual startup/protocol failure or retri
   options:{permissionMode:'full',permissionScope:'full',approvalReviewer:null,permissionEscalation:null}}}));
  for(let n=0;n<100&&!output.some(v=>v.id===1);n++)await delay(10);
  const response=output.find(v=>v.id===1);assert.ok(response.error);assert.match(response.error.message,/synthetic-startup-protocol-failure/);
- assert.match(response.error.message,/bb unknown/);assert.equal(prepares,1);assert.equal(output.some(v=>v.method==='thread/identity'),false);await b.close();
+ assert.doesNotMatch(response.error.message,/maintainer has not yet verified/);
+ assert.equal(prepares,1);assert.equal(output.some(v=>v.method==='thread/identity'),false);await b.close();
 });
-test('local exact tuple: known, unknown bb/ZCode/both, SHA mismatch and absent metadata never infer compatibility',()=>{
+test('exact compatibility still depends on the entire recorded tuple',()=>{
  assert.equal(api.compareCompatibility(tuple,table).known,true);
  for(const change of [{bb:'99.0.0'},{cli:'99.0.0'},{bb:'99.0.0',cli:'99.0.0'},{runtimeSha256:'d'.repeat(64)},
   {cli:null},{bb:null},{installedSdk:null},{runtimeSha256:null},{sdkArtifactSha256:null}]){
-  const result=api.compareCompatibility({...tuple,...change},table);assert.equal(result.known,false);assert.match(result.message,/You can continue/);
+  assert.equal(api.compareCompatibility({...tuple,...change},table).known,false);
  }
  assert.equal(api.compareCompatibility(tuple,[{...table[0],evidenceRef:''}]).known,false);
  assert.equal(api.compareCompatibility(tuple,[{...table[0],level:'pending'}]).known,false);
+});
+test('update notice names only installed BB and Desktop releases newer than the tested versions',()=>{
+ const current={...tuple,bb:'0.50.1',desktop:'4.0.0',installedSdk:'0.6.157',cli:'0.18.0',node:'24.22.2'};
+ for(const change of [{},{bb:'0.9.99',desktop:'3.99.0'},{bb:null,desktop:null},{bb:'invalid',desktop:'4.0.0-rc.1'},
+  {bb:'0.50.1+build.1',installedSdk:'0.6.200',cli:'0.19.0',runtimeSha256:null}]){
+  const result=api.compareCompatibility({...current,...change});
+  assert.equal(result.known,false);assert.equal(result.message,null);
+ }
+ const bb=api.compareCompatibility({...current,bb:'0.50.10',desktop:null}).message;
+ assert.equal(bb,'ZCode Provider was tested with BB 0.50.1. Your installation uses BB 0.50.10. The maintainer has not yet verified the plugin with the newer release.');
+ const desktop=api.compareCompatibility({...current,desktop:'4.0.1'}).message;
+ assert.match(desktop,/tested with ZCode Desktop 4\.0\.0\. Your installation uses ZCode Desktop 4\.0\.1\./);
+ const both=api.compareCompatibility({...current,bb:'0.51.0',desktop:'4.0.1'}).message;
+ assert.match(both,/BB 0\.50\.1 and ZCode Desktop 4\.0\.0\. Your installation uses BB 0\.51\.0 and ZCode Desktop 4\.0\.1\./);
 });
 test('unknown SHA allows real fake protocol; health/auth/missing executable retain truth',async()=>{
  const base=resolve(process.env.ZCODE_CONNECTION_TEST_ROOT??'.local/M4.2/offline');mkdirSync(base,{recursive:true});const root=mkdtempSync(base+'/compat-');
@@ -65,7 +80,8 @@ test('unknown SHA allows real fake protocol; health/auth/missing executable reta
   configure:async c=>{await c.request('runtime/capabilities',{});}});
  try{
   assert.equal((await runtime.services.models()).models.length,2);
-  assert.equal((await runtime.services.health()).health.status,'ready');assert.match((await runtime.services.health()).health.statusMessage,/CLI unknown/);
+  assert.equal((await runtime.services.health()).health.status,'ready');
+  assert.doesNotMatch((await runtime.services.health()).health.statusMessage,/maintainer has not yet verified/);
   assert.equal((await runtime.services.installation()).versionUnsupported,false);
   auth.read=()=>{throw new api.AuthError('unauthenticated');};assert.equal((await runtime.services.health()).health.status,'unauthenticated');
   await assert.rejects(runtime.services.prepare(root,undefined,{threadId:'own'}),api.AuthError);

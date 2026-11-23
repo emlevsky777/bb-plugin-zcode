@@ -47,6 +47,14 @@ retry in bb. The next request reads the updated sign-in.
 If you're upgrading from our v0.1.x line, install this source afresh and start
 a new thread. [Migration details](RELEASE_NOTES.md#distinct-identity-and-fresh-installation).
 
+At the start of each new ZCode Provider thread, before the first model answer,
+one notice combines any compatibility warning and available plugin update.
+It names installed and tested versions when BB or ZCode Desktop is newer
+than tested. Update information comes from BB's saved results, read on demand
+at most once per hour, shared across this installation's hosts. Follow-up prompts and resumed threads do not
+repeat the notice; an update learned later waits for a new thread. Unavailable
+notice information does not prevent your prompt from running.
+
 Stop every ZCode thread with its **Stop** button before updating or removing.
 Open **Settings → Installed plugins → ZCode Provider** to review and apply an offered
 update. Installations that follow `main` get the latest commit on that branch

@@ -23,6 +23,7 @@ export * from './process.ts';
 export * from './bridge.ts';
 export * from './runtime.ts';
 export * from './compatibility.ts';
+export * from './plugin-update.ts';
 export * from './options.ts';
 export * from './desktop-memory.ts';
 export * from './desktop-builtin.ts';

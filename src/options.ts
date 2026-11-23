@@ -11,7 +11,7 @@ export function executionOptions(value: unknown, instructionMode = 'append', dis
   if (o.promptMode !== undefined) throw new Error('ZCode plan mode is not supported');
   if (o.serviceTier !== undefined && o.serviceTier !== 'default') throw new Error('ZCode fast service tier is not supported');
   const providerOptions = record(o.providerOptions ?? {});
-  if (Object.keys(providerOptions).some(key => !['additionalWorkspaceWriteRoots', 'authMode', 'providerSubagentsEnabled', 'memoryEnabled'].includes(key))) throw new Error('ZCode providerOptions are not supported');
+  if (Object.keys(providerOptions).some(key => !['additionalWorkspaceWriteRoots', 'authMode', 'providerSubagentsEnabled', 'memoryEnabled', 'pluginUpdateCandidate'].includes(key))) throw new Error('ZCode providerOptions are not supported');
   if (providerOptions.providerSubagentsEnabled !== undefined && typeof providerOptions.providerSubagentsEnabled !== 'boolean') throw Error('Invalid subagent setting');
   const providerSubagentsEnabled = providerOptions.providerSubagentsEnabled !== false;
   if (providerOptions.memoryEnabled !== undefined && typeof providerOptions.memoryEnabled !== 'boolean') throw Error('Invalid memory setting');

@@ -37,3 +37,8 @@ export function claimNotice(root: string, name: string, key: string): boolean {
 export function diagnosticNoticeName(threadId: string, code: string) {
   return 'diagnostic-' + createHash('sha256').update(JSON.stringify([threadId, code])).digest('hex');
 }
+
+export function pluginUpdateNotice(candidate: unknown): string | null {
+  if (typeof candidate !== 'string' || !candidate.trim()) return null;
+  return 'An update for ZCode Provider is available. Open Settings → Installed plugins → ZCode Provider and choose Update.';
+}

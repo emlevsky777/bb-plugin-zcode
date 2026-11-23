@@ -1,3 +1,26 @@
+# Unreleased — public main
+
+New ZCode Provider threads can show one notice before the first model answer.
+It combines a warning about BB or ZCode Desktop releases newer than the tested
+versions with an available provider update reported by BB. Follow-up prompts
+and resumed threads do not repeat it. Missing notice information leaves the
+ordinary startup and authentication paths available.
+
+Update information is read only when a new thread needs it, sharing one saved
+result across this installation's hosts for an hour. There are no idle reads
+or separate upstream checks. Installing a new plugin copy clears an obsolete
+offer even when the package version stays the same, while a reload of the
+same copy reuses the saved result.
+
+Verification: 400 source tests and 27 focused built-artifact tests passed on
+BB's Node 24.22.2. Four earlier real GLM-5.4 turns confirmed visible notice
+ordering, silence on follow-up and cold resume, and normal input with
+unavailable notice metadata. Version/update notice inputs were synthetic;
+installation changes and overlapping host starts were checked locally.
+This is a main-branch update, not a new tagged release. The latest release
+remains v0.2.4; installations tracking release tags do not receive these
+changes until a later release.
+
 # ZCode Provider v0.2.4
 
 ## Desktop model catalogue and bb compatibility

@@ -18,7 +18,7 @@ import type { BridgeServices, RuntimeSetup } from './bridge.ts';
 import type { executionOptions } from './options.ts';
 import { discoverCompatibility, compareCompatibility, createFileIdentityCache, compatibilityFiles, fileIdentity, desktopVersion } from './compatibility.ts';
 import { nativePaths, signInHint, configureZCodeLocation, resolveZCode } from './applications.ts';
-import { claimNotice, diagnosticNoticeName } from './messages.ts';
+import { claimNotice, diagnosticNoticeName, pluginUpdateNotice } from './messages.ts';
 import { desktopMemoryEnabled } from './desktop-memory.ts';
 import { desktopBuiltinPath, desktopBuiltinEnvironment, desktopBuiltinCandidate } from './desktop-builtin.ts';
 import { fetchStartEntitlement, fetchStartBalance, decodeStartBalance } from './start-plan.ts';
@@ -448,11 +448,10 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
   const services: BridgeServices = {
     compatibility,
     compatibilityWarning() {
-      const value = compatibility();
-      const key = JSON.stringify('tuple' in value ? { bb: value.tuple.bb, sdk: value.tuple.installedSdk,
-        declaredSdk: value.tuple.declaredSdk, desktop: value.tuple.desktop, cli: value.tuple.cli } : value);
-      return claimNotice(root, 'last-version-combination', key) ? value.message : null;
+      try { return compatibility().message; }
+      catch { return null; }
     },
+    pluginUpdateWarning: candidate => pluginUpdateNotice(candidate),
     claimDiagnostic: (threadId, code) => claimNotice(root, diagnosticNoticeName(threadId, code), code),
     observe: evidence,
     memoryEnabled: () => desktopMemoryEnabled(dependencies.personalHome),

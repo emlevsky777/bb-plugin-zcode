@@ -33,7 +33,7 @@
   },
   "bb": {
     "name": "ZCode Provider",
-    "description": "Use your Z.ai GLM Coding Plan in bb through your installed ZCode agent. macOS only.",
+    "description": "Use GLM-5.4 in bb on macOS through ZCode when your Z.ai Coding Plan offers it. macOS may ask for Keychain access on first connection.",
     "branding": {
       "icon": "./assets/zcode.svg"
     },

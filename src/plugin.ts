@@ -9,6 +9,7 @@ import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { authMode } from './auth.ts';
 import { registerUsageSource } from './usage-source.ts';
+import { createPluginUpdateLookup } from './plugin-update.ts';
 export default async function plugin(bb: BbPluginApi): Promise<void> {
   bb.agents?.configure(() => ({ tools: [], skills: ['zcode-provider'] }));
   const settings = bb.settings.define({
@@ -23,6 +24,8 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     backupKey: { type: 'string', label: 'Backup Coding Plan key', secret: true,
       description: 'Used only with coding-plan-key on this Mac. bb stores this secret in a protected file.' },
   });
+  let pluginUpdateCandidate: string | null = null;
+  const lookupUpdate = createPluginUpdateLookup(bb);
   // Health in bb 0.48.1 has neither per-command settings nor contributed env.
   // Project auth source and the promotion preference into this plugin's data, never native
   // credentials/config. Ordinary input and steering remain per-command.
@@ -39,7 +42,9 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
   }
   const provider = { id: 'zcode-provider', displayName: 'ZCode Provider', icon: './assets/zcode.svg',
     experimental_resolvesNativeRoots: true,
-    deriveProviderOptions(context) { return { authMode: String(context.settings.authMode ?? 'desktop'), providerSubagentsEnabled: context.settings.subagentsDisabled !== true, memoryEnabled: context.settings.memoryEnabled !== false }; },
+    deriveProviderOptions(context) { return { authMode: String(context.settings.authMode ?? 'desktop'),
+      providerSubagentsEnabled: context.settings.subagentsDisabled !== true, memoryEnabled: context.settings.memoryEnabled !== false,
+      ...(pluginUpdateCandidate ? { pluginUpdateCandidate } : {}) }; },
     strings: { signInHint: signInHint(),
       expiredHint: 'Start Plan access has expired. Check promotions in ZCode Desktop; Coding Plan is separate.', installUrl: 'https://zcode.z.ai' },
     models: { scope: 'host' }, maintenance: { health: true, installation: true, usage: true },
@@ -51,6 +56,15 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     extensionKinds: { compaction: { item: compactionItemSchema } },
   } satisfies PluginProviderDeclaration;
   bb.providers.register(provider);
+  // deriveProviderOptions is synchronous. BB awaits dispatch hooks before
+  // constructing a new session, so collect optional information there.
+  bb.experimental_hooks?.on('message.dispatch', async context => {
+    if (context.requestedExecution.providerId === provider.id && context.thread.status === 'pending') {
+      try { pluginUpdateCandidate = await lookupUpdate(); }
+      catch { /* Notice collection must never reject a prompt. */ }
+    }
+    return { action: 'proceed' };
+  });
   if (bb.rpc && bb.sdk) registerUsageSource(bb, provider.id, async () => authMode((await settings.get()).authMode));
   // bb 0.48.1 maintenance uses launch options, without deriveProviderOptions.
   // Its contributed-env fingerprint refreshes the host catalogue when these

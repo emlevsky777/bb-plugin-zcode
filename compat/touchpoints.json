@@ -1386,7 +1386,7 @@
     {
       "id": "sdk-warning",
       "product": "SDK",
-      "uses": "Thread warning transport; M5.13 delivers qualified manual-claim guidance at fresh Desktop-auth thread startup from an already collected discovery snapshot, without a provider call.",
+      "uses": "Thread warning transport for Start Plan guidance and one combined compatibility/plugin-update notice at initial thread/start. BB 0.50.1 awaits message.dispatch before admission of a pending thread and later derives synchronous provider options when constructing its runtime command. Only that provider's pending-thread hook reads SDK listUpdateResults, on demand at most once per hour for the installation shared across all hosts, using plugin KV and memory. The installed module URL/bytes identify the result; switching installed copy clears the old offer while retaining the shared attempt timestamp. No startup/reconnect/change subscriptions or idle reads. Per-command provider options carry the common candidate to the bridge; turns and resume do not emit it.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
@@ -1399,11 +1399,27 @@
           "text": "general",
           "strength": "strong",
           "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js",
+          "text": "listUpdateResults",
+          "strength": "weak",
+          "reason": "Read-only lookup of BB's saved update candidates for the optional thread notice."
+        },
+        {
+          "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "continueAfterHooks: continueThroughCoreWaits",
+          "strength": "weak",
+          "reason": "24 November 2026: installed BB 0.50.1 dispatch-attempt.ts runs the awaited message.dispatch hook while a new thread is pending, before admitPendingThread/launchAdmittedThread and runtime provider-option derivation. Send-now bypasses hooks; optional notices may then be absent. Reinspect ordering when this path changes."
         }
       ],
       "code": [
         "src/bridge.ts",
-        "src/messages.ts"
+        "src/messages.ts",
+        "src/options.ts",
+        "src/plugin.ts",
+        "src/plugin-update.ts",
+        "src/runtime.ts"
       ],
       "impact": "Missing actionable warning or repeated thread noise.",
       "milestones": [
