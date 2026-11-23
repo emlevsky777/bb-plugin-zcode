@@ -4,54 +4,14 @@ Run your installed ZCode coding agent inside [bb](https://getbb.app) with an
 individual Z.ai Coding Plan: files, terminal tools, native skills and commands.
 [Russian edition](README.ru.md).
 
-This early unofficial plugin is unaffiliated with Z.ai, ZCode or bb. The plugin
-uses your installed ZCode to send model requests; the bridge also calls Z.ai
-to obtain short-lived project tokens for shared Desktop sign-in. You are
-responsible for complying with your Coding Plan terms. Version in this tree:
-`v0.2.4`. See [release notes](RELEASE_NOTES.md) and
-[published releases](https://github.com/emlevsky777/bb-plugin-zcode/releases).
-The source repository is public.
+The model picker uses your Desktop account's catalogue, including GLM-5.4
+when available. Eligible Start Plan models appear alongside Coding Plan models.
 
-**v0.2.4 reads Desktop's updated model catalogue**, including GLM-5.4 when
-available on the selected account. Previously the packaged catalogue could hide
-models already available in Desktop. Desktop owns catalogue refresh; the plugin
-reads its shared release in place and invalidates its cache when it changes.
+Current tagged release **v0.2.4**. [Release notes](RELEASE_NOTES.md) ·
+[Published releases](https://github.com/emlevsky777/bb-plugin-zcode/releases)
 
-Shared Desktop sign-in supports the current v2 credential envelope, using the
-native keyring module already installed with ZCode. macOS may ask you to allow
-the bb process to read the credential encryption key. The plugin reads the
-shared credentials without rewriting them.
-
-**v0.2.3 preserves bb's explicit thread environment** in native tools, including
-project, environment, storage and CLI connection metadata. This corrects a
-case where `bb status` found the thread but returned no project. Inherited
-process cleanup and the real HOME/shared Desktop store remain as before.
-
-**v0.2.2 adds labelled Start Plan models**
-alongside Coding Plan models. Both native Provider Usage views show independent
-Coding Plan quota percentages/reset times and Start token/expiry or absence.
-Demand reads are shared; refresh may reuse a snapshot for up to one minute.
-See the [release notes](RELEASE_NOTES.md). The selected model determines each
-thread's plan. Existing v0.2.1 installations remain Coding-only until updated.
-Start uses the current ZCode Desktop sign-in and exposes only entitled native
-models. The plugin never substitutes a Coding model for a requested Start ID;
-bb's composer can select an available default after catalogue removal (see below).
-The native check observed GLM-5.3-Flash with low/high/max and native max default
-on Desktop 3.17.2 / CLI 0.17.1. On 6 November 2026 a real pending-to-active Flash
-promotion, a completed Start-gateway turn and a reported token debit were
-verified. An earlier post-expiry absent promotion, rejected stale Start ID and
-completed Coding turn were also observed. A warm Start session's actual expiry
-transition remains unproven. Native retries and project-memory extraction are
-included in the activation series; the last extraction request followed the
-last measured balance, so neither full-turn nor exact per-input cost is proven.
-
-v0.2.0 uses a distinct identity: **ZCode Provider**, package
-`bb-plugin-zcode-provider`, plugin/provider ID `zcode-provider`. Users of our
-v0.1.x line must install this source afresh and create new threads. After
-verifying the new installation, disable the old `zcode` installation through
-Settings. Its settings, secrets, sessions and history are not migrated; old
-threads are unsupported by the new provider. Existing `^0.1.0` installations
-stay on that line. This is separate from other authors' ZCode plugins.
+This unofficial plugin is unaffiliated with Z.ai, ZCode or bb. Use it in
+accordance with your Coding Plan terms.
 
 ## Requirements and installation
 
@@ -63,38 +23,39 @@ In bb, open **Settings → Installed plugins** (Plugins), then **New plugin
 options → Install from source**, and paste:
 
 ```text
-git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0
+git:https://github.com/emlevsky777/bb-plugin-zcode.git@main
 ```
 
-Review and confirm. This source selects stable versions in the `^0.2.0` range.
+Review and confirm. This source follows the public `main` branch.
 The same installation is available in bb's terminal:
 
 ```sh
-bb plugin install git:https://github.com/emlevsky777/bb-plugin-zcode.git@^0.2.0
+bb plugin install git:https://github.com/emlevsky777/bb-plugin-zcode.git@main
 ```
 
-bb builds both server and host bundles. Plugin and provider ID: `zcode-provider`. Open a thread, select
-**ZCode Provider**, a model (GLM-5.3 when available), permissions **Full**, and send a
-message. bb permissions govern tool access; review commands and project trust.
+Sign in to your individual Z.ai Coding Plan in ZCode Desktop. In bb, leave
+**ZCode sign-in source** at `desktop` (the default). Open a new thread, select
+**ZCode Provider** (`zcode-provider`), choose GLM-5.4 if available or another
+model from your account, and use **Full** permissions.
+bb finds ZCode Desktop locally, so the `zcode` command need not be on PATH.
 
-Complete the first individual Z.ai Coding Plan sign-in in ZCode Desktop.
-Leave **ZCode sign-in source** at `desktop` (the default).
-The plugin reads that shared sign-in and refreshes short-lived project tokens
-in memory; it does not refresh the stored OAuth/business token. If the server
-rejects that token, open Desktop and sign in again, then retry in bb. Merely
-opening Desktop is not a verified automatic refresh mechanism. The stored
-token's lifetime and real expiry behavior have not been measured; rejection
-and recovery are tested offline. The next request reads changed sign-in
-without restarting bb. `zcode` need not be on PATH. Spotlight locates renamed bundles;
-fallback search uses `/Applications` and `~/Applications`. System Applications
-is preferred when multiple copies exist.
+**First connection.** macOS may ask for your Mac login password in a Keychain
+dialog. This gives bb access to the key that protects your existing ZCode
+Desktop sign-in. If Z.ai rejects the saved login, sign in again in Desktop and
+retry in bb. The next request reads the updated sign-in.
+
+If you're upgrading from our v0.1.x line, install this source afresh and start
+a new thread. [Migration details](RELEASE_NOTES.md#distinct-identity-and-fresh-installation).
 
 Stop every ZCode thread with its **Stop** button before updating or removing.
 Open **Settings → Installed plugins → ZCode Provider** to review and apply an offered
-update. To remove it, choose **ZCode Provider actions → Remove from bb**. Updates follow
-the recorded source and stable range. Exact tags and commits are pinned;
-changing source requires removal and fresh installation. Removal clears settings, secrets and schedules,
-while bb 0.47.1 retains plugin session data.
+update. Installations that follow `main` get the latest commit on that branch
+when you apply an update. To remove the plugin, choose **ZCode Provider
+actions → Remove from bb**.
+
+Existing `^0.2.0` installations keep tracking release tags. To switch one to
+`main`, remove the plugin and install it again from the source above. Removal
+clears plugin settings, secrets and schedules.
 
 Optional CLI route: in the bb thread's right panel, choose **Open new tab →
 Start terminal**. bb provides
@@ -106,33 +67,8 @@ bb plugin update zcode-provider --yes
 bb plugin remove zcode-provider
 ```
 
-Removal unregisters the plugin and deletes its settings, secrets and schedules.
-bb 0.47.1 removes unused managed Git artifacts; plugin data and downloaded host
-artifacts can remain. With the default bb data directory, relevant paths are:
-
-- `~/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>/`
-  — the checkout and built bundles for the installed commit.
-- `~/.bb/plugins/zcode-provider/` — plugin data, including `host-data/` and `bridge-data/`.
-- `~/.bb/plugin-host-artifacts/zcode-provider/` — downloaded host bundles.
-
-For optional complete disk cleanup, copy the exact **Source** path from plugin
-details **before** removal. In bb's terminal, `bb status --json` reports `dataDir`;
-if it differs from `~/.bb`, use that directory in the paths below. Stop every
-ZCode thread, including background work, then choose **Remove from bb**.
-Only after that, remove the exact retained directories manually:
-
-```sh
-# Replace <commit> with the checkout ID recorded before removal.
-rm -r -- "$HOME/.bb/plugins/cache/git/github.com/emlevsky777/bb-plugin-zcode/<commit>"
-rm -r -- "$HOME/.bb/plugins/zcode-provider"
-rm -r -- "$HOME/.bb/plugin-host-artifacts/zcode-provider"
-```
-
-Remove a checkout only when no other installed plugin uses it; do not delete the
-whole bb Git cache. Manual data removal discards plugin-local session data and
-caches, so those native sessions can no longer be resumed. Neither plugin removal
-nor this cleanup touches your ZCode Desktop login/history or bb thread history.
-Save needed settings first; never put secret values in a chat or issue.
+Plugin-local data can remain after removal.
+[Manual cleanup instructions for v0.2.4](https://github.com/emlevsky777/bb-plugin-zcode/blob/v0.2.4/README.md#L109-L135).
 
 ## Capabilities and limits
 
@@ -151,14 +87,8 @@ Save needed settings first; never put secret values in a chat or issue.
   not recreate an existing session. System instruction replacement is unsupported.
 - PNG/JPEG/GIF/WebP images up to 10 MiB, inline image data, and UTF-8 files up to
   256 KiB. PDF, binary files and remote image URLs are rejected.
-  Image interpretation depends on the native model: in the checked combination,
-  GLM-5.3-Flash transcribed an attached table without tools, while GLM-5.3 reported
-  seeing only its path in both bb and ZCode Desktop. Direct image perception is
-  not established for GLM-5.3; attachment acceptance alone does not prove it.
-  A checked tool-assisted GLM-5.3 result used native Read followed by ZCode's
-  image analyzer.
-  Planned, not yet available: PDF attachments, larger text files and other
-  formats. No delivery date is promised.
+  Image interpretation depends on the native model. Some models use ZCode's
+  image analysis tool to read an accepted attachment.
 - Real HOME and the shared ZCode Desktop store: personal/project instructions,
   standalone skills, enabled native plugins and configured MCP servers. bb keeps
   its own session database and history and logs. `ZCODE_DATA_BASE_DIR` is not
@@ -175,54 +105,30 @@ native history and restores the original bb block once if it was folded away.
 Native automatic compaction can make an internal model request before this
 hook; the remainder of that turn can run without the full bb block. Continuous
 instruction/skill preservation within that turn is unsupported.
-The G4 experiment found that native guide restores the block in request two
-when no earlier user guide is pending, but in request three when a user guide
-precedes it. It also produces a visible assistant response to the service block.
-Automatic guide reinjection is therefore not enabled.
-There is no provider-specific 64 KiB instruction or skill-file limit. The
-attachment limits above apply only to uploaded attachments.
 
-**Since v0.2.4:** the standard bb context indicator shows native
-current context tokens and the selected model's capacity, separately from
-account quota and cumulative token usage. Values are marked estimated and
-update with native accounting, not continuously while text streams. Cold
-resume restores native context; successful compaction clears use until the next
-main-request accounting. Native post-compact counts cover messages on a different
-basis and are not shown as full context use, including on cold resume. A native
-zero after conversation history is unknown, not an empty context. Unknown data
-is not a synthetic 0% or a guessed model window. Automatic
-compaction accounting has source-backed offline coverage; this feature does
-not establish new live automatic-compaction coverage. Published v0.2.3 does
-not include the indicator.
+The standard bb context indicator shows estimated context use and the selected
+model's capacity. It updates when ZCode reports accounting data. Cold
+continuation restores the native reading. After compaction, the indicator
+waits for accounting from the next main request.
 
-**Since v0.2.4:** BB plugin-contributed tools are exposed to ZCode
-by default through an attachment-local MCP endpoint. Published v0.2.3 does not
-include this feature. The provider preserves the effective CLI user/project
-MCP set and leaves native plugin/built-in discovery and trust to ZCode.
-If any effective server is disabled, configuration cannot be read/validated,
-or settings exceed the narrow reader's coverage, the session retains native
-configuration and shows why BB tools are unavailable. Native-written UI locale
-and plugin enablement/options/suppression settings do not cause fallback; the
-reader checks their native shapes without loading or applying them. Other
-uncovered native settings still select fallback. A malformed server entry also selects fallback for the whole session;
-native still handles valid neighbors. No opt-in or owner configuration write
-is required. Cold continuation rebuilds the endpoint; steering retains the
-active tool catalog. Stop/disconnect cancels pending BB calls without retry.
-The endpoint listens on `127.0.0.1` without a token; other local processes can
-invoke it in that thread's context. Requests carrying `Origin` are refused,
-so browser pages cannot dispatch tools through this endpoint. The server name
-is stable across attachments, with a deterministic suffix on a configured-name
-collision. Parent tool text/image transport is covered;
-image perception and native subagent forwarding of BB tools are not established.
+BB plugin tools are available to ZCode through a local MCP endpoint for the
+session. If the plugin cannot interpret the MCP configuration, it retains
+native configuration and explains why BB plugin tools are unavailable.
+Cold continuation rebuilds the endpoint. Steering retains the active tool
+catalogue. Stop or disconnect cancels pending BB calls without retry.
+
+The endpoint listens on `127.0.0.1` without a token. Other local processes
+can invoke tools in the thread's context. Requests carrying `Origin` are
+refused. Native subagent forwarding of BB tools and image perception through
+those tools remain unverified.
 
 MCP configuration is loaded at session creation. After adding a server in
 Desktop, use a new bb thread or stop and cold-continue the existing thread.
 Complete the first MCP OAuth sign-in in Desktop; initiating it inside bb is
 not established. An individual server's startup failure remains in diagnostics
 and `bb zcode-provider-report`, without a conversation warning or blocking ordinary
-input. Configured hooks follow native enablement and trust rules; no configured
-hook was available for the B-2 live check. Precise native denylist patterns are
-not guaranteed (`Bash(echo:*)` excluded all Bash; `Agent*` did not exclude Agent).
+input. Configured hooks follow ZCode's enablement and trust rules. Live hook
+behavior remains unverified. Tool exclusions apply to whole tools.
 
 Guidance queued by ZCode can be lost on disconnect/resume and is not replayed.
 It retains the active turn's account plan, model, reasoning, login mode, memory and subagent
@@ -275,18 +181,9 @@ When enabled and Start is absent, catalogue discovery reads Desktop's current
 marketing deliveries in English (`en-US`), shared and cached for ten minutes.
 When off, neither marketing requests nor their notices occur; balance, claimed
 Start models and Usage remain available. A request already in flight can finish.
-In one real campaign the Desktop banner and Claim remained after one bb GET
-and an owner Desktop refresh. Server impression/frequency-cap effects remain
-unknown; concurrent Desktop touches prevent attributing all effects to bb.
-Only a selected `claim_zcode_plan`
-action can cause a native notice in a new Desktop-auth thread. A static product
-advertisement does not. Open ZCode Desktop, update it if needed, review your
-eligibility and claim there, then refresh the bb catalogue (allow up to one
-minute). An offer is not a granted balance or a guarantee of successful claim.
-The plugin never claims automatically, reports marketing actions or downloads
-campaign assets. Rendering and Usage add no offer queries; no background offer
-polling is added. Discovery failures mean unknown, not absence of a promotion or
-Coding Plan. This support is included in v0.2.2; v0.2.1 remains Coding-only.
+Check eligibility and claim in ZCode Desktop, then refresh the bb model list.
+Discovery may take up to one minute. An offer is separate from a granted
+balance. The plugin leaves claiming to Desktop.
 
 Start models leave the catalogue at its next successful refresh after access
 expires or a fresh balance confirms no available tokens. bb can retain a stale
@@ -299,28 +196,19 @@ list while refreshing it in the background; reopen the picker once if needed.
 
 ## Compatibility
 
-Statuses describe observations, not guarantees for later versions.
+v0.2.4 was verified on Apple silicon with **bb 0.50.1 and ZCode Desktop 4.0.0
+(CLI 0.18.0)**. The check covered Desktop sign-in, a GLM-5.4 turn with file
+and terminal tools, a call to a BB plugin tool, and continuation of the same
+session in a new process.
 
-The plugin-owned zod copy is 4.6.6. bb's separate zod 4.6.5 copies remain an
-external limitation; this patch does not update bb-owned dependencies.
+v0.2.4 can still show its compatibility notice on this tested setup.
 
-| Configuration or capability | Status |
-| --- | --- |
-| macOS arm64; bb 0.50.1, installed SDK 0.6.157 (declared 0.6.79), host Node 24.22.2; Desktop 4.0.0 / CLI 0.18.0 | Limited v0.2.4 representative check: shared Desktop v2 sign-in, GLM-5.4/high/Full file/terminal work, actual native HTTP BB tool calls with SDK context, and cold continuation of the same native session in a new process. Native retries recovered from service rate limits. Revised source/export/build checks include distinguishing OAuth, secret-source, native catalogue preparation and issuance retry cases. No new level1 tuple or broader compaction, expiry or Usage claim. |
-| macOS arm64; bb 0.49.0, installed SDK 0.6.132 (declared 0.6.79), host Node 24.22.2; Desktop 3.17.2 / CLI 0.17.1 | Limited v0.2.3 representative check: Desktop-sign-in Flash/high/Full file/terminal task with bb CLI project/thread context, and cold continuation. Installed-source retry and native-history tests pass. No new level1 tuple, automatic-compaction result, expiry transition or broader feature matrix is claimed. |
-| macOS arm64; bb 0.48.1, installed SDK 0.6.104 (declared 0.6.79), host Node 24.22.0; Desktop 3.17.2 / CLI 0.17.1 | Limited v0.2.1 representative check, accepted 5 November 2026: Desktop sign-in, Flash/high/Full file/terminal task, cold resume, successful manual compact and one full frozen bb block in the actual next ordinary request. Native history fixtures compare reviewed 3.16.3 and 3.17.2 functions. Live leading-ID occurrence and successful automatic compaction remain unproven. This series does not register a new level1 tuple or repeat the broader feature matrix. |
-| macOS arm64; bb 0.48.0, installed SDK 0.6.94 (declared 0.6.79), host Node 24.22.0; Desktop 3.16.3 / CLI 0.17.0 | Checked level1 combination, accepted 29 October 2026, including ordinary recovery after active Stop. Desktop OAuth, representative models, cold resume, memory/steer, manual compaction, local-file attachment and native question verified. Successful automatic compaction remains unproven; its remainder-of-turn instruction limit still applies. These native-runtime observations are retained from v0.1.x; v0.2.0 requires fresh installation. [Observed identities](compat/M5.4-artifacts.json). |
-| macOS arm64; bb 0.47.1, SDK 0.6.79, host Node 24.22.0; ZCode Desktop 3.15.1 / CLI 0.16.9 | Checked level1 combination, accepted 26 October 2026. Git omit-dev installation and shared Desktop sign-in work with GLM-5.3 and GLM-5.3-Flash. Native Notion reading passes; the known page is blank. [Artifact identities](compat/M4.9.8c.1b-artifacts.json). |
-| Earlier bb/SDK/engine combinations | Historical results remain in their reports; this release does not retain old-runtime support. |
-| Later bb/ZCode versions; individual plans other than Lite | Pending verification |
-| Start Plan | v0.2.2: real pending-to-active Flash pickup, completed Start-gateway turn and token debit verified; post-start access without a balance bucket remains unproven |
-| Windows, Linux, Intel macOS; Team Coding Plan, off-peak, BigModel | Unsupported |
-| Browser Use | Unsupported: native interaction rejected on the earlier verified base; no new support is claimed |
-| Computer Use; backup-key server quota accounting | Not established |
+Windows, Linux, Intel macOS, Team Coding Plan, off-peak plans, BigModel and
+Browser Use are unsupported. Computer Use and server-side quota accounting
+for the backup key remain unverified. Individual tiers other than Lite are
+still awaiting verification.
 
-Unchecked combinations show a notice and may fail to start or run. Do not rely
-on Browser/Computer Use through this provider. [Offline compatibility inspection](compat/README.md)
-finds bundle changes; textual matches alone do not prove compatibility.
+[Release history](RELEASE_NOTES.md) · [Earlier compatibility results and offline checks](compat/README.md).
 
 ## Trust boundaries
 

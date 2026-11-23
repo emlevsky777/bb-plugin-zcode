@@ -36,10 +36,11 @@ reasoning. A Desktop-sign-in GLM-5.4/high/Full task completed file/terminal work
 and a native HTTP call to a BB plugin tool with the actual SDK thread, project
 and environment context. Native retries recovered from service rate limits.
 Cold continuation restored the same native session in a new process, retained
-the prior result and completed another actual BB tool call. This tree is a
-candidate; the published version is v0.2.3. Existing automatic-compaction,
-instruction-retention, Usage and actual-expiry limits remain; no new Level 1
-tuple is registered.
+the prior result and completed another actual BB tool call. v0.2.4 was
+[published on 23 November 2026](https://github.com/emlevsky777/bb-plugin-zcode/releases/tag/v0.2.4).
+Existing limits for automatic compaction, instruction retention, Usage and
+actual expiry remain in place. The release carried forward the existing
+Level 1 records.
 
 # ZCode Provider v0.2.3
 
