@@ -8,9 +8,19 @@ This early unofficial plugin is unaffiliated with Z.ai, ZCode or bb. The plugin
 uses your installed ZCode to send model requests; the bridge also calls Z.ai
 to obtain short-lived project tokens for shared Desktop sign-in. You are
 responsible for complying with your Coding Plan terms. Version in this tree:
-`v0.2.3`. See [release notes](RELEASE_NOTES.md) and
+`v0.2.4`. See [release notes](RELEASE_NOTES.md) and
 [published releases](https://github.com/emlevsky777/bb-plugin-zcode/releases).
 The source repository is public.
+
+**v0.2.4 reads Desktop's updated model catalogue**, including GLM-5.4 when
+available on the selected account. Previously the packaged catalogue could hide
+models already available in Desktop. Desktop owns catalogue refresh; the plugin
+reads its shared release in place and invalidates its cache when it changes.
+
+Shared Desktop sign-in supports the current v2 credential envelope, using the
+native keyring module already installed with ZCode. macOS may ask you to allow
+the bb process to read the credential encryption key. The plugin reads the
+shared credentials without rewriting them.
 
 **v0.2.3 preserves bb's explicit thread environment** in native tools, including
 project, environment, storage and CLI connection metadata. This corrects a
@@ -172,6 +182,39 @@ Automatic guide reinjection is therefore not enabled.
 There is no provider-specific 64 KiB instruction or skill-file limit. The
 attachment limits above apply only to uploaded attachments.
 
+**Since v0.2.4:** the standard bb context indicator shows native
+current context tokens and the selected model's capacity, separately from
+account quota and cumulative token usage. Values are marked estimated and
+update with native accounting, not continuously while text streams. Cold
+resume restores native context; successful compaction clears use until the next
+main-request accounting. Native post-compact counts cover messages on a different
+basis and are not shown as full context use, including on cold resume. A native
+zero after conversation history is unknown, not an empty context. Unknown data
+is not a synthetic 0% or a guessed model window. Automatic
+compaction accounting has source-backed offline coverage; this feature does
+not establish new live automatic-compaction coverage. Published v0.2.3 does
+not include the indicator.
+
+**Since v0.2.4:** BB plugin-contributed tools are exposed to ZCode
+by default through an attachment-local MCP endpoint. Published v0.2.3 does not
+include this feature. The provider preserves the effective CLI user/project
+MCP set and leaves native plugin/built-in discovery and trust to ZCode.
+If any effective server is disabled, configuration cannot be read/validated,
+or settings exceed the narrow reader's coverage, the session retains native
+configuration and shows why BB tools are unavailable. Native-written UI locale
+and plugin enablement/options/suppression settings do not cause fallback; the
+reader checks their native shapes without loading or applying them. Other
+uncovered native settings still select fallback. A malformed server entry also selects fallback for the whole session;
+native still handles valid neighbors. No opt-in or owner configuration write
+is required. Cold continuation rebuilds the endpoint; steering retains the
+active tool catalog. Stop/disconnect cancels pending BB calls without retry.
+The endpoint listens on `127.0.0.1` without a token; other local processes can
+invoke it in that thread's context. Requests carrying `Origin` are refused,
+so browser pages cannot dispatch tools through this endpoint. The server name
+is stable across attachments, with a deterministic suffix on a configured-name
+collision. Parent tool text/image transport is covered;
+image perception and native subagent forwarding of BB tools are not established.
+
 MCP configuration is loaded at session creation. After adding a server in
 Desktop, use a new bb thread or stop and cold-continue the existing thread.
 Complete the first MCP OAuth sign-in in Desktop; initiating it inside bb is
@@ -263,6 +306,7 @@ external limitation; this patch does not update bb-owned dependencies.
 
 | Configuration or capability | Status |
 | --- | --- |
+| macOS arm64; bb 0.50.1, installed SDK 0.6.157 (declared 0.6.79), host Node 24.22.2; Desktop 4.0.0 / CLI 0.18.0 | Limited v0.2.4 representative check: shared Desktop v2 sign-in, GLM-5.4/high/Full file/terminal work, actual native HTTP BB tool calls with SDK context, and cold continuation of the same native session in a new process. Native retries recovered from service rate limits. Revised source/export/build checks include distinguishing OAuth, secret-source, native catalogue preparation and issuance retry cases. No new level1 tuple or broader compaction, expiry or Usage claim. |
 | macOS arm64; bb 0.49.0, installed SDK 0.6.132 (declared 0.6.79), host Node 24.22.2; Desktop 3.17.2 / CLI 0.17.1 | Limited v0.2.3 representative check: Desktop-sign-in Flash/high/Full file/terminal task with bb CLI project/thread context, and cold continuation. Installed-source retry and native-history tests pass. No new level1 tuple, automatic-compaction result, expiry transition or broader feature matrix is claimed. |
 | macOS arm64; bb 0.48.1, installed SDK 0.6.104 (declared 0.6.79), host Node 24.22.0; Desktop 3.17.2 / CLI 0.17.1 | Limited v0.2.1 representative check, accepted 5 November 2026: Desktop sign-in, Flash/high/Full file/terminal task, cold resume, successful manual compact and one full frozen bb block in the actual next ordinary request. Native history fixtures compare reviewed 3.16.3 and 3.17.2 functions. Live leading-ID occurrence and successful automatic compaction remain unproven. This series does not register a new level1 tuple or repeat the broader feature matrix. |
 | macOS arm64; bb 0.48.0, installed SDK 0.6.94 (declared 0.6.79), host Node 24.22.0; Desktop 3.16.3 / CLI 0.17.0 | Checked level1 combination, accepted 29 October 2026, including ordinary recovery after active Stop. Desktop OAuth, representative models, cold resume, memory/steer, manual compaction, local-file attachment and native question verified. Successful automatic compaction remains unproven; its remainder-of-turn instruction limit still applies. These native-runtime observations are retained from v0.1.x; v0.2.0 requires fresh installation. [Observed identities](compat/M5.4-artifacts.json). |

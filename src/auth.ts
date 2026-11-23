@@ -3,11 +3,13 @@
 // bootstrap/src/app/standalone-account-provider-runtime.ts. Apache-2.0.
 // Changes: targeted read-only reads, fixed errors, no backups, no secret cache.
 import { createDecipheriv, createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
 import { homedir, platform, userInfo } from 'node:os';
-import { readFileSync, openSync, fstatSync, closeSync, constants } from 'node:fs';
+import { readFileSync, openSync, fstatSync, closeSync, statSync, constants } from 'node:fs';
 import { record } from './errors.ts';
 import { experimental_BridgeRecoveryError } from '@get-bb/plugin-sdk/provider-bridge';
-import { signInHint } from './applications.ts';
+import { signInHint, resolveZCode } from './applications.ts';
 import { ProjectTokenResolver, ProjectTokenError, tokenRequest } from './project-token.ts';
 import type { TokenRequest } from './project-token.ts';
 
@@ -58,21 +60,82 @@ export function authRecovery(): experimental_BridgeRecoveryError {
   return new experimental_BridgeRecoveryError({ code: -32000, message: 'ZCode requires sign-in',
     recovery: { kind: 'authRequired', message: signInHint(), retryable: false } });
 }
+export class SharedCredentialError extends AuthError {
+  constructor() { super('invalid-store'); }
+}
 export function credentialCipherKey(env = process.env, home = homedir()): Buffer {
   return createHash('sha256').update(env.ZCODE_CREDENTIAL_SECRET ||
     `zcode-credential-fallback:${platform()}:${home}:${userInfo().username}`).digest();
 }
-function decrypt(value: unknown, key: Buffer): string {
+// Desktop 4.0.0 createSystemCredentialCipher: same envelope, key addressing
+// and AES-GCM semantics, but read-only (no initialization or migration).
+export function credentialDecoder(path: string, legacyKey: Buffer, env = process.env,
+  readOsKey = () => {
+    const bundle = resolveZCode().bundle;
+    if (!bundle) throw new AuthError('invalid-store');
+    // Use the installed Desktop dependency in place. No bundled copy, helper
+    // process, keychain mutation or separate credential/key store.
+    const { Entry } = createRequire(import.meta.url)(join(bundle, 'Contents/Resources/app.asar/node_modules/@napi-rs/keyring')) as {
+      Entry: new (service: string, account: string) => { getPassword(): string | null };
+    };
+    return new Entry('ZCode Credential Encryption', createHash('sha256').update(resolve(path)).digest('hex')).getPassword() ?? '';
+  }) {
+  let material: { key: Buffer; source: string; generation?: string | undefined } | undefined;
+  return (value: unknown): string => decrypt(value, legacyKey, () => {
+    try {
+      const optional = (file: string) => { try { return readFileSync(file, 'utf8'); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw e; } };
+      // Native resolves explicit overrides before reading source/snapshot.
+      if (env.ZCODE_CREDENTIAL_SECRET && env.ZCODE_CREDENTIAL_SECRET_FILE) throw new Error();
+      const secretFile = (file: string, managed: boolean) => {
+        let stat;
+        try { stat = statSync(file); }
+        catch (e) { if (managed && (e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw e; }
+        if (!stat.isFile() || managed && process.platform !== 'win32' && (stat.mode & 0o077)) throw new Error();
+        const secret = readFileSync(file, 'utf8');
+        if (Buffer.byteLength(secret) < 32 || Buffer.byteLength(secret) > 4096) throw new Error();
+        return secret;
+      };
+      let secret = env.ZCODE_CREDENTIAL_SECRET || (env.ZCODE_CREDENTIAL_SECRET_FILE ? secretFile(env.ZCODE_CREDENTIAL_SECRET_FILE, false) : undefined);
+      if (secret) return { key: createHash('sha256').update(secret).digest(), source: 'env' };
+      const generation = optional(`${path}.recovery-generation`);
+      const source = optional(join(dirname(path), 'credential-source'));
+      if (source !== undefined && source !== 'os\n') throw new Error();
+      const snapshot = optional(path) ?? String(value);
+      const pinned = source === 'os\n' || snapshot.includes('enc:v2:os:');
+      if (!pinned) {
+        secret = secretFile(join(dirname(path), 'credential-secret'), true);
+        if (secret) return { key: createHash('sha256').update(secret).digest(), source: 'env' };
+        if (snapshot.includes('enc:v2:env:')) throw new Error();
+      }
+      if (material && material.generation === generation && typeof value === 'string' &&
+        value.startsWith(`enc:v2:os:${createHash('sha256').update(material.key).digest('hex').slice(0, 24)}:`)) return material;
+      const encoded = readOsKey();
+      if (!/^[A-Za-z0-9_-]{43}$/.test(encoded)) throw new Error();
+      material = { key: Buffer.from(encoded, 'base64url'), source: 'os', generation };
+      return material;
+    } catch { throw new SharedCredentialError(); }
+  });
+}
+function decrypt(value: unknown, key: Buffer, current?: () => { key: Buffer; source: string }): string {
   if (typeof value !== 'string' || !value.trim()) throw new AuthError('invalid-store');
-  if (!value.startsWith('enc:v1:')) return value.trim();
+  if (!value.startsWith('enc:')) return value.trim();
   try {
-    const parts = value.slice(7).split('.');
+    let sealed: string;
+    if (value.startsWith('enc:v2:')) {
+      const envelope = value.slice(7).split(':');
+      if (envelope.length !== 3 || !['os', 'env'].includes(envelope[0]!) || !/^[a-f0-9]{24}$/.test(envelope[1]!)) throw new Error();
+      const material = current!();
+      if (material.source !== envelope[0] || createHash('sha256').update(material.key).digest('hex').slice(0, 24) !== envelope[1]) throw new Error();
+      key = material.key; sealed = envelope[2]!;
+    } else if (value.startsWith('enc:v1:')) sealed = value.slice(7);
+    else throw new Error();
+    const parts = sealed.split('.');
     if (parts.length !== 3 || parts.some(p => !p)) throw new Error();
     const [iv, tag, data] = parts.map(p => Buffer.from(p, 'base64url'));
     if (!iv || !tag || !data || iv.length !== 12 || tag.length !== 16) throw new Error();
     const cipher = createDecipheriv('aes-256-gcm', key, iv); cipher.setAuthTag(tag);
     return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat([cipher.update(data), cipher.final()])).trim();
-  } catch { throw new AuthError('invalid-store'); }
+  } catch (error) { if (error instanceof SharedCredentialError) throw error; throw new AuthError('invalid-store'); }
 }
 export class ReadOnlyAuth {
   reads = 0;
@@ -80,6 +143,7 @@ export class ReadOnlyAuth {
   generation = 0;
   readonly path: string;
   private key: Buffer;
+  private decode: (value: unknown) => string;
   private onFresh: (purpose: string, generation: number) => void;
   private mode: AuthMode = 'desktop';
   private plan: AccountPlan = 'coding-plan';
@@ -87,9 +151,10 @@ export class ReadOnlyAuth {
   private projectTokens: ProjectTokenResolver | undefined;
   private network: TokenRequest = tokenRequest(process.env);
   private clientVersion = 'unknown';
-  constructor(path = `${homedir()}/.zcode/v2/credentials.json`, key = credentialCipherKey(), onFresh = (_purpose: string, _generation: number) => {}) { this.path = path; this.key = key; this.onFresh = onFresh; }
+  constructor(path = `${homedir()}/.zcode/v2/credentials.json`, key = credentialCipherKey(), onFresh = (_purpose: string, _generation: number) => {}) { this.path = path; this.key = key; this.onFresh = onFresh; this.decode = credentialDecoder(path, key); }
   fork(mode: AuthMode, explicitKeyPath?: string, plan: AccountPlan = 'coding-plan'): ReadOnlyAuth {
     const fresh = new ReadOnlyAuth(this.path, this.key, this.onFresh);
+    fresh.decode = this.decode;
     fresh.explicitKeyPath = explicitKeyPath; fresh.setMode(mode, plan); return fresh;
   }
   setMode(mode: AuthMode, plan: AccountPlan = 'coding-plan'): void { validatePlanSource(plan, mode); this.plan = accountPlan(plan); this.mode = authMode(mode); this.projectTokens?.clear(); }
@@ -118,31 +183,41 @@ export class ReadOnlyAuth {
     let store: Record<string, unknown>;
     try { store = record(JSON.parse(readFileSync(this.path, 'utf8'))); }
     catch (e) { throw new AuthError((e as NodeJS.ErrnoException).code === 'ENOENT' ? 'unauthenticated' : 'invalid-store'); }
+    const decode = this.decode;
     if (this.plan === 'start-plan') {
       if (!store.zcodejwttoken) throw new AuthError('unauthenticated');
-      const apiKey = decrypt(store.zcodejwttoken, this.key);
+      const apiKey = decode(store.zcodejwttoken);
       if (!apiKey) throw new AuthError('unauthenticated');
       this.onFresh(purpose, ++this.generation); return { apiKey, generation: this.generation };
     }
-    const rawIdentity = store[`account-provider:${accountProviderId}:identity`];
-    if (!rawIdentity) {
-      for (const provider of ['account:zai-start-plan', 'account:zai-team-coding-plan', 'account:bigmodel-start-plan', 'account:bigmodel-team-coding-plan', 'account:bigmodel-individual-coding-plan'])
-        if (store[`account-provider:${provider}:identity`]) throw new UnsupportedPlanError(unsupportedPlan({ providerId: provider })!);
-      throw new AuthError('unauthenticated');
-    }
-    const identity = decrypt(rawIdentity, this.key);
     const source = store[`account-provider:${accountProviderId}:auth-source`];
-    const oauth = store['oauth:zai:access_token'];
-    if (!source || decrypt(source, this.key) !== 'manual') {
-      if (!oauth) throw new AuthError('unauthenticated');
-      const accessToken = decrypt(oauth, this.key);
-      if (!identity || !accessToken) throw new AuthError('unauthenticated');
+    if (!source || decode(source) !== 'manual') {
+      if (!store['oauth:active_provider'] || decode(store['oauth:active_provider']) !== 'zai' ||
+          !store['oauth:zai:user_info'] || !store['oauth:zai:access_token']) {
+        for (const provider of ['account:zai-start-plan', 'account:zai-team-coding-plan', 'account:bigmodel-start-plan', 'account:bigmodel-team-coding-plan', 'account:bigmodel-individual-coding-plan'])
+          if (store[`account-provider:${provider}:identity`]) throw new UnsupportedPlanError(unsupportedPlan({ providerId: provider })!);
+        throw new AuthError('unauthenticated');
+      }
+      let identity: string;
+      try {
+        const profile = record(JSON.parse(decode(store['oauth:zai:user_info'])));
+        if (typeof profile.id === 'string' && typeof profile.username === 'string' && typeof profile.displayName === 'string') identity = profile.id;
+        else {
+          identity = typeof profile.user_id === 'string' ? profile.user_id : 'unknown';
+          if (!(typeof profile.name === 'string' && profile.name.trim()) && !(typeof profile.email === 'string' && profile.email) && identity === 'unknown') throw new Error();
+        }
+      } catch (error) { if (error instanceof SharedCredentialError) throw error; throw new AuthError('unauthenticated'); }
+      const accessToken = decode(store['oauth:zai:access_token']);
+      if (!accessToken) throw new AuthError('unauthenticated');
       this.onFresh(purpose, ++this.generation);
       return { apiKey: '', generation: this.generation, oauth: { identity, accessToken } };
     }
+    const rawIdentity = store[`account-provider:${accountProviderId}:identity`];
+    if (!rawIdentity) throw new AuthError('unauthenticated');
+    const identity = decode(rawIdentity);
     const value = store[`account-provider:coding-plan:${accountProviderId}:account:${encodeURIComponent(identity)}:api-key`];
     if (!identity || !value) throw new AuthError('unauthenticated');
-    const apiKey = decrypt(value, this.key);
+    const apiKey = decode(value);
     if (!apiKey) throw new AuthError('unauthenticated');
     this.onFresh(purpose, ++this.generation);
     return { apiKey, generation: this.generation };

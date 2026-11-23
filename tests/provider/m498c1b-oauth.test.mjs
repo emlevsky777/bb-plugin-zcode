@@ -24,7 +24,7 @@ test('Desktop cipher overrides retain every byte, including whitespace-only secr
         return 'enc:v1:' + [iv, cipher.getAuthTag(), bytes].map(part => part.toString('base64url')).join('.');
       };
       writeFileSync(file, JSON.stringify({ [`account-provider:${api.accountProviderId}:identity`]: encrypt('SYNTHETIC_ACCOUNT'),
-        'oauth:zai:access_token': encrypt('SYNTHETIC_OAUTH') }));
+        'oauth:active_provider': 'zai', 'oauth:zai:user_info': JSON.stringify({id:'SYNTHETIC_ACCOUNT',username:'Synthetic',displayName:'Synthetic'}), 'oauth:zai:access_token': encrypt('SYNTHETIC_OAUTH') }));
       const before = readFileSync(file);
       const auth = new api.ReadOnlyAuth(file, api.credentialCipherKey({ ZCODE_CREDENTIAL_SECRET: secret }));
       assert.equal(auth.read().oauth.accessToken, 'SYNTHETIC_OAUTH');
@@ -109,7 +109,7 @@ test('M51 unobserved versions use latest observed customer format; exact legacy 
 for (const expected of headerFixtures.sources) test(`Desktop ${expected.desktop} OAuth and manual source selection; fresh store scope, no writes`, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'c1b-oauth-')), file = join(dir, 'credentials.json');
   const store = { [`account-provider:${api.accountProviderId}:identity`]: 'SYNTHETIC_ACCOUNT',
-    [`account-provider:${api.accountProviderId}:auth-source`]: 'oauth', 'oauth:zai:access_token': 'SYNTHETIC_OAUTH',
+    [`account-provider:${api.accountProviderId}:auth-source`]: 'oauth', 'oauth:active_provider': 'zai', 'oauth:zai:user_info': JSON.stringify({id:'SYNTHETIC_ACCOUNT',username:'Synthetic',displayName:'Synthetic'}), 'oauth:zai:access_token': 'SYNTHETIC_OAUTH',
     [`account-provider:coding-plan:${api.accountProviderId}:account:SYNTHETIC_ACCOUNT:api-key`]: 'SYNTHETIC_MANUAL' };
   try {
     writeFileSync(file, JSON.stringify(store)); const bytes = readFileSync(file);
@@ -160,7 +160,7 @@ test('HTTP 401 is a fixed non-transient sign-in error without a second HTTP requ
 test('rejected stored sign-in reaches bridge authRequired with Desktop guidance; fresh sign-in works next time without writes', async () => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'c1b-rejected-'))), file = join(dir, 'credentials.json');
   const store = { [`account-provider:${api.accountProviderId}:identity`]: 'SYNTHETIC_ACCOUNT',
-    'oauth:zai:access_token': 'SYNTHETIC_EXPIRED' };
+    'oauth:active_provider': 'zai', 'oauth:zai:user_info': JSON.stringify({id:'SYNTHETIC_ACCOUNT',username:'Synthetic',displayName:'Synthetic'}), 'oauth:zai:access_token': 'SYNTHETIC_EXPIRED' };
   writeFileSync(file, JSON.stringify(store)); const initial = readFileSync(file);
   const auth = new api.ReadOnlyAuth(file), out = [], observed = [], calls = []; let child;
   auth.setNetworkEnvironment({}, '3.15.1');
@@ -226,4 +226,22 @@ test('native token expiry, rejected fingerprint, scope changes and transient ref
   valid = true; const pending = pendingResolver.resolve('account', 'oauth', {}, () => valid);
   valid = false; finish({ code: 0, data: { accessToken: 'SYNTHETIC_LATE' } });
   await assert.rejects(pending, /scope_invalidated/);
+});
+
+test('cold token issuance retries only admitted transient failures, with scope checks and bounded Retry-After',async()=>{
+  for(const [failure,expected] of [[new ProjectTokenError('network',true),2],[new ProjectTokenError('429',true,20),2],[new ProjectTokenError('429',true,1001),1],[new ProjectTokenError('401'),1]]) {
+    const s=service();let posts=0;
+    const resolver=new ProjectTokenResolver(async(...args)=>{if(args[0].endsWith('/access_tokens')&&++posts===1)throw failure;return s.send(...args);});
+    const pending=resolver.resolve('account','oauth',{},()=>true);
+    if(expected===2)assert.ok((await pending).apiKey);else await assert.rejects(pending,e=>e===failure);
+    assert.equal(posts,expected);
+  }
+  for(const invalidate of ['failure','wait']) {
+    const s=service();let posts=0,current=true;
+    const resolver=new ProjectTokenResolver(async(...args)=>{if(args[0].endsWith('/access_tokens')){posts++;if(invalidate==='failure')current=false;else setTimeout(()=>{current=false;},10);throw new ProjectTokenError('network',true);}return s.send(...args);});
+    await assert.rejects(resolver.resolve('account','oauth',{},()=>current),/scope_invalidated/);assert.equal(posts,1);
+  }
+  const s=service();let posts=0;
+  const resolver=new ProjectTokenResolver(async(...args)=>{if(args[0].endsWith('/access_tokens')){posts++;throw new ProjectTokenError('network',true);}return s.send(...args);});
+  await assert.rejects(resolver.resolve('account','oauth',{},()=>true),/network/);assert.equal(posts,2,'at most two attempts');
 });

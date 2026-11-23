@@ -1,3 +1,46 @@
+# ZCode Provider v0.2.4
+
+## Desktop model catalogue and bb compatibility
+
+Read the newer Desktop model catalogue from its shared endpoint/platform/product
+version path, rather than relying only on the packaged release. This exposes
+GLM-5.4 when the native account catalogue offers it. Desktop retains ownership
+of catalogue refresh; no configuration copies or account changes are needed.
+The working native process validates its selected catalogue; absent, older or
+invalid active data uses the packaged catalogue without repairing shared files.
+A temporary active startup failure does not persist a fallback model list. The
+model cache follows both inputs; the CLI does not select a second dev catalogue.
+A rejected first working-model check leaves the same BB thread available for
+ordinary start after the catalogue recovers, including after a service restart.
+An unknown native create outcome still requires reconciliation before retry.
+
+Read current Desktop v2 credentials through ZCode's installed native keyring
+module. The earlier reader could send an unrecognized encrypted envelope as
+a token and receive an authorization failure. Credentials remain in the shared
+Desktop store; macOS can request access to the encryption key for a bb process.
+OAuth uses the active profile without depending on legacy identity. Secret
+source/mode selection follows Desktop; a shared key failure stops one catalogue
+operation. Cold project-token issuance has the native bounded transient retry,
+with account-scope checks and no repeat of a user input.
+
+This patch includes the previously accepted BB tool bridge and native context
+indicator described in the README. Fork and message editing remain disabled.
+The npm SDK dependency remains 0.6.79. Source-backed tests and moved compatibility
+anchors now cover bb 0.50.1 and ZCode Desktop 4.0.0 / CLI 0.18.0.
+
+## Verification status
+
+On macOS arm64 with bb host Node 24.22.2 and installed SDK 0.6.157, the source
+suite includes distinguishing OAuth, native catalogue, secret-source and issuance-retry checks. Native and BB catalogues expose GLM-5.4 with low/high/max
+reasoning. A Desktop-sign-in GLM-5.4/high/Full task completed file/terminal work
+and a native HTTP call to a BB plugin tool with the actual SDK thread, project
+and environment context. Native retries recovered from service rate limits.
+Cold continuation restored the same native session in a new process, retained
+the prior result and completed another actual BB tool call. This tree is a
+candidate; the published version is v0.2.3. Existing automatic-compaction,
+instruction-retention, Usage and actual-expiry limits remain; no new Level 1
+tuple is registered.
+
 # ZCode Provider v0.2.3
 
 ## bb thread context in native tools

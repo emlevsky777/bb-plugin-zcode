@@ -1,3 +1,4 @@
+import { SharedCredentialError } from './auth.ts';
 import { existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync, appendFileSync, unlinkSync, realpathSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { execFile } from 'node:child_process';
@@ -19,6 +20,7 @@ import { discoverCompatibility, compareCompatibility, createFileIdentityCache, c
 import { nativePaths, signInHint, configureZCodeLocation, resolveZCode } from './applications.ts';
 import { claimNotice, diagnosticNoticeName } from './messages.ts';
 import { desktopMemoryEnabled } from './desktop-memory.ts';
+import { desktopBuiltinPath, desktopBuiltinEnvironment, desktopBuiltinCandidate } from './desktop-builtin.ts';
 import { fetchStartEntitlement, fetchStartBalance, decodeStartBalance } from './start-plan.ts';
 import { fetchStartOffer, startOffer, startOfferContext, startClaimGuidance } from './start-offer.ts';
 import { readDiscovery, peekDiscovery, discoveryScope } from './discovery-cache.ts';
@@ -146,7 +148,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
   let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
   let explicitKeyPath: string | undefined;
   let catalogueEpoch = 0, stopped = false;
-  type Catalogue = { models: ReturnType<typeof mapNativeModels>; entitlement?: StartEntitlement };
+  type Catalogue = { models: ReturnType<typeof mapNativeModels>; entitlement?: StartEntitlement; transientFallback?: true };
   type CatalogueEntry = { scope: string; catalogue?: Catalogue | undefined; loading?: Promise<Catalogue> | undefined };
   const catalogues = new Map<string, CatalogueEntry>();
   let balanceLoading: { scope: string; promise: Promise<StartBalance> } | undefined;
@@ -157,6 +159,10 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     return discovery();
   });
   const getPaths = () => dependencies.paths ?? nativePaths();
+  const getBuiltin = (env = process.env) => {
+    const paths = getPaths();
+    return desktopBuiltinPath(paths.builtin, desktopVersion(compatibilityFiles(paths)[3]!), env, dependencies.personalHome ?? homedir());
+  };
   const compatibility = () => dependencies.compatibility?.() ?? (() => {
     const d = detect(); return compareCompatibility('tuple' in d ? d.tuple! : discoverCompatibility(getPaths(), d.sha256));
   })();
@@ -177,10 +183,10 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
   const persistentCatalogue = dependencies.catalogueCache ?? !dependencies.configure;
   function cacheScope(d: ReturnType<typeof discovery>, mode: AuthMode = 'desktop', plan: AccountPlan = 'coding-plan'): string {
     const paths = getPaths();
-    const scope = JSON.stringify({ version: 5, semantics: 'zai-selected-plan-session-create-v1', plan, root, runtime: d.sha256, cli: d.version, mode,
+    const scope = JSON.stringify({ version: 8, semantics: 'zai-selected-plan-session-create-v1', plan, root, runtime: d.sha256, cli: d.version, mode,
       credentialFileIdentity: fileIdentity(mode === 'desktop' ? [auth.path] : explicitKeyPath ? [explicitKeyPath] : []),
       desktop: desktopVersion(compatibilityFiles(paths)[3]!), config: fileIdentity([join(dependencies.personalHome ?? homedir(), '.zcode/cli/config.json'), join(dependencies.personalHome ?? homedir(), '.zcode/v2/telemetry-state.json')]),
-      builtin: createHash('sha256').update(readFileSync(paths.builtin)).digest('hex') });
+      builtin: { bundled: fileIdentity([paths.builtin]), active: fileIdentity([getBuiltin()]) } });
     selectedAuth(mode, plan).read('catalogue-cache-validation');
     return scope;
   }
@@ -191,8 +197,8 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     if (balanceLoading?.scope === scope) return balanceLoading.promise;
     const epoch = catalogueEpoch;
     const promise = (async () => {
-      const builtin = JSON.parse(readFileSync(paths.builtin, 'utf8'));
-      const ids = [...new Set<string>(JSON.stringify(builtin).match(/"GLM-[^"\\]+"/g)?.map(s => JSON.parse(s)) ?? [])];
+      const catalogues = [paths.builtin, getBuiltin()].flatMap(file => { try { return [readFileSync(file, 'utf8')]; } catch { return []; } });
+      const ids = [...new Set<string>(catalogues.flatMap(text => text.match(/"GLM-[^"\\]+"/g)?.map(s => JSON.parse(s)) ?? []))];
       const fresh = selectedAuth('desktop', 'start-plan'), version = desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown';
       const env = { ...process.env, ...observerEnvironment(root) };
       const value = await readDiscovery(root, 'balance', discoveryScope(scope), 60_000, async () => {
@@ -265,8 +271,20 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     if (invalid) evidence({ event: 'catalogue-cache-recovery', reason: invalid,
       action: 'Reloading validated catalogue from ZCode; session/history retained' }, loadRoot);
     const value = await loadCatalogue(loadRoot, mode, plan);
-    if (stopped || epoch !== catalogueEpoch || root !== loadRoot || cacheScope(detect(), mode, plan) !== scope)
+    if (value.transientFallback) return value;
+    const afterScope = cacheScope(detect(), mode, plan);
+    if (stopped || epoch !== catalogueEpoch || root !== loadRoot)
       throw new Error('Catalogue root changed or runtime/config scope changed; retry after reconciliation');
+    if (afterScope !== scope) {
+      const before = JSON.parse(scope), after = JSON.parse(afterScope);
+      delete before.builtin.active; delete after.builtin.active;
+      if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error('Catalogue root changed or runtime/config scope changed; retry after reconciliation');
+      // Desktop may have refreshed the active release during discovery. Return
+      // the observed session catalogue, never publish under the old identity.
+      // The next demand gets the new scope and reloads once.
+      evidence({ event: 'catalogue-cache-write-skipped', reason: 'native-builtin-changed' }, loadRoot);
+      return value;
+    }
     const temp = file + '.' + randomUUID() + '.tmp';
     try {
       writeFileSync(temp, JSON.stringify({ scope, catalogue: value }), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
@@ -304,12 +322,12 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     const dataRoot = join(root, 'data');
     for (const dir of [root, dataRoot, sessionDir, logs]) mkdirSync(dir, { recursive: true, mode: 0o700 });
     if (!service && !binding) writeFileSync(bindingFile, JSON.stringify({ threadId, cwd: resolve(cwd), nativeSessionId: null }), { encoding: 'utf8', mode: 0o600 });
-    // Desktop 3.14.4 packages the builtin outside CLI's fallback search paths.
-    // Supply only its installed location. CLI startup then resolves the active
-    // native revision and Desktop personal config; read both in place.
-    const own: NodeJS.ProcessEnv = { HOME: dependencies.personalHome ?? homedir(), ELECTRON_RUN_AS_NODE: '1', ZCODE_LOG_DIR: logs, ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: paths.builtin };
-    const appVersion = desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown';
-    own.ZCODE_APP_VERSION = appVersion;
+    // Desktop app-server does not implement the standalone bundled fallback.
+    // Select the packaged file unless a newer Desktop file passes native startup.
+    const appVersion = desktopVersion(compatibilityFiles(paths)[3]!);
+    const own: NodeJS.ProcessEnv = { HOME: dependencies.personalHome ?? homedir(), ELECTRON_RUN_AS_NODE: '1', ZCODE_LOG_DIR: logs,
+      ...desktopBuiltinEnvironment(paths.builtin, appVersion, { ...process.env, ...execution?.envVars }, dependencies.personalHome ?? homedir()),
+      ZCODE_APP_VERSION: appVersion ?? 'unknown' };
     const overlay = async () => {
       const plan = sessionAuth.accountPlan();
       const entitlement = plan === 'start-plan' ? (serviceEntitlement ?? (await services.models(undefined, sessionAuth.source(), plan) as Catalogue).entitlement) : undefined;
@@ -319,9 +337,78 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     own.ZCODE_SESSION_DB_PATH = join(sessionDir, 'db.sqlite');
     Object.assign(own, observerEnvironment(root));
     const warnings: string[] = [];
-    const launchEnv = { ...childEnvironment(process.env, own, execution?.envVars), ...(!service ? { BB_THREAD_ID: threadId } : {}) };
-    sessionAuth.setNetworkEnvironment(launchEnv, desktopVersion(compatibilityFiles(paths)[3]!) ?? 'unknown');
-    return { warnings, auth: sessionAuth, knowledgeStore: service ? undefined : join(sessionDir, 'bb-session-knowledge.json'), backgroundTaskStore: service ? undefined : join(sessionDir, 'bb-background-tasks.json'), mentionCatalogue: service ? undefined : async side => {
+    const launchEnv: NodeJS.ProcessEnv = { ...childEnvironment(process.env, own, execution?.envVars), ...(!service ? { BB_THREAD_ID: threadId } : {}) };
+    const active = own.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE!;
+    const candidate = desktopBuiltinCandidate(paths.builtin, active);
+    launchEnv.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = candidate;
+    let transientFallback = false;
+    const launch = { executable: paths.executable, args: [paths.script, 'app-server', '--stdio', '--surface', 'desktop'], cwd,
+      onMissingFiles: dependencies.paths ? undefined : () => { resolveZCode(true); }, env: launchEnv };
+    const readRevision = async (child: NativeProcess): Promise<string> => {
+      const end = Date.now() + 20_000;
+      while (Date.now() < end) {
+        for (const file of readdirSync(launchEnv.ZCODE_LOG_DIR!).filter(f => f.endsWith('.jsonl'))) for (const line of readFileSync(join(launchEnv.ZCODE_LOG_DIR!, file), 'utf8').split('\n').filter(Boolean)) {
+          try {
+            const event = record(JSON.parse(line)), context = record(event.context);
+            // Each attempt has its own log directory; never read an earlier child's revision.
+            if (typeof context.configRevision === 'string' && typeof context.providerCount === 'number') {
+              const parts: unknown = JSON.parse(context.configRevision);
+              if (Array.isArray(parts) && typeof parts[0] === 'string') return parts[0];
+            }
+          } catch { /* Partial line is not evidence. */ }
+        }
+        if (child.child.exitCode !== null) break;
+        await delay(50);
+      }
+      throw new Error('Runtime builtin revision unavailable; no entitlement overlay');
+    };
+    sessionAuth.setNetworkEnvironment(launchEnv, appVersion ?? 'unknown');
+    return { start: dependencies.configure ? undefined : async create => {
+      // Validate the actual working process, before an account overlay, session or input.
+      // A failed active startup is not evidence that the active file is invalid.
+      // Its bundled result is therefore never cached, even across service instances.
+      const attempt = async () => {
+        const child = create(launch);
+        children.add(child);
+        void child.closed.then(() => child.close()).then(remaining => { if (!remaining) children.delete(child); }, () => {});
+        try {
+          await child.request('runtime/capabilities', {});
+          builtinRevision = await readRevision(child);
+          return child;
+        } catch (error) {
+          let remaining: number;
+          try { remaining = await child.close(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Builtin startup cleanup failed'); }
+          evidence({ event: 'builtin-startup-cleanup', remaining, selected: launchEnv.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE }, operationRoot);
+          if (remaining) throw new AggregateError([error], 'Builtin startup process group remains');
+          throw error;
+        }
+      };
+      let child: NativeProcess;
+      try {
+        child = await attempt();
+        const bundledRevision = JSON.parse(readFileSync(paths.builtin, 'utf8')).revision;
+        const actualRevision = Number(builtinRevision!.split(':')[1]);
+        if (candidate !== paths.builtin && actualRevision <= bundledRevision) {
+          let remaining: number;
+          try { remaining = await child.close(); } catch (cleanup) { throw new AggregateError([cleanup], 'Builtin startup cleanup failed'); }
+          evidence({ event: 'builtin-startup-cleanup', remaining, selected: candidate }, operationRoot);
+          if (remaining) throw new AggregateError([], 'Builtin startup process group remains');
+          throw Error('Active catalogue became older before native startup');
+        }
+      } catch (error) {
+        if (candidate === paths.builtin || error instanceof AggregateError || error instanceof Error && error.message.includes('process group remains')) throw error;
+        transientFallback = true;
+        launchEnv.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = paths.builtin;
+        // Keep native startup logs separate, without copying a configuration.
+        launchEnv.ZCODE_LOG_DIR = join(logs, 'bundled'); mkdirSync(launchEnv.ZCODE_LOG_DIR, { recursive: true });
+        child = await attempt();
+      }
+      evidence({ event: 'builtin-working-selection', revision: builtinRevision, transientFallback, selected: launchEnv.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE }, operationRoot);
+      return child;
+    }, validateSnapshot: dependencies.configure ? undefined : snapshot => {
+      const model = record(record(record(snapshot).settings).model);
+      return mapNativeModels(model.available, model.current, sessionAuth.accountPlan());
+    }, transientFallback: () => transientFallback, warnings, auth: sessionAuth, knowledgeStore: service ? undefined : join(sessionDir, 'bb-session-knowledge.json'), backgroundTaskStore: service ? undefined : join(sessionDir, 'bb-background-tasks.json'), mentionCatalogue: service ? undefined : async side => {
       try {
         const { stdout } = await promisify(execFile)(paths.executable,
           [paths.script, '--json', side, 'list'],
@@ -335,39 +422,25 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       evidence({ event: 'auth-overlay-refresh', source: sessionAuth.source(), route: sessionAuth.account().route, accountPlan: sessionAuth.accountPlan(), pid: child.child.pid }, operationRoot);
     }, markCreatePending: service ? undefined : () => {
       writeFileSync(bindingFile, JSON.stringify({ threadId, cwd, nativeSessionId: null, creationPending: true }), { encoding: 'utf8', mode: 0o600 });
+    }, clearRejectedCreate: service ? undefined : () => {
+      writeFileSync(bindingFile, JSON.stringify({ threadId, cwd: resolve(cwd), nativeSessionId: null }), { encoding: 'utf8', mode: 0o600 });
     }, bindSession: service ? undefined : (nativeSessionId: string) => {
       writeFileSync(bindingFile, JSON.stringify({ threadId, cwd: resolve(cwd), nativeSessionId }), { encoding: 'utf8', mode: 0o600 });
     }, readySession: async (child, id) => {
       if (dependencies.configure) return; // Explicit injected offline setup.
-      await waitNativeMcpReady(logs, child, id, value => evidence(value, operationRoot));
-    }, launch: { executable: paths.executable, args: [paths.script, 'app-server', '--stdio', '--surface', 'desktop'], cwd,
-      onMissingFiles: dependencies.paths ? undefined : () => { resolveZCode(true); },
-      env: launchEnv }, configure: async child => {
+      await waitNativeMcpReady(launchEnv.ZCODE_LOG_DIR!, child, id, value => evidence(value, operationRoot));
+    }, launch, configure: async child => {
       children.add(child);
       // Stdio close alone does not establish whole-group settlement.
       void child.closed.then(() => child.close()).then(remaining => { if (!remaining) children.delete(child); }, () => {});
       evidence({ event: 'native-startup', pid: child.child.pid, bridgePid: process.pid, service, generation: child.generation, surface: 'desktop', envNames: Object.keys(own) }, operationRoot);
       if (dependencies.configure) { await dependencies.configure(child); return; }
       if (!Object.values(paths).every(existsSync)) { resolveZCode(true); throw new MissingExecutableError('ZCode files disappeared during startup. The installation path was refreshed; retry the turn.'); }
-      await child.request('runtime/capabilities', {});
+      if (!builtinRevision) await child.request('runtime/capabilities', {});
       evidence({ event: 'native-process-identity', pid: child.child.pid, nativePid: child.nativePid,
         bridgePid: process.pid, service, generation: child.generation }, operationRoot);
-      let revision: string | null = null;
-      const end = Date.now() + 20_000;
-      while (!revision && Date.now() < end) {
-        for (const file of readdirSync(logs).filter(f => f.endsWith('.jsonl'))) for (const line of readFileSync(join(logs, file), 'utf8').split('\n').filter(Boolean)) {
-          try {
-            const context = record(record(JSON.parse(line)).context);
-            if (typeof context.configRevision === 'string' && typeof context.providerCount === 'number') {
-              const parts: unknown = JSON.parse(context.configRevision);
-              if (Array.isArray(parts) && typeof parts[0] === 'string') revision = parts[0];
-            }
-          } catch { /* Partial line is not evidence. */ }
-        }
-        if (!revision) await delay(50);
-      }
-      if (!revision) throw new Error('Runtime builtin revision unavailable; no entitlement overlay');
-      builtinRevision = revision;
+      builtinRevision ??= await readRevision(child);
+      const revision = builtinRevision;
       await child.request('provider/updateAccountConfig', await overlay());
       evidence({ event: 'overlay-ack-only', runtimeBuiltinRevision: revision }, operationRoot);
     } };
@@ -404,7 +477,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       let message = status === 'ready' ? `Ready. ZCode: ${paths.script.replace('/Contents/Resources/glm/zcode.cjs', '')}.` : resolveZCode().bundle ? 'ZCode Desktop installation incomplete: repair or reinstall ZCode Desktop.' : resolveZCode().message;
       if (status === 'ready') try {
         try { selectedAuth(mode, plan).read('health'); } catch (error) {
-          if (mode !== 'desktop') throw error;
+          if (mode !== 'desktop' || error instanceof SharedCredentialError) throw error;
           try { selectedAuth('desktop', 'start-plan').read('health'); } catch { throw error; }
           plan = 'start-plan';
         }
@@ -447,9 +520,9 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
           // A persisted Start catalogue cannot restore a removed grant/model.
           if (entitlement && JSON.stringify(value.entitlement?.modelIds) !== JSON.stringify(entitlement.modelIds)) {
             try { unlinkSync(join(root, 'catalogue-v3-start-plan.json')); } catch { /* optional public cache */ }
-            return loadCatalogue(loadRoot, mode, plan).then(fresh => { currentEntry.catalogue = fresh; return fresh; });
+            return loadCatalogue(loadRoot, mode, plan).then(fresh => { if (!fresh.transientFallback) currentEntry.catalogue = fresh; return fresh; });
           }
-          currentEntry.catalogue = value;
+          if (!value.transientFallback) currentEntry.catalogue = value;
           return value;
         }).finally(() => { if (currentEntry.loading === promise) currentEntry.loading = undefined; });
         entry.loading = promise;
@@ -461,7 +534,7 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
     async catalogue(cwd, mode = 'desktop') {
       const models: ReturnType<typeof mapNativeModels> = [];
       const errors: unknown[] = [];
-      try { models.push(...(await services.models(cwd, mode, 'coding-plan') as Catalogue).models); } catch (e) { errors.push(e); }
+      try { models.push(...(await services.models(cwd, mode, 'coding-plan') as Catalogue).models); } catch (e) { if (e instanceof SharedCredentialError) throw e; errors.push(e); }
       if (mode === 'desktop') try {
         const snapshot = await balance();
         if (!snapshot.entitlement) {
@@ -502,17 +575,18 @@ export function createNativeServices(initialRoot = join(homedir(), '.local/share
       }
       const setup = await prepare(cwd, undefined, undefined, true, mode, plan, entitlement);
       const launch = setup.launch;
-      const child = new NativeProcess(launch, 1, null, m => {
+      const create = (launch: RuntimeSetup['launch']) => new NativeProcess(launch, 1, null, m => {
         if (m.method === 'session/requestRuntimePreferences') child.write({ jsonrpc: '2.0', id: m.id, result: runtimePreferences });
         else if (m.method === 'interaction/requestProviderRuntimeHeaders') child.write({ jsonrpc: '2.0', id: m.id, result: { headersApplied: false, errorMessage: 'Catalogue service cannot infer' } });
       }, () => {});
+      const child = setup.start ? await setup.start(create) : create(launch);
       let primary: unknown;
       try {
         await setup.configure(child);
         const snapshot = record(await child.request('session/create', { workspace: { workspacePath: cwd, workspaceKey: cwd }, mode: 'yolo', persistence: 'deferred', titleGenerationEnabled: false }));
         const model = record(record(snapshot.settings).model);
         const models = mapNativeModels(model.available, model.current, plan);
-        evidence({ event: 'actual-catalogue', models, nativeDefault: model.current, source: 'session/create', plan }, loadRoot); return { models, ...(entitlement ? { entitlement } : {}) };
+        evidence({ event: 'actual-catalogue', models, nativeDefault: model.current, source: 'session/create', plan }, loadRoot); return { models, ...(entitlement ? { entitlement } : {}), ...(setup.transientFallback?.() ? { transientFallback: true as const } : {}) };
       } catch (e) { primary = e; throw e; }
       finally {
         try {

@@ -8,7 +8,7 @@ import { api } from './helpers.mjs';
 const base = resolve(process.env.ZCODE_CONNECTION_TEST_ROOT ?? '.local/M1/offline');
 mkdirSync(base, { recursive: true });
 const options = { permissionMode: 'full', permissionScope: 'full', approvalReviewer: null, permissionEscalation: null };
-for (const fault of ['bind', 'subscribe', 'ready', 'reject', 'timeout', 'release', 'death'])
+for (const fault of ['create-unknown', 'bind', 'subscribe', 'ready', 'reject', 'timeout', 'release', 'death'])
 test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
   const root = mkdtempSync(join(base, 'fault-')), builtin = join(root, 'builtin.json');
   writeFileSync(builtin, '{}', 'utf8');
@@ -20,7 +20,10 @@ test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
     configure: async c => {
       child = c; late = c.onMessage; const request = c.request.bind(c);
       c.request = async (method, params) => {
-        if (method === 'session/create') creates++;
+        if (method === 'session/create') {
+          creates++;
+          if (fault === 'create-unknown') { await request(method, params); throw Error('synthetic lost create response'); }
+        }
         if (params?.type === 'sendText') inputs++;
         if (method === 'v4/conversation/subscribe' && fault === 'subscribe') throw Error('synthetic subscribe failure');
         if (params?.type === 'sendText' && fault === 'reject') return { status: 'rejected' };
@@ -47,7 +50,15 @@ test('M1 actual prepare/attach pending recovery: ' + fault, async () => {
   try {
     const start = { threadId: 'own-fault', cwd: root, options, instructionMode: 'append' };
     const result = await rpc('thread/start', start);
-    if (['bind', 'subscribe', 'ready'].includes(fault)) {
+    if (fault === 'create-unknown') {
+      assert.ok(result.error);
+      assert.equal(output.some(m => m.method === 'thread/identity'), false);
+      assert.ok((await rpc('thread/start', start)).error); assert.equal(creates, 1);
+      const binding = JSON.parse(readFileSync(join(api.sessionDataDir(runtime.root(), root, start.threadId), 'bb-binding.json'), 'utf8'));
+      assert.equal(binding.creationPending, true);
+      await assert.rejects(prepare(root, api.executionOptions(options), { threadId: start.threadId }), /no create fallback/);
+      assert.equal(inputs, 0);
+    } else if (['bind', 'subscribe', 'ready'].includes(fault)) {
       assert.ok(result.error);
       const identity = output.find(m => m.method === 'thread/identity').params.providerThreadId;
       assert.ok(identity); assert.ok(output.some(m => m.method === 'error' && m.params.providerThreadId === identity));

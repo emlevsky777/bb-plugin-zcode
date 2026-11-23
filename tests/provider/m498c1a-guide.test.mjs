@@ -2,13 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import {nativeReference} from './native-reference.mjs';
 
 // Execute the installed native implementation in memory; no bundle copy,
 // configuration write, hook installation or synthetic product threshold.
 const source = readFileSync(process.env.ZCODE_NATIVE_REFERENCE_SOURCE ?? '/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs', 'utf8');
 const digest = createHash('sha256').update(source).digest('hex');
 const native17 = digest === '97490d0f06a7a225d54d47817acf4b4859cdb268b59f2490caaeda982bef063a';
-const desktop3172 = digest === 'd9afd58d694f98a5279bf548cdc7646413c125762e86730605a6071f9e0346d6';
+const current = digest === '0de95ddd65d7712a3beeccc8ee6de53ea0ce96338eb427e52b2717ba2f3afe19';
+const fn = current ? nativeReference().fn : undefined;
+const desktop3172 = current || digest === 'd9afd58d694f98a5279bf548cdc7646413c125762e86730605a6071f9e0346d6';
 function assertPinned() {
   assert.ok(desktop3172 || native17 || digest === 'b816e38656e70fb585fe2ab1ea010da89cda928dac1ccb5d83255fd18796da6e', 'Unreviewed native compaction implementation');
 }
@@ -20,7 +23,9 @@ const extract = (start, end) => {
 
 test('G4 reviewed native guide drain preserves admission order and persisted source identity after lost ACK', async () => {
   assertPinned();
-  const choose = desktop3172
+  const choose = current
+    ? new Function(fn('Jzn')+fn('tii')+fn('Fpc')+'; return Fpc;')()
+    : desktop3172
     ? new Function(extract('function wNn(', 'function q7a(') + '; return K7o;')()
     : native17
     ? new Function(extract('function A2n(', 'function s3o(') + '; return i3o;')()
@@ -31,7 +36,11 @@ test('G4 reviewed native guide drain preserves admission order and persisted sou
   // 3.17.2 V7a drains every available guide up to the first reserved guide,
   // unlike the older one-guide drain. Reviewed K7o excludes compact/goal and
   // queue inputs. The protocol consumer still uses each persisted identity.
-  const drain = desktop3172 ? new Function('K7o', 'jl', 'W7a', 'DTt', 'YG', 'Hke', 'yke', 'v1', 'Z8', 'Yse', 'Qbe', 'nt',
+  const drain = current ? new Function('Fl','jpc','GPt','VK','ZUe','LIe','ZIe','VC','hz','uxe','Je','NIe','iQ','use',
+    fn('Jzn')+fn('tii')+fn('nii')+fn('Upc')+'; return Upc;')(
+      ()=>'message-'+ ++ordinal, x=>x, async()=>[], x=>x, (text,metadata)=>({message:{role:'user',content:text},metadata}),
+      x=>x, x=>x, ()=>undefined, ()=>({source:'real_user'}), x=>x,
+      {TurnSteerDrained:'turn_steer_drained'}, x=>x, x=>x.length, Symbol('pluginDiscoveryUi')) : desktop3172 ? new Function('K7o', 'jl', 'W7a', 'DTt', 'YG', 'Hke', 'yke', 'v1', 'Z8', 'Yse', 'Qbe', 'nt',
     extract('async function V7a(', 'async function pqo(') + '; return V7a;')(
       choose, () => 'message-' + ++ordinal, x => x, async () => [], x => x, x => x, x => x, x => x,
       () => ({ source: 'real_user' }), (text, metadata) => ({ message: { role: 'user', content: text }, metadata }), x => x,
@@ -49,7 +58,7 @@ test('G4 reviewed native guide drain preserves admission order and persisted sou
   const history = [], persisted = [], events = [];
   const runtime = { pendingInputReservations: new Set(), messageHistory: { addEntries: entries => history.push(...entries) },
     persistUserPrompt: async (id, text, attachments, trace, identity) => persisted.push({ id, text, ...identity }),
-    createEvent: (type, payload) => ({ type, payload }), appendEvent: async () => {} };
+    now: () => new Date(), createEvent: (type, payload) => ({ type, payload }), appendEvent: async () => {} };
   const first = await drain.call(runtime, { activeTurn: turn, events, traceContext: {} });
   assert.deepEqual(first.pendingInputIds, ['real-user']);
   assert.equal(turn.pendingInputs.length, desktop3172 ? 0 : 1);
@@ -84,20 +93,20 @@ test('G4 reviewed native guide drain preserves admission order and persisted sou
 
 test('G4 native completion persists/emits success before runtime replacement; regular loop has no guide drain between auto compact and request', async () => {
   assertPinned();
-  const emit = new Function(desktop3172 ? extract('async function dze(', 'function CHo(') + '; return dze;' : native17 ? extract('async function L8e(', 'function Jzo(') + '; return L8e;'
+  const emit = new Function(current ? fn('Zqe') + '; return Zqe;' : desktop3172 ? extract('async function dze(', 'function CHo(') + '; return dze;' : native17 ? extract('async function L8e(', 'function Jzo(') + '; return L8e;'
     : extract('async function bBe(', 'function CPn(') + '; return bBe;')();
   const order = [], events = [];
   await emit({ persistCompactTimeline: async () => order.push('persist'), createEvent: () => ({ success: true }),
     appendEvent: async () => order.push('success') }, 'completed', {}, {}, events);
   assert.deepEqual(order, ['persist', 'success']);
-  const call = desktop3172 ? 'await dze(this,nt.CompactCompleted,Pr' : native17 ? 'await L8e(this,tt.CompactCompleted,Xt' : 'await bBe(this,nt.CompactCompleted,st';
+  const call = current ? 'await Zqe(this,Je.CompactCompleted,_t' : desktop3172 ? 'await dze(this,nt.CompactCompleted,Pr' : native17 ? 'await L8e(this,tt.CompactCompleted,Xt' : 'await bBe(this,nt.CompactCompleted,st';
   assert.ok(source.includes(call));
   const completion = source.slice(source.indexOf(call), source.indexOf(call) + 650);
   assert.ok(completion.indexOf('replaceMessages') > completion.indexOf(call));
-  const loop = desktop3172 ? extract('async function iHo(', 'function bWa(') : native17 ? extract('async function Izo(', 'async function Ezo(') : extract('async function B6o(', 'async function z6o(');
-  const after = loop.slice(loop.indexOf('await this.autoCompactIfNeeded'), loop.indexOf(desktop3172 ? 'await GVo.call' : native17 ? 'await _zo.call' : 'await R6o.call'));
+  const loop = current ? fn('pli') : desktop3172 ? extract('async function iHo(', 'function bWa(') : native17 ? extract('async function Izo(', 'async function Ezo(') : extract('async function B6o(', 'async function z6o(');
+  const after = loop.slice(loop.indexOf('await this.autoCompactIfNeeded'), loop.indexOf(current ? 'await eli.call' : desktop3172 ? 'await GVo.call' : native17 ? 'await _zo.call' : 'await R6o.call'));
   assert.ok(after.length > 0);
   assert.equal(after.includes('drainPendingInput'), false);
-  assert.equal(after.includes(desktop3172 ? 'm1t(' : native17 ? 'Hxt(' : 'Uwt('), false);
-  assert.ok(source.includes(desktop3172 ? 'if(await m1t(this,e))' : native17 ? 'if(await Hxt(this,e))' : 'if(await Uwt(this,e))'));
+  assert.equal(after.includes(current ? 'NDt(' : desktop3172 ? 'm1t(' : native17 ? 'Hxt(' : 'Uwt('), false);
+  assert.ok(source.includes(current ? 'if(await NDt(this,e))' : desktop3172 ? 'if(await m1t(this,e))' : native17 ? 'if(await Hxt(this,e))' : 'if(await Uwt(this,e))'));
 });

@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { api, snapshot } from './helpers.mjs';
 const options = { permissionMode: 'full', permissionScope: 'full', approvalReviewer: null, permissionEscalation: null, model: 'GLM-5.3', reasoningLevel: 'high' };
 
-test('native config revision changes with installed builtin hint, no personal override/copies; shared files untouched', async () => {
+test('native config revision changes with installed builtin hint, shared personal path without copies; shared files untouched', async () => {
   const root = mkdtempSync('/tmp/m498b3-config-'), builtin = join(root, 'builtin.json'), personal = join(root, 'personal.json');
   writeFileSync(builtin, '{}'); writeFileSync(personal, 'USER_SENTINEL');
   const auth = new api.ReadOnlyAuth(join(root, 'missing')); auth.read = () => ({ apiKey: 'SYNTHETIC_ONLY' });
@@ -16,7 +16,9 @@ test('native config revision changes with installed builtin hint, no personal ov
       writeFileSync(builtin, JSON.stringify({ revision }));
       const setup = await rt.services.prepare(root, api.executionOptions(options), { threadId: revision });
       assert.equal(setup.launch.env.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE, builtin);
-      for (const key of ['ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'ZCODE_PERSONAL_PROVIDER_CONFIG_FILE', 'ZCODE_DATA_BASE_DIR']) assert.equal(setup.launch.env[key], undefined);
+      assert.equal(setup.launch.env.ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE, builtin);
+      assert.equal(setup.launch.env.ZCODE_PERSONAL_PROVIDER_CONFIG_FILE, join(process.env.HOME, '.zcode/v2/provider_config.json'));
+      assert.equal(setup.launch.env.ZCODE_DATA_BASE_DIR, undefined);
       mkdirSync(setup.launch.env.ZCODE_LOG_DIR, { recursive: true });
       // Native registry ready observation: normalized revision differs from
       // the bundled JSON field, as in K-116; ACK alone proves no entitlement.

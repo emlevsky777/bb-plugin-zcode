@@ -2,6 +2,535 @@
   "version": 1,
   "touchpoints": [
     {
+      "id": "zcode-conversation-fork",
+      "product": "ZCode",
+      "uses": "M5.18 planned conversation-only V4 forkAssistant, stable boundary and atomic child commit. Native also starts the child in the issuer with source settings; that runtime must be released before normal destination attach. Legacy workspace-restoring session/fork is not the implementation.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "forkStableConversationAtMessage",
+          "strength": "strong",
+          "reason": "Stable native conversation history selection, not workspace checkpoint restore."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "commitForkBundle",
+          "strength": "strong",
+          "reason": "Atomic child/session/message/origin persistence and command fact. Parent notice can fail after commit; unknown outcomes need identity reconciliation."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "registerForkedSessionRuntime",
+          "strength": "strong",
+          "reason": "Native child starts in the issuing process with inherited source construction and app.resume; avoid a second resident child when attaching the destination."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "session/close",
+          "strength": "strong",
+          "reason": "Preferred handoff releases the child in the issuer. Verify resident removal, partial/unready failure and durable history/artifact survival through event-cache cleanup before destination resume."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "v4/fork_start_failure",
+          "strength": "strong",
+          "reason": "Child registration may fail after durable commit while ACK still returns its ID. Do not recreate the child or equate ACK with destination readiness."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "v4 forkAssistant requires host.forkStableConversation capability",
+          "strength": "strong",
+          "reason": "Native row action handler returns forkAssistant/sessionId; result validation and no duplicate retry need execution proof."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/runtime.ts",
+        "src/lifecycle.ts"
+      ],
+      "impact": "A wrong lane restores files or loses context; an incomplete handoff leaves a stale child runtime with parent BB tools/settings. Verify issuer ownership for warm/cold sources, child release and destination resume, including committed-but-unready child. Presence is not behavior.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-fork-row-targets",
+      "product": "ZCode",
+      "uses": "M5.18 planned versioned checkpoint to current V4 row/entity resolution, native stable action eligibility and fresh revision/logEpoch command admission, including cold sources and rows outside the snapshot tail.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "v4/conversation/rowsRange",
+          "strength": "strong",
+          "reason": "Read-only history pagination supplies current atRevision/atLogEpoch for target re-resolution."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveStableForkCandidate",
+          "strength": "strong",
+          "reason": "Native eligibility remains authoritative; do not substitute a later assistant row."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "proto.staleLogEpoch",
+          "strength": "strong",
+          "reason": "Old publisher epoch cannot identify a current fork target."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "proto.staleRevision",
+          "strength": "strong",
+          "reason": "History mutation between query and command must be handled as stale, not an automatic tip fork."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/translator.ts",
+        "src/native.ts"
+      ],
+      "impact": "Using an old row integer or projection checkpoint forks the wrong native context or fails cold. Verify BB-selected older boundary, current entity/action identity and honest unavailable/stale outcomes.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-fork-lineage-store",
+      "product": "ZCode",
+      "uses": "Existing native DB environment override; M5.18 must make a child committed in the source store reachable by its separate BB binding on cold resume, without migrating unrelated sessions.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "parseEnvConfig",
+          "strength": "strong",
+          "reason": "Native composes the ZCODE_ prefix with SESSION_DB_PATH; inspect this parser rather than searching for a nonexistent combined literal."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "SESSION_DB_PATH",
+          "strength": "strong",
+          "reason": "Suffix maps to storage.sessionDbPath. A normal destination per-thread DB cannot find a child committed in the source DB; verify effective store, IDs, native concurrency and artifact lifetime."
+        }
+      ],
+      "code": [
+        "src/runtime.ts",
+        "src/bridge.ts",
+        "src/session-knowledge.ts",
+        "src/data-maintenance.ts"
+      ],
+      "impact": "A fork can appear successful but fail child cold resume or execute with parent BB context. Prove destination binding/env/tools/instructions and parent/child history integrity; no whole-store SQL copy or Desktop history migration.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-fork-history-boundary",
+      "product": "bb",
+      "uses": "M5.18 planned standard BB selected-turn fork, history prefix copy and canonical child identity; provider returns a corresponding native boundary and does not replay copied events.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "resolveCheckpointForkDescriptor",
+          "strength": "strong",
+          "reason": "Completed selected turn and providerCheckpointId choose the native fork request; tip-only cannot serve an older turn."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "copyForkSourceHistory",
+          "strength": "strong",
+          "reason": "BB copies through historyEndSequence with inherited providerThreadId cleared. Native child history must end at the same boundary."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/lifecycle.ts",
+        "src/translator.ts",
+        "src/plugin.ts"
+      ],
+      "impact": "BB may show A's prefix while native has later B or replay copied rows. Different destination workspace is unsupported before native commit. Inherited BB turns and pre-update turns without checkpoints are not valid selected anchors; source A/B/fork(A), canonical IDs and cold need final live proof.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-fork-process-ownership",
+      "product": "bb",
+      "uses": "M5.18 prerequisite gate: the host selects the destination bridge by launch identity and skill catalogue; it does not route fork through source ownership. Multiple bridges can remain alive. Cross-bridge source ownership is unresolved, so fork capability remains none.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js.map",
+          "text": "resolveProviderProcessKey",
+          "strength": "strong",
+          "reason": "A skill catalogue change creates a distinct bridge process key even in the same workspace/provider."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js.map",
+          "text": "retireStaleBridgeProcesses",
+          "strength": "strong",
+          "reason": "Other catalogue workers and older builds with source threads may remain alive; a local map miss is not a cold source."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js.map",
+          "text": "sourceProviderThreadId: fork.sourceProviderThreadId",
+          "strength": "strong",
+          "reason": "Fork is constructed in the selected destination process. Source-backed tests cover the selection/retention behavior, not a claim of safe shared native ownership."
+        }
+      ],
+      "code": [
+        "src/bridge.ts"
+      ],
+      "impact": "Treating a source owned by another bridge as cold can open a second resident runtime of the same native ID. Real no-input native probes returned ready in two processes. Result 1 is not_proven; no capability activation until the ownership/routing prerequisite is resolved under an authorized contract.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-message-edit-rebind",
+      "product": "bb",
+      "uses": "M5.18 checkpoint fork enables message edit. Later edits prepare a temporary native fork then replace history and fork into the existing BB thread; first edits replace history and send plain thread/start. Rebind intentionally, retain old sessions, and discard staging without canonical bindings.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "supportsSessionRewind: capabilities.fork ===",
+          "strength": "strong",
+          "reason": "Checkpoint capability also enables editing; fork-only support would advertise a broken reachable path."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "rewindPrepareCommandFromStart",
+          "strength": "strong",
+          "reason": "Later edit stages preceding checkpoint before BB truncates its event suffix."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "args.historyReplacement.forkSourceProviderThreadId === null",
+          "strength": "strong",
+          "reason": "First-message replacement creates a new session in an already bound original thread; normal resume identity checks alone cannot handle it."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js.map",
+          "text": "sendStagedThreadDiscard",
+          "strength": "strong",
+          "reason": "Host rewind-discard sends thread/discard to provider; temporary rewind IDs must not become canonical bindings or retain live staging runtimes."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/runtime.ts",
+        "src/lifecycle.ts"
+      ],
+      "impact": "BB may already have replaced history before provider rebinding fails. Prove first/later edits, recovery, retained native history, staging discard and cold continuation without permanently stuck threads. Symbol presence does not prove behavior.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-fork-side-chat",
+      "product": "bb",
+      "uses": "Advertising fork makes builtin side-chat's hidden lifecycle-owned forks reachable: agent-only seed, idle construction, BB deferred first ordinary input, specific tip retry and empty-fork archive sweep.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/side-chat/dist/server.js",
+          "text": "createSideChat",
+          "strength": "strong",
+          "reason": "Hidden fork with lifecycleOwnerThreadId and anchor agentContextSeed. One real side-chat action must reach native child context, not just stored BB history."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/side-chat/dist/server.js",
+          "text": "fork_source_session_unavailable",
+          "strength": "strong",
+          "reason": "Only this BB error triggers a new request without sourceSeqEnd; distinguish it from provider substitution or unknown-commit retry."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/side-chat/dist/server.js",
+          "text": "sweepEmptyFork",
+          "strength": "strong",
+          "reason": "Hourly sweep archives hidden empty own forks after 24h; test with controlled clock and retain native history under existing policy, no new GC."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "resolveDeferredFirstTurnContext",
+          "strength": "strong",
+          "reason": "Seed-only idle fork uses providerInput=[]; stored seed is resolved before the first real ordinary input when no turn has started after it."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js.map",
+          "text": "prependDeferredFirstTurnContext",
+          "strength": "strong",
+          "reason": "BB thread-send prepends the deferred agent-only seed; do not add a duplicate provider seed store or invent a model turn at creation."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/runtime.ts",
+        "src/attachments.ts",
+        "src/session-knowledge.ts",
+        "src/plugin.ts"
+      ],
+      "impact": "A normal explicit fork may pass while side chat loses or duplicates its reply anchor, starts a model turn too soon, or leaks child runtime ownership. Archive preserves native sessions, so hidden forks accumulate under the existing retention policy.",
+      "milestones": [
+        "M5.18"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-v4-context-usage",
+      "product": "ZCode",
+      "uses": "M5.17 projection of V4 usage.contextWindow usedTokens/maxTokens through existing snapshots/state.updated; native main-request, model-capacity, compact and cold-seed semantics, separate from cumulative usage.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "autoCompactThresholdTokens",
+          "strength": "weak",
+          "reason": "V4 contextWindow schema locator, not proof that a particular attached session supplies correct capacity or use."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "getModelUsageContextTokens",
+          "strength": "strong",
+          "reason": "Main model completion accounting and auxiliary exclusions. V4 uses ??0 for missing usable usage; after history that zero is unknown. Cumulative counters advance only for main accounting and establish freshness, never displayed use."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "onModelComplete",
+          "strength": "strong",
+          "reason": "M5.17 audit follow-up identifies main accounting by cumulative input/output/cache advances. Verify those fields still advance only here for main usage; compact/model selection must not revive post-compact use."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "onCompactLifecycle",
+          "strength": "strong",
+          "reason": "Successful compaction publishes a messages-only post-count on a different basis. Always clear BB use until subsequent main accounting, including cold snapshots; source-backed regression required."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveSessionModelContextWindow",
+          "strength": "strong",
+          "reason": "Capacity comes from selected/restored native model metadata, not the old runtime 200K default."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "sessionUsageSeedFromRuntimeContextUsage",
+          "strength": "strong",
+          "reason": "Cold attachment seed combines native current use with resolved model capacity; verify actual cold snapshot and model-event precedence."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "seedPublisherUsage",
+          "strength": "strong",
+          "reason": "Existing V4 publisher obtains native usage during attach/hydration; do not introduce a second DB reader or polling loop."
+        }
+      ],
+      "code": [
+        "src/context-usage.ts",
+        "src/bridge.ts",
+        "src/state.ts",
+        "src/native.ts"
+      ],
+      "impact": "A wrong native field/provenance makes the context indicator cumulative, stale after compaction/resume or sized to an unrelated default. Validate actual V4 snapshot/delta values and model identity, not only anchor presence. Missing optional accounting clears the meter without blocking ordinary work; cold seeds retain native provenance limits.",
+      "milestones": [
+        "M5.17"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-mcp-reader-semantics",
+      "product": "ZCode",
+      "uses": "Attachment-time narrow direct-read MCP discovery, normalization, project section replacement and user-by-name precedence; exact declarations or owner-approved per-session native fallback. Native-written UI/plugin shapes do not alone cause fallback.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "getProjectConfigDirectories",
+          "strength": "strong",
+          "reason": "Repository root boundary and cwd-only search outside a repository."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "normalizeProjectMcpServer",
+          "strength": "strong",
+          "reason": "Project stdio cwd base."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "normalizeConfigFileInput",
+          "strength": "strong",
+          "reason": "Invalid entries retain valid native siblings; reader falls back rather than overriding an uncertain file."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "mergeConfigs",
+          "strength": "strong",
+          "reason": "Current project MCP section replacement differs from a generic deep merge; source-backed probe required."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveEffectiveMcpServers",
+          "strength": "strong",
+          "reason": "User winners override project entries by name."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "updateUiLocaleInFileConfig",
+          "strength": "strong",
+          "reason": "Native-written UI locale must not disable BB tools; verify writer/schema without loading owner config."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "updatePluginOptionsInFileConfig",
+          "strength": "strong",
+          "reason": "Native-written plugin options remain opaque to MCP collection."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "enablePluginsByDefaultInFileConfig",
+          "strength": "strong",
+          "reason": "Native enable map writer forms are accepted without plugin resolution."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "addSuppressedBuiltinInFileConfig",
+          "strength": "strong",
+          "reason": "Native suppression list shape is accepted without modifying plugin discovery."
+        }
+      ],
+      "code": [
+        "src/mcp-config.ts",
+        "src/bridge.ts"
+      ],
+      "impact": "Wrong discovery or precedence changes inherited MCP. Disabled/unrepresentable/invalid/unreadable or uncovered settings require fallback with no explicit list, preserving native loading.",
+      "milestones": [
+        "M5.16"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "zcode-bb-tool-mcp-ingress",
+      "product": "ZCode",
+      "uses": "Session create/cold resume explicitly supplies exact inherited declarations and the attachment-local HTTP MCP server. Scope and native plugin/builtin loading remain native-owned.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "protocolMcpServersToRuntimeMcpConfig",
+          "strength": "strong",
+          "reason": "Strict declaration conversion drops enabled; effective disabled always selects fallback."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "resolveAppRuntimeConfig",
+          "strength": "strong",
+          "reason": "Plugin, explicit-or-configured, builtin precedence and scope attribution."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "connectConfiguredServers",
+          "strength": "weak",
+          "reason": "Multiple consumers; inspected native adapter and trust wrapper, not an additive registration API."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "formatMcpToolResult",
+          "strength": "strong",
+          "reason": "MCP isError reaches the model as an application error even when the V4 invocation row reports normal handler completion."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "StreamableHTTPClientTransport",
+          "strength": "weak",
+          "reason": "The native MCP HTTP client sends no Origin; src/bb-tools.ts rejects every present Origin under owner order 1. Symbol presence cannot prove header omission: inspect request construction and verify a call through the actual native transport dispatches without HTTP 403."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/bb-tools.ts",
+        "src/mcp-config.ts"
+      ],
+      "impact": "Native protocol/HTTP changes can hide inherited MCP, prevent BB calls or break cold resume. A newly added Origin header makes src/bb-tools.ts refuse native calls with HTTP 403. Validate the converter, consumer, both normal/fallback paths and an actual native MCP HTTP tool call; a generic no-Origin fetch to our endpoint is not a native-client compatibility check.",
+      "milestones": [
+        "M5.16"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "sdk-bb-dynamic-tool-calls",
+      "product": "SDK",
+      "uses": "Original dynamic tool definitions and item/tool/call reverse requests, SDK ordered text/image/error decoding, request cancellation and attachment-scoped correlation.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js",
+          "text": "item/tool/call",
+          "strength": "strong",
+          "reason": "Normalized provider-to-BB execution contract."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/host-daemon/dist/start-host-daemon.js",
+          "text": "notifications/cancelled",
+          "strength": "strong",
+          "reason": "Cancellation identifies the reverse request ID; Stop/disconnect closes pending work."
+        }
+      ],
+      "code": [
+        "src/bb-tools.ts",
+        "src/bridge.ts",
+        "src/rich-tools.ts"
+      ],
+      "impact": "Wrong correlation can deliver stale responses, deadlock the thread queue, lose content order or report errors as success. Test kit round trips and actual registered-tool execution cover the parent path.",
+      "milestones": [
+        "M5.16"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
+      "id": "bb-plugin-tool-construction",
+      "product": "bb",
+      "uses": "Enabled plugin contributions are resolved by BB into construction dynamicTools. No provider-owned duplicate registry; steering retains the attached catalog.",
+      "anchors": [
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/start-server.js",
+          "text": "dynamicTools",
+          "strength": "weak",
+          "reason": "Shared field; actual contribution selection and required configure output are checked through SDK and live verification plugin."
+        }
+      ],
+      "code": [
+        "src/bridge.ts",
+        "src/bb-tools.ts"
+      ],
+      "impact": "Healthy native MCP can coexist with an empty or stale BB catalog. Check actual registered tools, original schema/name/presentation and safe session reconstruction.",
+      "milestones": [
+        "M5.16"
+      ],
+      "sources": [
+        "compat/README.md"
+      ]
+    },
+    {
       "id": "zcode-memory-preference",
       "product": "ZCode",
       "uses": "Native reverse runtime preferences; read-only Desktop ~/.zcode/v2/setting.json memoryEnabled priority, frozen during active steer, with plugin default-ON fallback when no boolean is available",
@@ -28,10 +557,11 @@
           "file": "Contents/Resources/app.asar/out/host/index.js",
           "text": "getSettingsFile",
           "strength": "strong",
-          "reason": "Same settings-service symbol in reviewed Desktop 3.15.1, 3.16.3 and 3.17.2; alternatives are OR paths. 5 November 2026 M5.7: installed K6B2OAAG SHA256 2b459cca3d5ad1151cf24f7429f8870e55e00c50b7085b36b00547bca6303760 matches acabe8; service still resolves real HOME/.zcode/v2/setting.json. Source presence alone does not establish live behavior.",
+          "reason": "Same settings-service symbol in reviewed Desktop 3.15.1, 3.16.3 and 3.17.2; alternatives are OR paths. 5 November 2026 M5.7: installed K6B2OAAG SHA256 2b459cca3d5ad1151cf24f7429f8870e55e00c50b7085b36b00547bca6303760 matches acabe8; service still resolves real HOME/.zcode/v2/setting.json. Source presence alone does not establish live behavior. 23 November 2026: current 4.0.0/0.50.1 carrier and source chain inspected in component case; locator alone is not behavioral proof.",
           "alternativeFiles": [
             "Contents/Resources/app.asar/out/host/chunk-G6XJUBQB.js",
-            "Contents/Resources/app.asar/out/host/chunk-K6B2OAAG.js"
+            "Contents/Resources/app.asar/out/host/chunk-K6B2OAAG.js",
+            "Contents/Resources/app.asar/out/host/chunk-UXO4Y6UR.js"
           ]
         }
       ],
@@ -448,7 +978,7 @@
     {
       "id": "sdk-bridge",
       "product": "SDK",
-      "uses": "Public bridge framing/methods/protocol version",
+      "uses": "Public bridge framing/methods/protocol version; M5.18 planned thread/fork sourceProviderThreadId/sourceProviderCheckpointId and destination construction with fork=checkpoint capability.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -479,19 +1009,26 @@
           "text": "thread/stop",
           "strength": "strong",
           "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "sourceProviderCheckpointId",
+          "strength": "strong",
+          "reason": "Fork construction contract locator; real SDK round-trip must cover destination options, instructions, tools and returned child identity."
         }
       ],
       "code": [
         "src/bridge.ts",
         "src/framing.ts"
       ],
-      "impact": "Provider bridge cannot attach or send turns.",
+      "impact": "Provider bridge cannot attach or send turns. M5.18 contract drift can lose a selected fork boundary or apply parent construction to the child.",
       "milestones": [
         "M1",
         "M4.2",
         "M4.9.1",
         "M4.9.8b.2b",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.18"
       ],
       "sources": [
         "compat/README.md"
@@ -500,7 +1037,7 @@
     {
       "id": "sdk-delta",
       "product": "SDK",
-      "uses": "Public thread delta grammar; assembler behavior requires existing offline/live tests (export is bundled away)",
+      "uses": "Public thread delta grammar; assembler behavior requires offline/live tests (export is bundled away). M5.17 contextWindow projection; M5.18 planned completed-turn providerCheckpointId and fork history baseline without replay.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/server/dist/start-server.js",
@@ -519,14 +1056,27 @@
           "text": "turn.boundary",
           "strength": "strong",
           "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/provider-claude-code/dist/host.js",
+          "text": "thread/contextWindowUsage/updated",
+          "strength": "strong",
+          "reason": "Context update contract locator. M5.17 tests must verify nullable use/capacity, estimated and thread scope before any turn; event presence alone is not visible meter proof."
+        },
+        {
+          "file": "Contents/Resources/app.asar.unpacked/node_modules/bb-app/server/dist/builtin-plugins/provider-codex/dist/host.js",
+          "text": "providerCheckpointId",
+          "strength": "strong",
+          "reason": "Native boundary token on completed turn; never use EventTranslator process-local bookkeeping as a native fork checkpoint."
         }
       ],
       "code": [
         "src/bridge.ts",
         "src/translator.ts",
-        "src/rich-tools.ts"
+        "src/rich-tools.ts",
+        "src/context-usage.ts"
       ],
-      "impact": "Thread projection or canonical item IDs break.",
+      "impact": "Thread projection or canonical item IDs break; context delta normalization/nullable clearing changes can leave a stale or absent standard BB meter. M5.17 needs SDK round-trip and a visible final-stand indicator check.",
       "milestones": [
         "M1",
         "M3",
@@ -534,7 +1084,9 @@
         "M4.2",
         "M4.9.1",
         "M4.9.8b.2b",
-        "M4.9.8c.1b"
+        "M4.9.8c.1b",
+        "M5.17",
+        "M5.18"
       ],
       "sources": [
         "compat/README.md"
@@ -1522,7 +2074,7 @@
     {
       "id": "zcode-config-env",
       "product": "ZCode",
-      "uses": "Installed builtin location hint for native CLI selection of active builtin and shared Desktop personal config; no provider copies or personal override",
+      "uses": "Desktop-surface app-server ignores the standalone bundled fallback. Validate the actual working process revision and model snapshot; settle failed or downgraded active startup before packaged retry. Temporary fallback is not cached. Deferred create publishes its identity only after model validation; known local rejection clears pending creation before input. No shared active-file repair. Cache identity includes active and packaged inputs. Desktop owns CDN refresh.",
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -1545,6 +2097,7 @@
       ],
       "code": [
         "src/runtime.ts",
+        "src/desktop-builtin.ts",
         "src/auth.ts"
       ],
       "impact": "Native configuration/account overlay fails.",
@@ -1966,9 +2519,9 @@
       "anchors": [
         {
           "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "discoverPluginsSync",
+          "text": "discoverPlugins",
           "strength": "strong",
-          "reason": "Protocol/config/export or descriptive native function string; textual presence only."
+          "reason": "23 November 2026: async discovery manager is called by CLI list commands; plugin consumes the public JSON catalogue, not the old sync function."
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
@@ -2732,8 +3285,20 @@
     {
       "id": "zcode-credential-cipher",
       "product": "ZCode",
-      "uses": "Read-only CLI cipher format and environment secret derivation",
+      "uses": "Read-only Desktop/CLI v1/v2 cipher, explicit/pinned/snapshot secret-source precedence and native managed-file modes, installed keyring addressing and OS-key recovery-generation cache; shared material failure ends one operation; no initialization or migration",
       "anchors": [
+        {
+          "file": "Contents/Resources/app.asar/out/host/chunk-UXO4Y6UR.js",
+          "text": "ZCode Credential Encryption",
+          "strength": "strong",
+          "reason": "Reviewed Desktop 4.0.0 system cipher and native keyring service; real seal output is tested."
+        },
+        {
+          "file": "Contents/Resources/glm/zcode.cjs",
+          "text": "enc:v2:",
+          "strength": "strong",
+          "reason": "Current Desktop/CLI envelope includes OS/env source and key fingerprint; v1-only decoding is insufficient."
+        },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
           "text": "ZCODE_CREDENTIAL_SECRET",
@@ -2760,7 +3325,8 @@
         }
       ],
       "code": [
-        "src/auth.ts"
+        "src/auth.ts",
+        "tests/provider/credential-v2.test.mjs"
       ],
       "impact": "CLI credentials cannot be decoded; no fallback or store mutation.",
       "milestones": [
@@ -2856,9 +3422,9 @@
         },
         {
           "file": "Contents/Resources/glm/zcode.cjs",
-          "text": "buildSkillsSection",
+          "text": "buildSkillsContent",
           "strength": "strong",
-          "reason": "Native metadata formatter; presence is not proof of deduplication."
+          "reason": "23 November 2026: current native formatter feeds skills_listing attachments with name/fingerprint deduplication; source location does not prove full prompt deduplication."
         }
       ],
       "code": [
@@ -2954,7 +3520,7 @@
     {
       "id": "zcode-oauth-project-token",
       "product": "ZCode",
-      "uses": "Shared Desktop OAuth resolves individual Coding Plan project access tokens before model requests; customer-info Authorization policy is distinct from key/access-token Bearer headers and uses the selected Desktop version where justified.",
+      "uses": "Shared Desktop OAuth selects active profile/token without legacy identity, then resolves individual Coding Plan project access tokens before model requests; cold issuance has native bounded transient retry and scope invalidation; customer-info Authorization policy is distinct from key/access-token Bearer headers and uses the selected Desktop version where justified.",
       "anchors": [
         {
           "file": "Contents/Resources/app.asar/out/host/index.js",
@@ -2972,10 +3538,11 @@
           "file": "Contents/Resources/app.asar/out/host/chunk-MR7X55B4.js",
           "text": "clientType:\"zcode\",clientVersion:",
           "strength": "strong",
-          "reason": "5 November 2026 M5.7: installed 3.17.2 D5C6W4UB SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53 matches acabe8. Reviewed customer-info raw business-token Authorization and key/access-token Bearer behavior retain 3.16.3 semantics. Old 3.15.1/3.16.3 paths remain strong OR alternatives; source inspection alone is not live compatibility.",
+          "reason": "5 November 2026 M5.7: installed 3.17.2 D5C6W4UB SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53 matches acabe8. Reviewed customer-info raw business-token Authorization and key/access-token Bearer behavior retain 3.16.3 semantics. Old 3.15.1/3.16.3 paths remain strong OR alternatives; source inspection alone is not live compatibility. 23 November 2026: current 4.0.0/0.50.1 carrier and source chain inspected in component case; locator alone is not behavioral proof.",
           "alternativeFiles": [
             "Contents/Resources/app.asar/out/host/chunk-5YNPFY3L.js",
-            "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js"
+            "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js",
+            "Contents/Resources/app.asar/out/host/chunk-GGRJLJH3.js"
           ]
         },
         {
@@ -3167,7 +3734,10 @@
           "file": "Contents/Resources/app.asar/out/host/chunk-D5C6W4UB.js",
           "text": "buildZCodeSourceHeadersFromContext",
           "strength": "strong",
-          "reason": "Desktop reference source-header builder on 3.17.2, SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53."
+          "reason": "Desktop reference source-header builder on 3.17.2, SHA256 6205738231b9316569fcfea71c399517f22246c1c95508a638b5b47d32eb6c53. 23 November 2026: current 4.0.0/0.50.1 carrier and source chain inspected in component case; locator alone is not behavioral proof.",
+          "alternativeFiles": [
+            "Contents/Resources/app.asar/out/host/chunk-GGRJLJH3.js"
+          ]
         }
       ],
       "code": [
@@ -3449,11 +4019,12 @@
         {
           "file": "Contents/Resources/app.asar/node_modules/bb-app/app/dist/assets/ExecutionControls-0oyK1j2B.js",
           "alternativeFiles": [
-            "Contents/Resources/app.asar.unpacked/node_modules/bb-app/app/dist/assets/plugin-frontend-0dkOuthv.js"
+            "Contents/Resources/app.asar.unpacked/node_modules/bb-app/app/dist/assets/plugin-frontend-0dkOuthv.js",
+            "Contents/Resources/app.asar/node_modules/bb-app/app/dist/assets/plugin-frontend-DoZPU-CF.js"
           ],
           "text": "isUnavailableModelRecovery",
           "strength": "weak",
-          "reason": "bb 0.48.1 renderer recovers a missing selection to default/first available. M5.11 controlled own-stand catalogue removal confirmed the composer change and subsequent Coding UI send. The bb 0.49.0 anchor moved to plugin-frontend; this remains a weak code-location check, not actual backend expiry."
+          "reason": "bb 0.48.1 renderer recovers a missing selection to default/first available. M5.11 controlled own-stand catalogue removal confirmed the composer change and subsequent Coding UI send. The bb 0.49.0 anchor moved to plugin-frontend; this remains a weak code-location check, not actual backend expiry. 23 November 2026: current 4.0.0/0.50.1 carrier and source chain inspected in component case; locator alone is not behavioral proof."
         }
       ],
       "code": [

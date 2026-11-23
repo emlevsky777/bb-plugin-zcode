@@ -6,6 +6,7 @@ type Shape = Extract<ThreadDelta, { kind: 'item.open' }>['item'];
 // Native29628c9: tool handlers/input schemas and V4 rows/toolDisplay. Never
 // reconstruct missing exitCode, originalFile, patches, or execution usage.
 export function richTool(row: Row, cwd: string, warn: Warn): Shape {
+  if (typeof row.bbToolName === 'string') return {type:'tool',tool:row.bbToolName,args:row.input ?? {}};
   const tool = String(row.toolName), a = row.input && typeof row.input === 'object' && !Array.isArray(row.input) ? record(row.input) : {};
   const knownInputs: Record<string, string[]> = {
     Bash: ['command','timeout','description','run_in_background','dangerouslyDisableSandbox'],
@@ -62,6 +63,7 @@ export function richTool(row: Row, cwd: string, warn: Warn): Shape {
   return { type: 'tool', tool, args: row.input ?? {} };
 }
 export function richPresentation(row: Row, shape: Shape): Extract<ThreadDelta, { kind: 'item.open' }>['presentation'] {
+  if (row.bbToolPresentation) return row.bbToolPresentation as Extract<ThreadDelta, {kind:'item.open'}>['presentation'];
   if (shape.type === 'tool') return undefined;
   const output = row.output && typeof row.output === 'object' ? record(row.output) : {};
   const text = typeof output.text === 'string' ? output.text : undefined;

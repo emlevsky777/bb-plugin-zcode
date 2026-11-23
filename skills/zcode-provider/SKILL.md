@@ -9,8 +9,8 @@ Plugin/provider ID: `zcode-provider`. Use a fresh installation and new threads;
 v0.1.x `zcode` threads/settings are not migrated.
 
 Runs installed ZCode Desktop on macOS with the selected individual Z.ai Coding
-Plan or Start Plan. Start is an unreleased local candidate; published v0.2.1
-remains Coding Plan only.
+Plan or Start Plan. Start is included in v0.2.2 and later; older v0.2.1
+installations remain Coding Plan only.
 Use Full permissions. Models and reasoning levels come from the installed
 native catalogue; unavailable selections have no automatic fallback.
 
@@ -87,6 +87,38 @@ is `/Applications/ZCode.app/Contents/Resources/glm/packages/zcode-guide-plugin/s
 The sibling `diagnosing-skills`, `diagnosing-commands`, `diagnosing-mcp`,
 `diagnosing-hooks` and `diagnosing-plugins` directories contain their guides.
 If Desktop is elsewhere, resolve the same paths under its actual bundle.
+
+Unreleased M5.17 candidate reports current native context use and selected
+model capacity in bb's standard estimated context indicator. Published v0.2.3
+does not include it. It is separate from Provider Usage account quota and
+cumulative turn/session tokens. Native accounting updates it after model work,
+on model changes, compaction and cold hydration; streaming text does not imply
+a fresh token count. Unknown use/capacity stays unknown. Every successful compact
+clears use until main-request accounting; its messages-only native estimate is
+not displayed as full context, including after cold hydration. A zero after
+native history is unknown; a supplied zero is retained only for an empty session.
+Use `bb thread context <thread-id> --json` to read bb's latest stored pair
+without a model request. Do not infer exact billing or live automatic-compaction
+coverage from the meter.
+
+Unreleased M5.16 candidate exposes BB plugin tools by default via an
+attachment-owned MCP HTTP endpoint. Published v0.2.3 does not include this.
+Configured native MCP remains native-owned: the explicit list includes exact
+CLI user/project declarations plus BB tools, while native retains plugin and
+built-in discovery and trust. Effective disabled servers, unreadable/invalid
+configuration or settings outside the reader's verified coverage select a
+per-session fallback with a clear notice, no explicit list and no BB tools.
+Native-written UI locale and plugin enabled/options/suppressed settings have
+source-backed shape coverage and do not alone trigger fallback. They stay
+native-owned and are not applied by this reader. Other uncovered settings
+select fallback, leaving native behavior unchanged.
+Never replace this with a bb-only list or reactivate disabled-name collisions.
+Cold resume rebuilds the endpoint; steering keeps the active catalog. Stop,
+release and disconnect cancel pending BB calls without replay. The endpoint
+uses open `127.0.0.1` without a token, as selected by the owner, and refuses
+requests carrying `Origin`. Its name is stable across cold resume, with a
+deterministic suffix if an effective configured MCP name collides. Image transport
+does not prove model image perception; native subagent forwarding is unverified.
 
 No fork, plan mode, fast service tier or automatic Desktop installation/update.
 Native skill/command menus retain native names and file links.

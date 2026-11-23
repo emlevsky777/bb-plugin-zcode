@@ -3,7 +3,9 @@ import { readdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-const tools = ['m1-recompute-mutations.test.mjs', 'live-stand.test.mjs'];
+// The protocol worker is required by m516-bb-tools.test.mjs in a fresh process.
+// Its .test suffix identifies SDK test-only imports to the public package scan.
+const tools = ['m1-recompute-mutations.test.mjs', 'live-stand.test.mjs', 'm516-protocol-worker.test.mjs'];
 const tests = readdirSync('tests/provider').filter(name => name.endsWith('.test.mjs') && !tools.includes(name)).map(name => `tests/provider/${name}`);
 const ownedRoot = process.env.ZCODE_CONNECTION_TEST_ROOT === undefined
   ? realpathSync(mkdtempSync(join(tmpdir(), 'zcode-tests-'))) : undefined;

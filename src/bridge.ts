@@ -16,7 +16,7 @@ import { signInHint } from './applications.ts';
 import type { AuthMode, AccountPlan } from './auth.ts';
 import { record, string } from './errors.ts';
 import { NativeRequestTimeout } from './process.ts';
-import type { Snapshot } from './native.ts';
+import type { Frame, Snapshot } from './native.ts';
 import type { Row } from './native.ts';
 import { executionOptions } from './options.ts';
 import { retainedRows, retentionDifference } from './retention.ts';
@@ -26,19 +26,23 @@ import { inspectExecution } from './execution.ts';
 import { convertAttachments, createAttachmentRefs, requireImageCapability } from './attachments.ts';
 import { convertMentions, selectedMentions, resolveMentionTarget, compactSelection } from './mentions.ts';
 import { CompactionProjection } from './compaction.ts';
+import { ContextUsageProjection } from './context-usage.ts';
 import { createDiagnosticReporter } from './messages.ts';
 import { SessionKnowledge } from './session-knowledge.ts';
 import { ProjectTokenError } from './project-token.ts';
 import { bbOnlySkills, skillsBlock } from './bb-skills.ts';
 import { serviceError, invalidatesEntitlement } from './service-errors.ts';
 import type { SkillRoot, BbSkill } from './bb-skills.ts';
+import type { DynamicTool } from '@get-bb/plugin-sdk/provider-bridge';
+import { BbToolEndpoint } from './bb-tools.ts';
+import { readNativeMcp } from './mcp-config.ts';
 
 export const runtimePreferences = { nativeSearchEnhancementsEnabled: true, memoryEnabled: true,
   askUserQuestionAutoResolutionEnabled: false, modelContextBudgetStrategy: 'preflight-v1' };
 export const bridgeCapabilities = { grammarVersions: [3, 3] as [number, number], sessionRestore: true,
   fork: 'none' as const, skills: { configure: true }, approvalEnforcedBy: 'provider' as const,
   threadArchive: false, threadRename: false, threadGoalClear: false, steerMode: 'inject' as const };
-export interface RuntimeSetup { launch: Launch; auth: ReadOnlyAuth; refreshAuth?: (child: NativeProcess) => Promise<void>; configure: (child: NativeProcess) => Promise<void>; bindSession?: ((id: string) => void) | undefined; markCreatePending?: (() => void) | undefined; readySession?: ((child: NativeProcess, id: string) => Promise<void>) | undefined }
+export interface RuntimeSetup { launch: Launch; auth: ReadOnlyAuth; refreshAuth?: (child: NativeProcess) => Promise<void>; configure: (child: NativeProcess) => Promise<void>; bindSession?: ((id: string) => void) | undefined; markCreatePending?: (() => void) | undefined; clearRejectedCreate?: (() => void) | undefined; readySession?: ((child: NativeProcess, id: string) => Promise<void>) | undefined }
 export interface BridgeServices {
   memoryEnabled?: () => boolean | undefined;
   compatibility?: () => { message: string | null };
@@ -55,6 +59,11 @@ export interface BridgeServices {
   models: (cwd?: string, mode?: AuthMode, plan?: AccountPlan) => Promise<unknown>;
   validateSelection: (model: string, reasoning: string, mode?: AuthMode, plan?: AccountPlan) => Promise<void | { model: string; reasoning: string }>;
 }
+export interface RuntimeSetup {
+  start?: ((create: (launch: Launch) => NativeProcess) => Promise<NativeProcess>) | undefined;
+  validateSnapshot?: ((snapshot: unknown) => { model: string; isDefault: boolean; defaultReasoningEffort: string; supportedReasoningEfforts: { reasoningEffort: string }[] }[]) | undefined;
+  transientFallback?: () => boolean;
+}
 export interface RuntimeSetup { warnings?: readonly string[] | undefined; beforeInput?: (() => Promise<void>) | undefined }
 export interface RuntimeSetup { mentionCatalogue?: ((side: 'skills' | 'commands') => Promise<unknown>) | undefined; backgroundTaskStore?: string | undefined }
 export interface RuntimeSetup { knowledgeStore?: string | undefined }
@@ -65,6 +74,7 @@ type Session = { threadId: string; id: string; cwd: string; model: string; reaso
   interactions: InteractionArbiter; questions: Map<string, { rpcId: string | number; bbId: string; question: ReturnType<typeof nativeQuestion>; sent: boolean }>;
   steerRequests: Set<string>;
   compactions: CompactionProjection;
+  contextUsage: ContextUsageProjection;
   mentionCatalogue: RuntimeSetup['mentionCatalogue'];
   backgroundTaskStore: RuntimeSetup['backgroundTaskStore'];
   knowledgeStore: RuntimeSetup['knowledgeStore'];
@@ -72,6 +82,7 @@ type Session = { threadId: string; id: string; cwd: string; model: string; reaso
   skillRoots: SkillRoot[];
   bbSkills: BbSkill[];
   mentionCatalogues: Map<string, Promise<unknown>>;
+  bbTools?: BbToolEndpoint;
   stopping?: Promise<void> };
 
 export function createZCodeBridge(services: BridgeServices, write: (message: unknown) => void) {
@@ -98,7 +109,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       summary }] });
   }, services.claimDiagnostic);
   const warning = (threadId: string) => (diagnostic: { code: string }) => reportDiagnostic(threadId, diagnostic.code);
-  function project(s: Session): void {
+  function project(s: Session, payload?: Frame['payload']): void {
     const snapshot = s.state.snapshot;
     if (!snapshot || !s.lifecycle) return;
     const failure = serviceError(record(snapshot.control ?? {}).lastError);
@@ -117,8 +128,20 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     const compactTurns = new Set(snapshot.rows.window.filter(r => r.kind === 'turnHeader' && s.compactions.owns(r.sourceCommandId)).map(r => r.turnId));
     const ordinarySnapshot = compactTurns.size ? { ...snapshot, rows: { ...snapshot.rows,
       window: snapshot.rows.window.filter(r => !compactTurns.has(r.turnId)) } } : snapshot;
-    s.lifecycle.project(ordinarySnapshot, s.generation, s.id, s.correlation);
+    const decorated = s.bbTools ? { ...ordinarySnapshot, rows: { ...ordinarySnapshot.rows,
+      window: ordinarySnapshot.rows.window.map(row => {
+        if (row.kind !== 'toolCall') return row;
+        const output = row.output && typeof row.output === 'object' && !Array.isArray(row.output) ? record(row.output) : {};
+        const display = row.display && typeof row.display === 'object' && !Array.isArray(row.display) ? record(row.display) :
+          output.display && typeof output.display === 'object' && !Array.isArray(output.display) ? record(output.display) : {};
+        const name = display.serverName === s.bbTools!.name ? display.toolName :
+          typeof row.toolName === 'string' && row.toolName.startsWith(`mcp__${s.bbTools!.name}__`) ? row.toolName.slice(`mcp__${s.bbTools!.name}__`.length) : undefined;
+        const tool = typeof name === 'string' ? s.bbTools!.tools.get(name) : undefined;
+        return tool ? { ...row, bbToolName: tool.name, bbToolPresentation: tool.presentation } : row;
+      }) } } : ordinarySnapshot;
+    s.lifecycle.project(decorated, s.generation, s.id, s.correlation);
     s.compactions.project(snapshot);
+    s.contextUsage.project(snapshot, payload);
     for (const [id, timer] of s.timers) if (!['pending', 'unknown'].includes(s.correlation.status(id) ?? '')) {
       clearTimeout(timer); s.timers.delete(id);
     }
@@ -207,6 +230,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
         const snapshot = s.state.snapshot!;
         services.observe?.({ event: 'native-state', sessionId: s.id, generation: g,
           threadId: s.threadId, pid: s.child.child.pid, nativePid: s.child.nativePid, config: snapshot.config, control: snapshot.control,
+          contextWindow: (snapshot.usage as { contextWindow?: unknown } | null)?.contextWindow,
           rows: snapshot.rows.window.map(r => ({ rowId: r.rowId, kind: r.kind, turnId: r.turnId,
             sourceCommandId: r.sourceCommandId, state: r.state, toolName: r.toolName, status: r.status,
             ...(r.kind === 'timelineMarker' ? { marker: r.marker } : {}),
@@ -230,7 +254,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
             s.backgroundTaskStore);
           s.lifecycle.baseline(snapshot);
         }
-        project(s);
+        project(s, f.payload);
       }
     } else if (m.method === 'interaction/requestUserInput' && (typeof m.id === 'string' || typeof m.id === 'number')) {
       const question = nativeQuestion(m.params);
@@ -344,37 +368,86 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
       options: execution.signature, construction: { ...p }, memoryEnabled: execution.memoryEnabled, instructionMode: String(p.instructionMode), timers: new Map(),
       interactions: new InteractionArbiter(), questions: new Map(), steerRequests: new Set(),
       compactions: new CompactionProjection(deltas => send('thread/delta', { threadId, deltas: deltas.map(d => threadDeltaSchema.parse(d)) }), pluginId + '/compaction'),
+      contextUsage: new ContextUsageProjection(delta => send('thread/delta', { threadId, deltas: [delta] })),
       mentionCatalogue: setup.mentionCatalogue, backgroundTaskStore: setup.backgroundTaskStore, knowledgeStore: setup.knowledgeStore,
       knowledge: new SessionKnowledge(setup.knowledgeStore), skillRoots: structuredClone(skillRoots), bbSkills: [],
       mentionCatalogues: new Map(), child: null as unknown as NativeProcess };
     sessions.set(threadId, s);
+    let starting = true;
     try {
-      s.child = new NativeProcess(setup.launch, g, threadId, (m, gen) => {
+      const create = (launch: Launch) => {
+        if (closing || s.closing) throw Error('Native attachment stopped before startup');
+        const child = new NativeProcess(launch, g, threadId, (m, gen) => {
+        if (starting || s.child !== child) return;
         try { nativeMessage(s, m, gen); } catch { void died(s, new Error('Native projection failed; reconcile before retry'), gen); }
-      }, (error, gen) => { void died(s, error, gen).catch(() => {
+      }, (error, gen) => { if (starting || s.child !== child) return; void died(s, error, gen).catch(() => {
         services.observe?.({ event: 'native-death-cleanup-unresolved', threadId: s.threadId, generation: gen });
         send('error', { threadId: s.threadId, providerThreadId: s.id, message: 'Owned native cleanup unresolved; recovery required' });
       }); });
+      s.child = child;
+      return child;
+      };
+      s.child = setup.start ? await setup.start(create) : create(setup.launch);
+      starting = false;
+      if (closing || s.closing) throw Error('Native attachment stopped during startup');
       await setup.configure(s.child);
+      let mcpServers: unknown[] | undefined;
+      let bbToolsWarning: string | undefined;
+      const tools = Array.isArray(p.dynamicTools) ? p.dynamicTools as DynamicTool[] : [];
+      if (tools.length) {
+        const config = await readNativeMcp(cwd, setup.launch.env.HOME);
+        if (config.reason) bbToolsWarning = config.reason;
+        else {
+          const endpoint = new BbToolEndpoint(tools, value => io.send(value as Parameters<typeof io.send>[0]), () => ({
+            threadId, providerThreadId: s.id,
+            turnId: s.state.snapshot?.rows.window.slice().reverse().find(row => row.kind === 'turnHeader' && row.state === 'running')?.turnId as string ?? null }), config.servers!.map(server => server.name));
+          s.bbTools = endpoint;
+          try { await endpoint.listen(); mcpServers = [...config.servers!, endpoint.declaration()]; }
+          catch { await endpoint.close(); delete s.bbTools; bbToolsWarning = 'The local BB tool endpoint could not start.'; }
+        }
+      }
+      if (!current(s,g) || s.closing) { await s.bbTools?.close(); throw Error('Native attachment stopped before construction'); }
+      services.observe?.({event:'bb-tools-attachment',threadId,generation:g,resume,toolCount:tools.length,
+        attached:Boolean(s.bbTools),fallbackReason:bbToolsWarning ?? null,endpoint:s.bbTools?.url,
+        inheritedNames:mcpServers?.slice(0,-1).map(value => record(value).name)});
+      const validateWorking = (snapshot: unknown) => {
+        if (!setup.validateSnapshot) return;
+        const available = setup.validateSnapshot(snapshot);
+        if (!available.some(m => m.model === s.model && m.supportedReasoningEfforts.some(e => e.reasoningEffort === s.reasoning)))
+          throw Error('Selected model/reasoning unavailable in the working ZCode catalogue; refresh models and retry. No input was sent.');
+      };
       if (!resume) {
         setup.markCreatePending?.();
         const snapshot = record(await s.child.request('session/create', {
           workspace: { workspacePath: cwd, workspaceKey: cwd }, mode: 'yolo', persistence: 'deferred',
-          titleGenerationEnabled: false, toolDenylist: execution.toolDenylist }));
+          titleGenerationEnabled: false, toolDenylist: execution.toolDenylist, ...(mcpServers ? {mcpServers} : {}) }));
+        // A known deferred create has no persisted history or input. Rejecting
+        // its catalogue must leave the BB thread eligible for an ordinary start.
+        try { validateWorking(snapshot); }
+        catch (error) { setup.clearRejectedCreate?.(); throw error; }
         s.id = string(record(snapshot.session).sessionId);
         createdIdentities.set(threadId, s.id);
         send('thread/identity', { threadId, providerThreadId: s.id });
         setup.bindSession?.(s.id);
       }
       if (resume) {
+        if (setup.validateSnapshot) {
+          // Deferred scratch discovery never sends model input or changes the resumed session.
+          const snapshot = await s.child.request('session/create', {
+            workspace: { workspacePath: cwd, workspaceKey: cwd }, mode: 'yolo', persistence: 'deferred', titleGenerationEnabled: false });
+          validateWorking(snapshot);
+        }
         // A new process has no resident session. Apply options before V4
         // subscribe can load a resident with the native default tool set.
         await s.child.request('session/resume', { sessionId: s.id,
-          workspace: { workspacePath: cwd, workspaceKey: cwd }, toolDenylist: execution.toolDenylist });
+          workspace: { workspacePath: cwd, workspaceKey: cwd }, toolDenylist: execution.toolDenylist, ...(mcpServers ? {mcpServers} : {}) });
         send('thread/identity', { threadId, providerThreadId: s.id });
       }
       services.observe?.({ event: 'session-tool-denylist', threadId, sessionId: s.id, resume, toolDenylist: execution.toolDenylist });
       send('thread/delta', { threadId, deltas: [{ kind: 'session.reset' }] });
+      s.contextUsage.reset();
+      if (bbToolsWarning) send('thread/delta', {threadId,deltas:[{kind:'provider.warning',category:'general',
+        summary:`BB plugin tools are unavailable in this session. ${bbToolsWarning} Native MCP configuration is unchanged; ordinary ZCode work remains available.`}]});
       const compatibilityMessage = services.compatibilityWarning ? services.compatibilityWarning() : services.compatibility?.().message;
       if (compatibilityMessage) send('thread/delta', { threadId, deltas: [{ kind: 'provider.warning', category: 'general', summary: compatibilityMessage }] });
       const startGuidance = !resume && execution.authMode === 'desktop' ? services.startGuidance?.() : null;
@@ -389,12 +462,14 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     } catch (e) {
       if (s.id) send('error', { threadId, providerThreadId: s.id, message: 'Native attach failed; preserve identity and reconcile binding before retry' });
       closePending(s);
+      await s.bbTools?.close();
       if (s.child) await s.child.close(); s.detached = true; sessions.delete(threadId); throw e;
     }
   }
   async function died(s: Session, error: Error, g: number): Promise<void> {
     if (!current(s, g) || s.closing) return;
     s.closing = true;
+    await s.bbTools?.close();
     cancelQuestions(s);
     closePending(s);
     try {
@@ -408,6 +483,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
   }
   async function stopOwned(s: Session, intent: 'interrupt' | 'release'): Promise<void> {
     s.closing = true;
+    await s.bbTools?.close();
     cancelQuestions(s);
     closePending(s);
     s.compactions.settle('interrupted');
@@ -614,6 +690,7 @@ export function createZCodeBridge(services: BridgeServices, write: (message: unk
     // Reverse RPC responses bypass the per-thread request queue and have no
     // timeout: questions wait for a human or stop. Removed IDs are tombstones.
     if (message && typeof message === 'object' && !('method' in message) && 'id' in message) {
+      for (const s of sessions.values()) if (!s.closing && !s.detached && s.bbTools?.handleResponse(message)) return;
       const response = record(message), bbId = response.id;
       if (typeof bbId !== 'string') return;
       const s = questionResponses.get(bbId);

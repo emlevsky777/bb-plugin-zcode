@@ -10,7 +10,8 @@ import { record, string } from './errors.ts';
 export class ProjectTokenError extends Error {
   readonly code: string;
   readonly transient: boolean;
-  constructor(code: string, transient = false) { super(code); this.code = code; this.transient = transient; }
+  readonly retryAfterMs: number | undefined;
+  constructor(code: string, transient = false, retryAfterMs?: number) { super(code); this.code = code; this.transient = transient; this.retryAfterMs = retryAfterMs; }
 }
 export type TokenRequest = (path: string, method: 'GET' | 'POST', headers: Record<string, string>, body?: unknown) => Promise<unknown>;
 export function tokenRequest(env: NodeJS.ProcessEnv, onDate?: (date: string | undefined) => void): TokenRequest {
@@ -22,11 +23,11 @@ export function tokenRequest(env: NodeJS.ProcessEnv, onDate?: (date: string | un
       onDate?.(response.headers.date);
       const chunks: Buffer[] = [];
       response.on('data', (chunk: Buffer) => { chunks.push(chunk); });
-      response.on('error', reject);
+      response.on('error', () => reject(new ProjectTokenError('project_token_request_failed', true)));
       response.on('end', () => {
         const status = response.statusCode ?? 0;
         if (status === 404) { resolve({ code: 404 }); return; }
-        if (status < 200 || status >= 300) { reject(new ProjectTokenError(status === 401 ? 'project_token_login_failed' : 'project_token_request_failed', status === 429 || status >= 500)); return; }
+        if (status < 200 || status >= 300) { reject(new ProjectTokenError(status === 401 ? 'project_token_login_failed' : 'project_token_request_failed', status === 429 || status >= 500 && status <= 599, status === 429 ? retryDelay(response.headers['retry-after']) : undefined)); return; }
         try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
         catch { reject(new ProjectTokenError('project_token_invalid_response')); }
       });
@@ -35,6 +36,11 @@ export function tokenRequest(env: NodeJS.ProcessEnv, onDate?: (date: string | un
     req.on('close', () => agent.destroy());
     req.end(body === undefined ? undefined : JSON.stringify(body));
   });
+}
+function retryDelay(value: string | string[] | undefined): number | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const delay = /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) * 1000 : Date.parse(value) - Date.now();
+  return Number.isFinite(delay) ? Math.max(0, delay) : undefined;
 }
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
 function data(value: unknown): unknown {
@@ -66,7 +72,7 @@ export class ProjectTokenResolver {
     if (params.rejectedProjectTokenFingerprint === (state.value && sha(state.value.apiKey))) { delete state.value; delete state.refreshAt; }
     if (state.pending) return state.pending;
     if (state.value && this.now() < Math.min(state.refreshAt!, state.expiresAt!)) return state.value;
-    const pending = this.load(oauth, scope, current).then(result => {
+    const pending = this.load(oauth, scope, current, () => !state.value || this.now() >= state.expiresAt!).then(result => {
       current(); state.value = result.value; state.expiresAt = result.expiresAt;
       state.refreshAt = result.expiresAt - 120000 - Math.max(0, Math.min(1, this.random())) * 60000;
       return result.value;
@@ -79,7 +85,7 @@ export class ProjectTokenResolver {
     }).finally(() => { if (state.pending === pending) delete state.pending; });
     state.pending = pending; return pending;
   }
-  private async load(oauth: string, accountScope: string, current: () => void) {
+  private async load(oauth: string, accountScope: string, current: () => void, retryIssuance: () => boolean) {
     const json = { 'Content-Type': 'application/json' };
     const send = async (path: string, method: 'GET' | 'POST', headers: Record<string, string>, body?: unknown) => {
       current(); const result = await this.send(path, method, headers, body); current(); return result;
@@ -109,7 +115,17 @@ export class ProjectTokenResolver {
     const apiKeyId = string(key.apiKey).trim();
     if (!apiKeyId) throw new ProjectTokenError('project_token_invalid_response');
     const started = this.now();
-    const token = record(data(await send(`${path}/${encodeURIComponent(apiKeyId)}/access_tokens`, 'POST', headers, { clientType: 'zcode', clientVersion: this.clientVersion })));
+    let issued: unknown;
+    for (let attempt = 0; ; attempt++) {
+      try { issued = await send(`${path}/${encodeURIComponent(apiKeyId)}/access_tokens`, 'POST', headers, { clientType: 'zcode', clientVersion: this.clientVersion }); break; }
+      catch (error) {
+        current();
+        if (!retryIssuance() || attempt >= 1 || !(error instanceof ProjectTokenError) || !error.transient || (error.retryAfterMs ?? 0) > 1000) throw error;
+        await new Promise(resolve => setTimeout(resolve, Math.max(250, Math.min(1000, error.retryAfterMs ?? 250))));
+        current();
+      }
+    }
+    const token = record(data(issued));
     if (token.enable === false) throw new ProjectTokenError('project_token_disabled');
     if ((token.enable !== undefined && token.enable !== true) ||
       typeof token.expiresAt !== 'number' || !Number.isFinite(token.expiresAt) || token.expiresAt <= 0 ||

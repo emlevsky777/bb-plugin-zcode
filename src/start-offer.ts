@@ -72,11 +72,14 @@ export function marketingStartOffer(value: unknown): StartOffer {
   }
   return { offers };
 }
-export function startOfferContext(appVersion: string, env: NodeJS.ProcessEnv, home = homedir()) {
+export function zcodeEndpointOrigin(env: NodeJS.ProcessEnv) {
   const test = env.ZCODE_ENV?.trim().toLowerCase() === 'test', nonempty = (v: string | undefined) => v?.trim() || undefined;
   const endpoint = new URL(nonempty(env.ZCODE_BASE_URL) ?? nonempty(env.ZCODE_ENDPOINT_ORIGIN) ?? nonempty(env[test ? 'ZCODE_TEST_BASE_URL' : 'ZCODE_PRODUCTION_BASE_URL']) ?? (test ? 'https://zcode.chatglm.site' : 'https://zcode.z.ai'));
   if (!['http:', 'https:'].includes(endpoint.protocol)) throw Error('ZCode endpoint origin must use http or https');
-  const origin = endpoint.origin;
+  return endpoint.origin;
+}
+export function startOfferContext(appVersion: string, env: NodeJS.ProcessEnv, home = homedir()) {
+  const origin = zcodeEndpointOrigin(env);
   const device = record(JSON.parse(readFileSync(join(home, '.zcode/v2/telemetry-state.json'), 'utf8'))).deviceMid;
   if (typeof device !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(device)) throw Error('Start claim discovery requires the existing Desktop device identity');
   return { origin, appVersion, device, language: 'en-US' as const };

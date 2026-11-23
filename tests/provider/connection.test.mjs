@@ -224,3 +224,31 @@ test('ADR016 maps real catalogue fields without fallback models or invented reas
   const poisoned = structuredClone(available); poisoned[0].reasoning.levels.push({ value: 'medium' });
   assert.equal(api.mapNativeModels(poisoned)[0].supportedReasoningEfforts.at(-1).reasoningEffort, 'medium');
 });
+
+test('closing a bridge during working startup settles its child and prevents fallback creation', async () => {
+  const cwd = root(), output = [], services = fakeServices(cwd);
+  let entered, proceed, child, creates = 0;
+  const ready = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { proceed = resolve; });
+  const original = services.prepare;
+  services.prepare = async (...args) => {
+    const setup = await original(...args);
+    setup.start = async create => {
+      creates++; child = create(setup.launch); entered(); await gate;
+      // Represents a fallback attempt after interrupted startup.
+      return create(setup.launch);
+    };
+    return setup;
+  };
+  const bridge = host.createZCodeBridge(services, m => output.push(m));
+  try {
+    bridge.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'thread/start',
+      params: { threadId: 'closing-startup', cwd, options, instructionMode: 'append' } }));
+    await ready;
+    await bridge.close(); proceed();
+    for (let n = 0; n < 100 && !output.some(m => m.id === 1); n++) await delay(10);
+    assert.equal(creates, 1); assert.ok(output.find(m => m.id === 1)?.error);
+    assert.equal(await child.close(), 0);
+    assert.equal(child.child.exitCode !== null || child.child.signalCode !== null, true);
+  } finally { proceed(); await bridge.close(); rmSync(cwd, { recursive: true }); }
+});
